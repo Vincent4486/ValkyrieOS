@@ -7,7 +7,7 @@
   },
   "editor.suggestOnTriggerCharacters": false,
   "editor.acceptSuggestionOnEnter": "off",
-  "editor.wordBasedSuggestions": false,
+  "editor.wordBasedSuggestions": "off",
   "editor.parameterHints.enabled": false,
   "editor.hover.enabled": false
 }
