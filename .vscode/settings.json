@@ -9,5 +9,7 @@
   "editor.acceptSuggestionOnEnter": "on",
   "editor.wordBasedSuggestions": "on",
   "editor.parameterHints.enabled": false,
-  "editor.hover.enabled": false
+  "editor.hover.enabled": false,
+  // settings.json
+  "C_Cpp.errorSquiggles": "Disabled"
 }
