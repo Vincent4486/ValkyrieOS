@@ -13,4 +13,10 @@ entry:
     mov sp, 0
     mov bp, sp
     sti
-    
+
+    xor dh, dh
+    push dx
+    call _cstart_
+
+    cli
+    hlt
