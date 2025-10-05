@@ -74,4 +74,4 @@ clean:
 	rmdir build
 
 run:
-	qemu-system-i386 build/valkyrie.img
+	qemu-system-i386 -fda build/valkyrie.img
