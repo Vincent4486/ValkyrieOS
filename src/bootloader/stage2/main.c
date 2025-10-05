@@ -135,215 +135,144 @@ void draw_text(void) {
     // V (character 0)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 0 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 0 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 0 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 0 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 0 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 0 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 0 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 0 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 0 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 0 * char_spacing + 2, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 0 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 0 * char_spacing + 2, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 0 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 0 * char_spacing + 2, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 0 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 0 * char_spacing + 2, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 0 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 0 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // A (character 1)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 1 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 1 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 1 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 1 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 1 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 1 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 1 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 1 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 1 * char_spacing + 2, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 1 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 1 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 1 * char_spacing + 2, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 1 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 1 * char_spacing + 2, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 1 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 1 * char_spacing + 2, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 1 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 1 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 1 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 1 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // L (character 2)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 2 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 2 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 2 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 2 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 2 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 2 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 2 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 2 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 2 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 2 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 2 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 2 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 2 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 2 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // K (character 3)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 3 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 3 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 3 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 3 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 3 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 3 * char_spacing + 1, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 3 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 3 * char_spacing + 1, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 3 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 3 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 3 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 3 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 3 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 3 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 3 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 3 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 3 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 3 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // Y (character 4)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 4 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 4 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 4 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 4 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 4 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 4 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 4 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 4 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 4 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 4 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 4 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 4 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 4 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 4 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // R (character 5)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 5 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 5 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 5 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 5 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 5 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 5 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 5 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 5 * char_spacing + 2, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 5 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 5 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 5 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 5 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 5 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 5 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 5 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 5 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 5 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 5 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 5 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 5 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // I (character 6)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 6 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 6 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 6 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 6 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 6 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 6 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 6 * char_spacing + 1, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 6 * char_spacing + 1, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 6 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 6 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 6 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 6 * char_spacing + 1, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 6 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 6 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 6 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 6 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 6 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 6 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
     
     // E (character 7)
     for (i = 0; i < 1; i++) {
         delay_ms(1000);
-        gotoxy(start_x + 7 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 7 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 7 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 7 * char_spacing + 0, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 7 * char_spacing + 1, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 7 * char_spacing + 2, start_y + 0); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 7 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 7 * char_spacing + 0, start_y + 1); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 7 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 7 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 7 * char_spacing + 0, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 7 * char_spacing + 1, start_y + 2); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 7 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 7 * char_spacing + 0, start_y + 3); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
         delay_ms(1000);
-        gotoxy(start_x + 7 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 7 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
-        gotoxy(start_x + 7 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(rainbow_colors[color_index % 16], COLOR_WHITE));
-        color_index++;
+        gotoxy(start_x + 7 * char_spacing + 0, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 7 * char_spacing + 1, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
+        gotoxy(start_x + 7 * char_spacing + 2, start_y + 4); print_char_color(' ', MAKE_COLOR(COLOR_BLUE, COLOR_WHITE));
     }
 }
 

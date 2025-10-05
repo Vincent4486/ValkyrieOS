@@ -1,2 +1,3 @@
 main.c(27): Warning! W200: 'current_seconds' has been referenced but never assigned a value
-main.c(357): Warning! W303: Parameter 'bootDrive' has been defined, but not referenced
+main.c(118): Warning! W202: Symbol 'color_index' has been defined, but not referenced
+main.c(286): Warning! W303: Parameter 'bootDrive' has been defined, but not referenced
