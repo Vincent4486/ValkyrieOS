@@ -1,5 +1,7 @@
 ASM=nasm
 CC=gcc
+CC16=wcc
+LD16=wlink
 
 SRC_DIR=src
 TOOLS_DIR=tools
