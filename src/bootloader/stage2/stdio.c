@@ -1,11 +1,9 @@
 #include "stdio.h"
+#include "x86.h"
 
 // Set video mode to 80x25 color text mode
 void set_video_mode(void) {
-    __asm {
-        mov ax, 0x0003  ; 80x25 16-color text mode
-        int 0x10
-    }
+    _x86_VideoSetMode(0x0003);  // 80x25 16-color text mode
 }
 
 // Clear screen with specified background color using BIOS interrupt
@@ -46,69 +44,9 @@ void gotoxy(uint8_t x, uint8_t y) {
     }
 }
 
-// BIOS interrupt version of VGA write (same as print_char_color but with different name)
-void print_char_color_vga(char c, uint8_t color) {
-    if (c == '\r') {
-        // Move cursor to start of current line using BIOS
-        __asm {
-            mov ah, 0x03    ; Get cursor position
-            mov bh, 0       ; Page number
-            int 0x10        ; Returns position in DX (DH=row, DL=col)
-            
-            mov ah, 0x02    ; Set cursor position
-            mov bh, 0       ; Page number
-            ; DH already has current row
-            mov dl, 0       ; Set column to 0
-            int 0x10
-        }
-        return;
-    }
-    if (c == '\n') {
-        // Move cursor to next line using BIOS
-        __asm {
-            mov ah, 0x03    ; Get cursor position
-            mov bh, 0       ; Page number
-            int 0x10        ; Returns position in DX (DH=row, DL=col)
-            
-            mov ah, 0x02    ; Set cursor position
-            mov bh, 0       ; Page number
-            inc dh          ; Move to next row
-            mov dl, 0       ; Set column to 0
-            int 0x10
-        }
-        return;
-    }
-    
-    // Use BIOS interrupt to write character with color
-    __asm {
-        mov ah, 0x09    ; Write character and attribute
-        mov al, c       ; Character
-        mov bh, 0       ; Page number
-        mov bl, color   ; Color attribute
-        mov cx, 1       ; Number of times to write
-        int 0x10
-        
-        ; Move cursor forward
-        mov ah, 0x03    ; Get cursor position
-        mov bh, 0       ; Page number
-        int 0x10        ; Returns position in DX
-        
-        mov ah, 0x02    ; Set cursor position
-        mov bh, 0       ; Page number
-        inc dl          ; Move cursor right
-        int 0x10
-    }
-}
-
 // Simple BIOS teletype output - most reliable method
 void print_char(char c) {
-    __asm {
-        mov ah, 0x0E    ; Teletype output
-        mov al, c       ; Character to print
-        mov bh, 0       ; Page number
-        mov bl, 7       ; Light gray color (for color modes)
-        int 0x10        ; BIOS video interrupt
-    }
+    _x86_VideoWriteCharTeletype(c, 0);
 }
 
 // BIOS video interrupt function with color support using write character and attribute
