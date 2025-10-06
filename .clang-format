@@ -1,10 +1,10 @@
-Language: Cpp
+Language: C
 BasedOnStyle: LLVM
 IndentWidth: 4
 TabWidth: 4
-UseTab: Never
+UseTab: ForIndentation
 ColumnLimit: 80
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
