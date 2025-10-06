@@ -1,6 +1,7 @@
 #include "fat.h"
 #include "disk.h"
 #include "stdio.h"
+#include "memdefs.h"
 
 #define SECTOR_SIZE 512
 
@@ -45,9 +46,14 @@ typedef struct
 
 static FAT_Data far* g_Data;
 
-uint8_t* g_Fat = NULL;
-DirectoryEntry* g_RootDirectory = NULL;
-uint32_t g_RootDirectoryEnd;
+static uint8_t far* g_Fat = NULL;
+static FAT_DirectoryEntry* g_RootDirectory = NULL;
+static uint32_t g_RootDirectoryEnd;
+
+bool FAT_ReadFat(FILE* disk)
+{
+    return DISK_ReadSectors(disk, g_Data->BS.BootSector.ReservedSectors, g_BootSector.SectorsPerFat, g_Fat);
+}
 
 bool FAT_ReadBootSector(DISK *disk)
 {
@@ -57,11 +63,26 @@ bool FAT_ReadBootSector(DISK *disk)
 
 bool FAT_Initialized(DISK* disk)
 {
-    g_Data = ??;
+    g_Data = (FAT_Data fat*)MEMORY_FAT_ADDR;
     if(!FAT_ReadBootSector(disk)){
         printf("FAT: Read boo sector failed.\r\n");
         return false;
     }
+    g_Fat = (uint8_t far*)g_Data + sizeof(FAT_Data);
+
+    uint32_t fatSize = g_Data->BS.BootSector.BytesPerSector * g_Data->BS.BootSector.SectorsPerFat;
+    if (sizeof(FAT_Data) + fatSize >= MEMORY_FAT_SIZE)
+    {
+        printf("FAT: not enough memory to read FAT! Required %lu, only have %u\r\n", sizeof(FAT_Data) + fatSize, MEMORY_FAT_SIZE);
+        return false;
+    }
+
+    if (!FAT_ReadFat(disk))
+    {
+        printf("FAT: read FAT failed\r\n");
+        return false;
+    }
+    uint32_t rootDirLba = g_Data->BS.BootSector.ReservedSectors + g_Data->BS.BootSector.SectorsPerFat * g_Data->BS.BootSector.FatCount;
 }
 
 bool readSectors(FILE* disk, uint32_t lba, uint32_t count, void* bufferOut)
@@ -70,12 +91,6 @@ bool readSectors(FILE* disk, uint32_t lba, uint32_t count, void* bufferOut)
     ok = ok && (fseek(disk, lba * g_BootSector.BytesPerSector, SEEK_SET) == 0);
     ok = ok && (fread(bufferOut, g_BootSector.BytesPerSector, count, disk) == count);
     return ok;
-}
-
-bool readFat(FILE* disk)
-{
-    g_Fat = (uint8_t*) malloc(g_BootSector.SectorsPerFat * g_BootSector.BytesPerSector);
-    return readSectors(disk, g_BootSector.ReservedSectors, g_BootSector.SectorsPerFat, g_Fat);
 }
 
 bool readRootDirectory(FILE* disk)
