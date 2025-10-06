@@ -26,90 +26,88 @@ void puts(const char *str)
 }
 const char g_HexChars[] = "0123456789abcdef";
 
-int* printf_number(int* argp, int length, bool sign, int radix)
+int *printf_number(int *argp, int length, bool sign, int radix)
 {
-    char buffer[32];
-    unsigned long long number;
-    int number_sign = 1;
-    int pos = 0;
+	char buffer[32];
+	unsigned long long number;
+	int number_sign = 1;
+	int pos = 0;
 
-    // process length
-    switch (length)
-    {
-        case PRINTF_LENGTH_SHORT_SHORT:
-        case PRINTF_LENGTH_SHORT:
-        case PRINTF_LENGTH_DEFAULT:
-            if (sign)
-            {
-                int n = *argp;
-                if (n < 0)
-                {
-                    n = -n;
-                    number_sign = -1;
-                }
-                number = (unsigned long long)n;
-            }
-            else
-            {
-                number = *(unsigned int*)argp;
-            }
-            argp++;
-            break;
+	// process length
+	switch (length)
+	{
+	case PRINTF_LENGTH_SHORT_SHORT:
+	case PRINTF_LENGTH_SHORT:
+	case PRINTF_LENGTH_DEFAULT:
+		if (sign)
+		{
+			int n = *argp;
+			if (n < 0)
+			{
+				n = -n;
+				number_sign = -1;
+			}
+			number = (unsigned long long)n;
+		}
+		else
+		{
+			number = *(unsigned int *)argp;
+		}
+		argp++;
+		break;
 
-        case PRINTF_LENGTH_LONG:
-            if (sign)
-            {
-                long int n = *(long int*)argp;
-                if (n < 0)
-                {
-                    n = -n;
-                    number_sign = -1;
-                }
-                number = (unsigned long long)n;
-            }
-            else
-            {
-                number = *(unsigned long int*)argp;
-            }
-            argp += 2;
-            break;
+	case PRINTF_LENGTH_LONG:
+		if (sign)
+		{
+			long int n = *(long int *)argp;
+			if (n < 0)
+			{
+				n = -n;
+				number_sign = -1;
+			}
+			number = (unsigned long long)n;
+		}
+		else
+		{
+			number = *(unsigned long int *)argp;
+		}
+		argp += 2;
+		break;
 
-        case PRINTF_LENGTH_LONG_LONG:
-            if (sign)
-            {
-                long long int n = *(long long int*)argp;
-                if (n < 0)
-                {
-                    n = -n;
-                    number_sign = -1;
-                }
-                number = (unsigned long long)n;
-            }
-            else
-            {
-                number = *(unsigned long long int*)argp;
-            }
-            argp += 4;
-            break;
-    }
+	case PRINTF_LENGTH_LONG_LONG:
+		if (sign)
+		{
+			long long int n = *(long long int *)argp;
+			if (n < 0)
+			{
+				n = -n;
+				number_sign = -1;
+			}
+			number = (unsigned long long)n;
+		}
+		else
+		{
+			number = *(unsigned long long int *)argp;
+		}
+		argp += 4;
+		break;
+	}
 
-    // convert number to ASCII
-    do 
-    {
-        uint32_t rem;
-        x86_div64_32(number, radix, &number, &rem);
-        buffer[pos++] = g_HexChars[rem];
-    } while (number > 0);
+	// convert number to ASCII
+	do
+	{
+		uint32_t rem;
+		x86_div64_32(number, radix, &number, &rem);
+		buffer[pos++] = g_HexChars[rem];
+	} while (number > 0);
 
-    // add sign
-    if (sign && number_sign < 0)
-        buffer[pos++] = '-';
+	// add sign
+	if (sign && number_sign < 0) buffer[pos++] = '-';
 
-    // print number in reverse order
-    while (--pos >= 0)
-        putc(buffer[pos]);
+	// print number in reverse order
+	while (--pos >= 0) putc(buffer[pos]);
 
-    return argp;
+	return argp;
 }
 
 void _cdecl printf(const char *fmt, ...)
@@ -173,7 +171,7 @@ void _cdecl printf(const char *fmt, ...)
 			}
 			break;
 		case PRINTF_STATE_SPECIFIER:
-        PRINTF_STATE_SPEC_:
+		PRINTF_STATE_SPEC_:
 			switch (*fmt)
 			{
 			case 'c':

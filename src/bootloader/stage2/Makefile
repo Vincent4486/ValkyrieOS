@@ -3,7 +3,7 @@ ASM?=nasm
 CC16?=wcc
 LD16?=wlink
 
-CFLAGS16?=-4 -d3 -s -wx -ms -zl -zq
+CFLAGS16?=-4 -d3 -s -wx -ms -zl -zq -za99
 ASMFLAGS?=-f obj
 
 SOURCES_C=$(wildcard *.c)

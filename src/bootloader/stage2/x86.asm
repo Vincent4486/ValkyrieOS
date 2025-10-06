@@ -2,6 +2,26 @@ bits 16
 
 section _TEXT class=CODE
 
+global __U4D
+__U4D:
+    shl edx, 16
+    mov dx, ax
+    mov eax, edx
+    xor edx, edx
+
+    shl ecx, 16
+    mov cx, bx
+
+    div ecx
+    mov ebx, edx
+    mov ecx, edx
+    shr ecx, 16
+
+    mov edx, eax
+    shr edx, 16
+
+    ret
+
 ;
 ; void _cdecl x86_div64_32(uint64_t dividend, uint32_t divisor, uint64_t* quotientOut, uint32_t* remainderOut);
 ;
@@ -87,7 +107,7 @@ _x86_Disk_Reset:
     int 13h
 
     mov ax, 1
-    sbbb ax, 0
+    sbb ax, 0
 
     mov sp, bp
     pop bp
@@ -105,9 +125,9 @@ _x86_Disk_Read:
     mov cl, [bp + 7]
     shl cl, 6
 
-    mov dh, [bp + 8]
+    mov dh, [bp + 10]
 
-    mov al, [bp + 10]
+    mov al, [bp + 8]
     and al, 3Fh
     or cl, al
 
