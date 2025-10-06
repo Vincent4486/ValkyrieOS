@@ -3,6 +3,45 @@ bits 16
 section _TEXT class=CODE
 
 ;
+; void _cdecl x86_div64_32(uint64_t dividend, uint32_t divisor, uint64_t* quotientOut, uint32_t* remainderOut);
+;
+global _x86_div64_32
+_x86_div64_32:
+
+    ; make new call frame
+    push bp             ; save old call frame
+    mov bp, sp          ; initialize new call frame
+
+    push bx
+
+    ; divide upper 32 bits
+    mov eax, [bp + 8]   ; eax <- upper 32 bits of dividend
+    mov ecx, [bp + 12]  ; ecx <- divisor
+    xor edx, edx
+    div ecx             ; eax - quot, edx - remainder
+
+    ; store upper 32 bits of quotient
+    mov bx, [bp + 16]
+    mov [bx + 4], eax
+
+    ; divide lower 32 bits
+    mov eax, [bp + 4]   ; eax <- lower 32 bits of dividend
+                        ; edx <- old remainder
+    div ecx
+
+    ; store results
+    mov [bx], eax
+    mov bx, [bp + 18]
+    mov [bx], edx
+
+    pop bx
+
+    ; restore old call frame
+    mov sp, bp
+    pop bp
+    ret
+
+;
 ; int 10h ah=0Eh
 ; args: character, page
 ;
@@ -34,4 +73,116 @@ _x86_Video_WriteCharTeletype:
     mov sp, bp
     pop bp
     ret
+
+global _x86_Disk_Reset
+_x86_Disk_Reset:
+
+    ; make new call frame
+    push bp
+    mov bp, sp          ; initialize new call frame
+
+    mov ah, 0
+    mov dl, [bp + 4]
+    stc
+    int 13h
+
+    mov ax, 1
+    sbbb ax, 0
+
+    mov sp, bp
+    pop bp
+    ret
+
+global _x86_Disk_Read
+_x86_Disk_Read:
+    push bp
+    mov bp, sp          ; initialize new call frame
+
+
+    mov dl, [bp + 4]
+
+    mov ch, [bp + 6]
+    mov cl, [bp + 7]
+    shl cl, 6
+
+    mov dh, [bp + 8]
+
+    mov al, [bp + 10]
+    and al, 3Fh
+    or cl, al
+
+    mov al, [bp + 12]
+
+    mov bx, [bp + 16]
+    mov es, bx
+    mov bx, [bp + 14]
+
+    mov ah, 02h
+    stc
+    int 13h
+
+    mov ax, 1
+    sbb ax, 0
+
+    pop es
+    pop bx
+
+    mov sp, bp
+    pop bp
+    ret
+
+global _x86_Disk_GetDriveParams
+_x86_Disk_GetDriveParams:
+    ; make new call frame
+    push bp             ; save old call frame
+    mov bp, sp          ; initialize new call frame
+
+    ; save regs
+    push es
+    push bx
+    push si
+    push di
+
+    ; call int13h
+    mov dl, [bp + 4]    ; dl - disk drive
+    mov ah, 08h
+    mov di, 0           ; es:di - 0000:0000
+    mov es, di
+    stc
+    int 13h
+
+    ; return
+    mov ax, 1
+    sbb ax, 0
+
+    ; out params
+    mov si, [bp + 6]    ; drive type from bl
+    mov [si], bl
+
+    mov bl, ch          ; cylinders - lower bits in ch
+    mov bh, cl          ; cylinders - upper bits in cl (6-7)
+    shr bh, 6
+    mov si, [bp + 8]
+    mov [si], bx
+
+    xor ch, ch          ; sectors - lower 5 bits in cl
+    and cl, 3Fh
+    mov si, [bp + 10]
+    mov [si], cx
+
+    mov cl, dh          ; heads - dh
+    mov si, [bp + 12]
+    mov [si], cx
+
+    ; restore regs
+    pop di
+    pop si
+    pop bx
+    pop es
+
+    ; restore old call frame
+    mov sp, bp
+    pop bp
+    ret
     
+ 
