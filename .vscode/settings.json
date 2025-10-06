@@ -1,5 +1,5 @@
 {
-  "editor.inlineSuggest.enabled": true,
+  "editor.inlineSuggest.enabled": false,
   "editor.quickSuggestions": {
     "other": false,
     "comments": false,

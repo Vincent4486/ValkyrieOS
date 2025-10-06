@@ -26,6 +26,13 @@ typedef struct
 typedef struct
 {
 	int handle;
+    bool isDirectory;
+    uint32_t Position;
+    uint32_t Size;
 } FAT_File;
 
-bool FAT_Initialized(DISK *disk)
+bool FAT_Initialized(DISK *disk);
+FAT_File FAT_Open(DISK *disk, const char* path);
+uint32_t FAT_Read(DISK *disk, FAT_File far* file, uint32_t byteCount, void* dataOut);
+bool FAT_ReadEntry(DISK *disk, FAT_File far* file, FAT_DirectoryEntry* dirEntry);
+void FAT_Close(FAT_File far* file);
