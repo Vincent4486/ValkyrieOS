@@ -1,2 +1,0 @@
-main.c(4): Warning! W303: Parameter 'bootDrive' has been defined, but not referenced
-main.c(13): Warning! W138: No newline at end of file

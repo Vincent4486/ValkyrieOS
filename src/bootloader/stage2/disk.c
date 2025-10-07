@@ -32,7 +32,7 @@ void DISK_LBA2CHS(DISK *disk, uint32_t lba, uint16_t *cylinderOut,
 }
 
 bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors,
-                      uint8_t far *dataOut)
+                      void far *dataOut)
 {
 	uint16_t cylinder, sector, head;
 
