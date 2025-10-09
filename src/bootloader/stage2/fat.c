@@ -179,6 +179,16 @@ FAT_File far* FAT_OpenEntry(DISK* disk, FAT_DirectoryEntry* entry)
     return &fd->Public;
 }
 
+uint32_t FAT_Read(DISK* disk, FAT_File far* file, uint32_t byteCount, void* dataOut){
+    
+}
+bool FAT_ReadEntry(DISK* disk, FAT_File far* file, FAT_DirectoryEntry* dirEntry){
+
+}
+void FAT_Close(FAT_File far* file){
+
+}
+
 bool FAT_FindFile(DISK* disk, FAT_File far* file, const char* name, FAT_DirectoryEntry* entryOut)
 {
     char fatName[12];
@@ -212,17 +222,6 @@ bool FAT_FindFile(DISK* disk, FAT_File far* file, const char* name, FAT_Director
     
     return false;
 }
-
-uint32_t FAT_Read(DISK* disk, FAT_File far* file, uint32_t byteCount, void* dataOut){
-    
-}
-bool FAT_ReadEntry(DISK* disk, FAT_File far* file, FAT_DirectoryEntry* dirEntry){
-
-}
-void FAT_Close(FAT_File far* file){
-
-}
-
 
 FAT_File far* FAT_Open(DISK* disk, const char* path){
     bool isLast = false;
