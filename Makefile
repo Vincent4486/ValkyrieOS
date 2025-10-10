@@ -24,7 +24,7 @@ $(BUILD_DIR)/valkyrie.img: bootloader kernel
 	mcopy -i $(BUILD_DIR)/valkyrie.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
 	mcopy -i $(BUILD_DIR)/valkyrie.img test.txt "::test.txt"
 	mmd -i $(BUILD_DIR)/valkyrie.img "::mydir"
-	mcopy -i $(BUILD_DIR)/valkyrie.img test.txt "::mydir/test.txt"
+	mcopy -i $(BUILD_DIR)/valkyrie.img test2.txt "::mydir/test2.txt"
 
 #
 # Bootloader
