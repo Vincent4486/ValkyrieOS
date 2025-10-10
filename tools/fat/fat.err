@@ -1,0 +1,4 @@
+fat.c(14): Warning! W140: Definition of macro 'min' not identical to previous definition
+fat.c(14): Note! I2002: 'min' defined in: /opt/openwatcom/h/stdlib.h(347)
+fat.c(15): Warning! W140: Definition of macro 'max' not identical to previous definition
+fat.c(15): Note! I2002: 'max' defined in: /opt/openwatcom/h/stdlib.h(341)

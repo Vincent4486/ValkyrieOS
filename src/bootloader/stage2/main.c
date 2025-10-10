@@ -37,7 +37,7 @@ void _cdecl cstart_(uint16_t bootDrive)
 
     // read test.txt
     char buffer[100];
-    /*uint32_t read;
+    uint32_t read;
     fd = FAT_Open(&disk, "mydir/test.txt");
     while ((read = FAT_Read(&disk, fd, sizeof(buffer), buffer)))
     {
@@ -48,7 +48,7 @@ void _cdecl cstart_(uint16_t bootDrive)
             putc(buffer[i]);
         }
     }
-    FAT_Close(fd);*/
+    FAT_Close(fd);
 
 end:
     for (;;);
