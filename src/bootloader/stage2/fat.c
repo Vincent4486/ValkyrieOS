@@ -4,6 +4,7 @@
 #include "memdefs.h"
 #include "memory.h"
 #include "string.h"
+#include "ctype.h"
 
 #define SECTOR_SIZE             512
 #define MAX_PATH_SIZE           256
@@ -180,7 +181,64 @@ FAT_File far* FAT_OpenEntry(DISK* disk, FAT_DirectoryEntry* entry)
 }
 
 uint32_t FAT_Read(DISK* disk, FAT_File far* file, uint32_t byteCount, void* dataOut){
-    
+    FAT_FileData far* fd = (file->Handle = ROOT_DIRECTORY_HANDLE) ? 
+        &g_Data->RootDirectory : 
+        &g_Data->OpenedFiles[file->Handle];
+
+    uint8_t* u8DataOut = (uint8_t*)dataOut;
+
+    if (!fd->Public.IsDirectory) 
+        byteCount = min(byteCount, fd->Public.Size - fd->Public.Position);
+
+    while(byteCount > 0){
+        uint32_t leftInBuffer = SECTOR_SIZE - (fd->Public.Position % SECTOR_SIZE);
+        uint32_t take = min(byteCount, leftInBuffer);
+
+        memcpy(u8DataOut, fd->Buffer + fd->Public.Position % SECTOR_SIZE, take);
+        u8DataOut += take;
+        fd->Public.Position += take;
+        byteCount -= take;
+        if (leftInBuffer == take)
+        {
+            // Special handling for root directory
+            if (fd->Public.Handle == ROOT_DIRECTORY_HANDLE)
+            {
+                ++fd->CurrentCluster;
+
+                // read next sector
+                if (!DISK_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
+                {
+                    printf("FAT: read error!\r\n");
+                    break;
+                }
+            }
+            else
+            {
+                // calculate next cluster & sector to read
+                if (++fd->CurrentSectorInCluster >= g_Data->BS.BootSector.SectorsPerCluster)
+                {
+                    fd->CurrentSectorInCluster = 0;
+                    fd->CurrentCluster = FAT_NextCluster(fd->CurrentCluster);
+                }
+
+                if (fd->CurrentCluster >= 0xFF8)
+                {
+                    // Mark end of file
+                    fd->Public.Size = fd->Public.Position;
+                    break;
+                }
+
+                // read next sector
+                if (!DISK_ReadSectors(disk, FAT_ClusterToLba(fd->CurrentCluster) + fd->CurrentSectorInCluster, 1, fd->Buffer))
+                {
+                    printf("FAT: read error!\r\n");
+                    break;
+                }
+            }
+        }
+    }
+
+    return u8DataOut - (uint8_t*)dataOut;
 }
 bool FAT_ReadEntry(DISK* disk, FAT_File far* file, FAT_DirectoryEntry* dirEntry){
 

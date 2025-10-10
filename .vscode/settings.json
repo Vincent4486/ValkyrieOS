@@ -1,15 +1,25 @@
 {
   "editor.inlineSuggest.enabled": false,
   "editor.quickSuggestions": {
-    "other": false,
+    "other": true,
     "comments": false,
     "strings": false
   },
-  "editor.suggestOnTriggerCharacters": false,
+  "editor.suggestOnTriggerCharacters": true,
   "editor.acceptSuggestionOnEnter": "on",
-  "editor.wordBasedSuggestions": "on",
-  "editor.parameterHints.enabled": false,
-  "editor.hover.enabled": false,
-  // settings.json
-  "C_Cpp.errorSquiggles": "Disabled"
+  "editor.wordBasedSuggestions": "off",
+  "editor.parameterHints.enabled": true,
+  "editor.hover.enabled": true,
+  "C_Cpp.errorSquiggles": "enabled",
+  
+  // Disable AI/Copilot suggestions
+  "github.copilot.enable": {
+    "*": false
+  },
+  
+  // Enable IntelliSense but only language-based suggestions
+  "editor.suggest.showWords": false,
+  "editor.suggest.showSnippets": false,
+  "C_Cpp.intelliSenseEngine": "default",
+  "C_Cpp.autocomplete": "default"
 }
