@@ -1,9 +1,0 @@
-fat.c(221): Warning! W131: No prototype found for function 'FAT_NextCluster'
-fat.c(243): Warning! W303: Parameter 'disk' has been defined, but not referenced
-fat.c(243): Warning! W303: Parameter 'dirEntry' has been defined, but not referenced
-fat.c(243): Warning! W303: Parameter 'file' has been defined, but not referenced
-fat.c(245): Warning! W107: Missing return value for function 'FAT_ReadEntry'
-fat.c(246): Warning! W303: Parameter 'file' has been defined, but not referenced
-fat.c(293): Warning! W202: Symbol 'parent' has been defined, but not referenced
-fat.c(221): Warning! W308: The function 'FAT_NextCluster' without prototyped parameters called
-fat.c(221): Note! I2002: 'FAT_NextCluster' defined in: fat.c(221)
