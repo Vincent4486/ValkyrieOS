@@ -15,7 +15,7 @@ void puts(const char* str)
     }
 }
 
-void puts_f(const char far* str)
+void puts_f(const char* str)
 {
     while(*str)
     {
@@ -38,7 +38,7 @@ void puts_f(const char far* str)
 
 int* printf_number(int* argp, int length, bool sign, int radix);
 
-void _cdecl printf(const char* fmt, ...)
+void printf(const char* fmt, ...)
 {
     int* argp = (int*)&fmt;
     int state = PRINTF_STATE_NORMAL;
@@ -103,7 +103,7 @@ void _cdecl printf(const char* fmt, ...)
 
                     case 's':   if (length == PRINTF_LENGTH_LONG || length == PRINTF_LENGTH_LONG_LONG) 
                                 {
-                                    puts_f(*(const char far**)argp);
+                                    puts_f(*(const char**)argp);
                                     argp += 2;
                                 }
                                 else 
@@ -239,9 +239,9 @@ int* printf_number(int* argp, int length, bool sign, int radix)
     return argp;
 }
 
-void print_buffer(const char* msg, const void far* buffer, uint16_t count)
+void print_buffer(const char* msg, const void* buffer, uint16_t count)
 {
-    const uint8_t far* u8Buffer = (const uint8_t far*)buffer;
+    const uint8_t* u8Buffer = (const uint8_t*)buffer;
     
     puts(msg);
     for (uint16_t i = 0; i < count; i++)
