@@ -16,9 +16,9 @@ toolchain_binutils:
 	cd toolchain && wget $(BINUTILS_URL)
 	cd toolchain && tar -xf binutils-$(BINUTILS_VERSION).tar.xz
 	mkdir $(BINUTILS_BUILD_DIR)
-	cd $(BINUTILS_BUILD_DIR) && ../binutils-$(BINUTILS_VERSION)/conf \
+	cd $(BINUTILS_BUILD_DIR) && ../binutils-$(BINUTILS_VERSION)/configure \
 		--prefix="$(TOOLCHAIN_PREFIX)"	\
-		--target=$TARGET				\
+		--target=$(TARGET)				\
 		--with-sysroot					\
 		--disable-nls					\
 		--deiable-werror
@@ -29,9 +29,9 @@ toolchain_gcc: toolchain_binutils
 	cd toolchain && wget $(GCC_URL)
 	cd toolchain && tar -xf gcc-$(GCC_VERSION).tar.xz
 	mkdir $(GCC_BUILD_DIR)
-	cd $(GCC_BUILD_DIR) && ../gcc-$(GCC_VERSION)/conf \
+	cd $(GCC_BUILD_DIR) && ../gcc-$(GCC_VERSION)/configure \
 		--prefix="$(TOOLCHAIN_PREFIX)"	\
-		--target=$TARGET				\
+		--target=$(TARGET)				\
 		--with-sysroot					\
 		--disable-nls					\
 		--endable-language=c,c++		\
