@@ -18,7 +18,7 @@ stage2: $(BUILD_DIR)/stage2.bin
 
 $(BUILD_DIR)/stage2.bin: $(OBJECTS_ASM) $(OBJECTS_C)
 	$(LD16) -T linker.ld -o $(BUILD_DIR)/stage2.elf $(OBJECTS_ASM) $(OBJECTS_C)
-	objcopy -O binary $(BUILD_DIR)/stage2.elf $(BUILD_DIR)/stage2.bin
+	i686-elf-objcopy -O binary $(BUILD_DIR)/stage2.elf $(BUILD_DIR)/stage2.bin
 
 $(BUILD_DIR)/stage2/c/%.o: %.c always
 	$(CC16) $(CFLAGS16) -c -o $@ $<

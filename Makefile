@@ -20,7 +20,7 @@ $(BUILD_DIR)/valkyrie.img: bootloader kernel
 	dd if=/dev/zero of=$(BUILD_DIR)/valkyrie.img bs=512 count=2880
 	mkfs.fat -F 12 -n "VALKYRIE" $(BUILD_DIR)/valkyrie.img
 	dd if=$(BUILD_DIR)/stage1.bin of=$(BUILD_DIR)/valkyrie.img conv=notrunc
-	mcopy -i $(BUILD_DIR)/valkyrie.img $(BUILD_DIR)/stage2.bin "::stage2.bin"
+	mcopy -i $(BUILD_DIR)/valkyrie.img $(BUILD_DIR)/stage2.bin "::STAGE2.BIN"
 	mcopy -i $(BUILD_DIR)/valkyrie.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
 	mcopy -i $(BUILD_DIR)/valkyrie.img test.txt "::test.txt"
 	mmd -i $(BUILD_DIR)/valkyrie.img "::mydir"
