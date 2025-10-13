@@ -75,3 +75,5 @@ clean:
 run:
 	qemu-system-i386 -fda build/valkyrie.img
 
+debug:
+	qemu-system-i386 -fda build/valkyrie.img -S -s
