@@ -2,68 +2,71 @@ bits 16
 
 section .text
 
-extern cstart_
 global entry
 
 entry:
     cli
-    ; Setup stack (16-bit for now)
+    
+    ; Set VGA text mode first
+    mov ax, 0x0003
+    int 0x10
+    
+    ; Show progress
+    mov ax, 0xB800
+    mov es, ax
+    mov word [es:0], 0x0753   ; 'S' for Start
+
+    ; Setup stack
     mov ax, ds
     mov ss, ax
-    mov sp, 0
+    mov sp, 0x1000
     mov bp, sp
-    sti
+    mov word [es:2], 0x0742   ; 'B' 
 
     ; Load GDT
     lgdt [gdt_descriptor]
+    mov word [es:4], 0x0741   ; 'A'
 
     ; Switch to protected mode
+    mov word [es:6], 0x0750   ; 'P' 
     mov eax, cr0
-    or al, 1       ; Set PE bit
+    or al, 1
     mov cr0, eax
+    mov word [es:8], 0x074D   ; 'M'
 
-    ; Far jump to reload CS with 32-bit code segment
-    jmp CODE_SEG:protected_mode
+    ; Show we're about to far jump
+    mov word [es:10], 0x074A  ; 'J' for Jump
+
+    ; Far jump with CORRECT hardcoded address
+    db 0xEA           ; Far jump opcode
+    dd 0x20050        ; Absolute address of protected_mode (0x20000 + 0x50)
+    dw 0x08           ; Code segment selector
 
 bits 32
 protected_mode:
-    ; Reload segment registers with data segment
-    mov ax, DATA_SEG
+    ; Setup 32-bit segments
+    mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
     mov ss, ax
+    mov esp, 0x90000
 
-    ; Setup 32-bit stack
-    mov esp, 0x90000  ; Example stack address (adjust as needed)
-    mov ebp, esp
+    ; Write '3' and '2' in 32-bit mode
+    mov dword [0xB800C], 0x07320733  ; '32' at position 6
 
-    ; Expect boot drive in dl (from real mode), send as argument
-    xor edx, edx
-    mov dl, [boot_drive]  ; You'll need to save this earlier
-    ; Call the C function
-    push edx
-    call cstart_
+.hang:
+    jmp .hang
 
-    cli
-    hlt
-
-; GDT for 32-bit protected mode
+; GDT  
+align 8
 gdt_start:
-    dq 0x0000000000000000  ; Null descriptor
-gdt_code:
-    dq 0x00CF9A000000FFFF  ; Code segment (32-bit, 4GB limit)
+    dq 0x0000000000000000    ; Null descriptor
+gdt_code: 
+    dq 0x00CF9A000000FFFF    ; 32-bit code segment
 gdt_data:
-    dq 0x00CF92000000FFFF  ; Data segment (32-bit, 4GB limit)
+    dq 0x00CF92000000FFFF    ; 32-bit data segment
 gdt_end:
 
 gdt_descriptor:
-    dw gdt_end - gdt_start - 1  ; GDT size
-    dd gdt_start               ; GDT address
-
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
-
-bits 16
-boot_drive db 0  ; Temporary storage for boot drive
+    dw gdt_end - gdt_start - 1
+    dd gdt_start + 0x20000   ; GDT absolute address
