@@ -39,7 +39,7 @@ entry:
 
     ; Far jump with CORRECT hardcoded address
     db 0xEA           ; Far jump opcode
-    dd 0x20050        ; Absolute address of protected_mode (0x20000 + 0x50)
+    dd 0x20052        ; Absolute address of protected_mode (0x20000 + 0x52)
     dw 0x08           ; Code segment selector
 
 bits 32
@@ -69,4 +69,4 @@ gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
-    dd gdt_start + 0x20000   ; GDT absolute address
+    dd 0x20070   ; Hardcoded GDT absolute address (0x20000 + 0x70)
