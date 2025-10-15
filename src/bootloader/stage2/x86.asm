@@ -4,8 +4,8 @@ section .text
 
 global cursor_x
 global cursor_y
-cursor_x dd 0
-cursor_y dd 0
+cursor_x dd 11
+cursor_y dd 11
 
 ;
 ; void x86_div64_32(uint64_t dividend, uint32_t divisor, uint64_t* quotientOut, uint32_t* remainderOut);

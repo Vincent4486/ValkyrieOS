@@ -2,6 +2,7 @@ bits 16
 
 section .text
 
+extern cstart_
 global entry
 
 entry:
@@ -30,43 +31,74 @@ entry:
     ; Switch to protected mode
     mov word [es:6], 0x0750   ; 'P' 
     mov eax, cr0
-    or al, 1
+    or eax, 1                 ; Set PE bit
     mov cr0, eax
     mov word [es:8], 0x074D   ; 'M'
 
     ; Show we're about to far jump
     mov word [es:10], 0x074A  ; 'J' for Jump
 
-    ; Far jump with CORRECT hardcoded address
-    db 0xEA           ; Far jump opcode
-    dd 0x20052        ; Absolute address of protected_mode (0x20000 + 0x52)
-    dw 0x08           ; Code segment selector
+    ; Far jump to switch to 32-bit mode
+    jmp CODE_SEG:protected_mode
+
+    ; If we reach here, the far jump FAILED
+    mov word [es:12], 0x0746  ; 'F' for Failed
+    jmp hang16
 
 bits 32
 protected_mode:
-    ; Setup 32-bit segments
-    mov ax, 0x10
+    cli
+    ; Setup 32-bit segments FIRST
+    mov ax, DATA_SEG
     mov ds, ax
     mov es, ax
+    mov fs, ax
+    mov gs, ax
     mov ss, ax
+
+    ; Write to VGA to confirm we're in 32-bit mode
+    mov dword [0xB800C], 0x07580758   ; 'XX'
+    
+    ; Setup 32-bit stack
     mov esp, 0x90000
+    mov ebp, esp
 
-    ; Write '3' and '2' in 32-bit mode
-    mov dword [0xB800C], 0x07320733  ; '32' at position 6
+    ; Show stack is set up
+    mov dword [0xB80010], 0x075A075A  ; 'ZZ'
 
-.hang:
-    jmp .hang
+    ; Call C code
+    push 0x80
+    call cstart_
+    add esp, 4
 
-; GDT  
+hang32:
+    cli
+    hlt
+    jmp hang32
+
+bits 16
+hang16:
+    cli
+    hlt
+    jmp hang16
+
+; === Data section ===
+boot_drive: db 0
+
+; === GDT ===
 align 8
 gdt_start:
     dq 0x0000000000000000    ; Null descriptor
 gdt_code: 
-    dq 0x00CF9A000000FFFF    ; 32-bit code segment
+    dq 0x00CF9A002000FFFF    ; 32-bit code segment, base = 0x20000
 gdt_data:
-    dq 0x00CF92000000FFFF    ; 32-bit data segment
+    dq 0x00CF92002000FFFF    ; 32-bit data segment, base = 0x20000
 gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
-    dd 0x20070   ; Hardcoded GDT absolute address (0x20000 + 0x70)
+    dd gdt_start             ; Use the actual address of gdt_start
+
+; Segment selectors  
+CODE_SEG equ gdt_code - gdt_start  ; 0x08
+DATA_SEG equ gdt_data - gdt_start  ; 0x10

@@ -9,7 +9,7 @@ BUILD_DIR=build
 
 .PHONY: all floppy_image kernel bootloader clean always tools_fat run
 
-all: floppy_image
+all: clean floppy_image
 
 #
 # Floppy image

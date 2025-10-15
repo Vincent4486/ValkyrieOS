@@ -1,0 +1,25 @@
+# Bochs configuration for ValkyrieOS bootloader debugging
+
+# System configuration
+megs: 32                    # 32MB RAM
+romimage: file=$BXSHARE/BIOS-bochs-latest, address=0xf0000
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+
+# Disk setup
+floppya: 1_44=build/valkyrie.img, status=inserted
+
+# Boot from floppy
+boot: a
+
+# CPU configuration
+cpu: count=1, ips=1000000
+
+# Enable debugging
+magic_break: enabled=1
+debug: action=report
+debugger_log: debugger.log
+
+# Logging
+log: bochs.log
+error: action=report
+info: action=report

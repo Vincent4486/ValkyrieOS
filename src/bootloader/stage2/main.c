@@ -1,55 +1,29 @@
 #include "stdint.h"
 #include "stdio.h"
 #include "disk.h"
+#include "x86.h"
 #include "fat.h"
 
 void* g_data = (void*)0x00500200;
 
-void cstart_(uint16_t bootDrive)
+void cstart_(uint32_t bootDrive)
 {
-    DISK disk;
-    if (!DISK_Initialize(&disk, bootDrive))
-    {
-        printf("Disk init error\r\n");
-        goto end;
+    volatile uint16_t* vga = (volatile uint16_t*)0xB8000;
+    
+    // Clear screen
+    for (int i = 0; i < 80 * 25; i++) {
+        vga[i] = 0x0720;
     }
-
-    DISK_ReadSectors(&disk, 19, 1, g_data);
-
-    if (!FAT_Initialize(&disk))
-    {
-        printf("FAT init error\r\n");
-        goto end;
-    }
-
-    // browse files in root
-    FAT_File* fd = FAT_Open(&disk, "/");
-    FAT_DirectoryEntry entry;
-    int i = 0;
-    while (FAT_ReadEntry(&disk, fd, &entry) && i++ < 5)
-    {
-        printf("  ");
-        for (int i = 0; i < 11; i++)
-            putc(entry.Name[i]);
-        printf("\r\n");
-    }
-    FAT_Close(fd);
-
-    // read test.txt
-    char buffer[100];
-    uint32_t read;
-    fd = FAT_Open(&disk, "mydir/test2.txt");
-    while ((read = FAT_Read(&disk, fd, sizeof(buffer), buffer)))
-    {
-        for (uint32_t i = 0; i < read; i++)
-        {
-            if (buffer[i] == '\n')
-                putc('\r');
-            putc(buffer[i]);
-        }
-    }
-    FAT_Close(fd);
-
-end:
-    for (;;);
+    
+    // Show cursor position as numbers on screen
+    vga[0] = 0x0730 + (cursor_x & 0xF);  // cursor_x as hex digit
+    vga[1] = 0x0730 + (cursor_y & 0xF);  // cursor_y as hex digit
+    
+    printf("Test");
+    
+    // Show cursor position after printf
+    vga[10] = 0x0730 + (cursor_x & 0xF);  // cursor_x after printf
+    vga[11] = 0x0730 + (cursor_y & 0xF);  // cursor_y after printf
+    
+    for(;;);
 }
