@@ -1,0 +1,170 @@
+% The Basics of Valkyrie OS
+% A lightweight LaTeX skeleton to document the OS and its design.
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	urlcolor=cyan,
+}
+
+% Code listings (works without external tools)
+\usepackage{listings}
+\usepackage{xcolor}
+\lstdefinelanguage{asm86}{
+	morekeywords={org,section,db,dd,global,extern,jmp,jz,jnz,call,ret,push,pop,mov,add,sub,cmp,jne,je},
+	sensitive=true,
+	morecomment=[l]{;}
+}
+\lstset{
+	basicstyle=\ttfamily\small,
+	keywordstyle=\color{teal}\bfseries,
+	commentstyle=\color{gray}\itshape,
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	stepnumber=1,
+	numbersep=6pt,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	tabsize=2,
+}
+
+% Shortcuts
+\newcommand{\codefile}[2]{\lstinputlisting[language=#1]{#2}}
+
+	\title{The Basics of Valkyrie OS}
+\author{Vincent4486}
+\date{\today}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+This is the base guide to the Valkyrie Operating System. In this document would cover the code and 
+features of Valkyrie OS and explains the code in the bootloader and kernel.
+\end{abstract}
+
+\clearpage
+
+\section{Introduction}
+The Valkyrie Operating System is made by Vincent4486 using C, other programming languages like Rust
+or Go are expected to be used in the future.
+\begin{itemize}
+	\item Target: 32-bit x86 real-mode boot to a small kernel.
+	\item Current status: Stage 1 and Stage 2 bootloaders exist; FAT driver lives in `src/bootloader/stage2`.
+	\item Design: simple monolithic kernel written in C + assembly.
+\end{itemize}
+
+\section{Design goals}
+List your goals here. Examples:
+\begin{enumerate}
+	\item Minimal, understandable code.
+	\item Boot from FAT12/16 image.
+	\item Small, well-documented boot stages.
+	\item Incremental testing with tools in `tools/`.
+\end{enumerate}
+
+\section{Repository layout}
+Explain the important folders and files so you don't have to remember them later.
+\begin{description}
+	\item[\texttt{src/}] Source code for the bootloader and kernel.
+	\item[\texttt{src/bootloader/stage1/}] Minimal real-mode assembler stage 1.
+	\item[\texttt{src/bootloader/stage2/}] C + assembly for the second stage; FAT, disk access and helpers.
+	\item[\texttt{src/kernel/}] Kernel entrypoint and kernel-related assembly.
+	\item[\texttt{tools/}] Utilities (e.g. FAT tools) useful during development.
+	\item[\texttt{docs/}] This documentation.
+\end{description}
+
+\section{Boot process}
+Describe how the system boots and which files are responsible for each step. Keep it chronological.
+
+\subsection{Stage 1}
+Explain the stage1 responsibilities (MBR/boot sector constraints) and point to the source file.
+Example file: `src/bootloader/stage1/boot.asm`.
+
+\subsection{Stage 2}
+What stage2 does (switch to protected mode or load kernel), where the FAT driver is, and how you link it.
+Key files: `src/bootloader/stage2/main.asm`, `src/bootloader/stage2/main.c`, `src/bootloader/stage2/fat.c`.
+
+\section{Important code snippets}
+You can include code directly or load files from the repo. When you build the PDF locally, listings will include the exact source.
+
+Inline C example:
+\begin{lstlisting}[language=C,caption={Minimal example from stdio.c}]
+// src/bootloader/stage2/stdio.c
+#include "stdio.h"
+int puts(const char *s) {
+	while (*s) putchar(*s++);
+	return 0;
+}
+\end{lstlisting}
+
+Inline assembly example:
+\begin{lstlisting}[language=asm86,caption={Boot sector entry (example)}]
+; src/bootloader/stage1/boot.asm
+org 0x7c00
+cli
+xor ax, ax
+mov ds, ax
+; ...
+\end{lstlisting}
+
+To include an entire file from the tree (recommended for accuracy):
+\begin{verbatim}
+\codefile{C}{../src/bootloader/stage2/main.c}
+\end{verbatim}
+
+Replace the path above with the relative path from `docs/` to a source file.
+
+\section{Build and run}
+Keep simple reproducible commands here. From the project root (one level above `docs/`):
+\begin{itemize}
+	\item Build OS image: \texttt{make}
+	\item Run (QEMU or emulator): \texttt{make run}
+\end{itemize}
+
+How to build this PDF (from `docs/`):
+\begin{lstlisting}
+# Recommended: use latexmk if available
+latexmk -pdf -interaction=nonstopmode The_Basics_of_Valkyrie_OS.tex
+
+# Or the simple sequence
+pdflatex The_Basics_of_Valkyrie_OS.tex
+bibtex The_Basics_of_Valkyrie_OS || true
+pdflatex The_Basics_of_Valkyrie_OS.tex
+pdflatex The_Basics_of_Valkyrie_OS.tex
+\end{lstlisting}
+
+Notes:
+\begin{itemize}
+	\item Using `minted` gives better highlighting but requires `-shell-escape` and Pygments; `listings` works everywhere.
+	\item If you include large files from `src/` the PDF will reflect the current source at compile time.
+\end{itemize}
+
+\section{Development notes}
+Keep short actionable items here: known bugs, TODOs, testing checklist, and where to find test images.
+
+\section{Writing tips}
+Short recommendations to keep docs usable:
+\begin{itemize}
+	\item Write short focused sections with a single purpose.
+	\item Add relative paths when referencing source (so you can jump to the file from the PDF viewer in many editors).
+	\item Use \verb|\label{}| and \verb|\ref{}| to cross-reference figures, sections, and listings.
+	\item Prefer including source with \verb|\lstinputlisting| so examples stay correct.
+\end{itemize}
+
+\section{Appendix: Useful file list}
+Add short one-line descriptions for the most important files so you don't have to hunt later.
+
+\bigskip
+\hrule
+\vspace{6pt}
+\noindent Last edited: \today
+
+\end{document}
+
