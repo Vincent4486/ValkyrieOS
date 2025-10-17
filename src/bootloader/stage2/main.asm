@@ -30,13 +30,26 @@ entry:
     ; Enable A20 before switching to protected mode
     call EnableA20
 
-    ; Load GDT
-    lgdt [gdt_descriptor]
+        ; Debug: mark G (about to load GDT)
+        mov ax, 0xB800
+        mov es, ax
+        mov word [es:4], 0x0747   ; 'G'
+
+        ; Compute runtime GDT base and write it into gdt_descriptor (dd)
+        call get_gdt_base
+
+        ; Load GDT
+        lgdt [gdt_descriptor]
+
+        ; Debug: mark L (GDT loaded)
+        mov word [es:6], 0x074C   ; 'L'
 
     ; Switch to protected mode: set PE in CR0
     mov eax, cr0
     or eax, 1                 ; Set PE bit
     mov cr0, eax
+
+    mov word [es:4], 0x0750   ; 'P'
 
     ; Far jump to switch to 32-bit mode
     jmp CODE_SEG:protected_mode
@@ -46,6 +59,7 @@ entry:
 
 bits 32
 protected_mode:
+
     cli
     ; Setup 32-bit segments (use the data selector)
     mov ax, DATA_SEG

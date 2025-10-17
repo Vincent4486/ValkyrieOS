@@ -9,6 +9,8 @@ BUILD_DIR=build
 
 .PHONY: all floppy_image kernel bootloader clean always tools_fat run doc
 
+all: clean floppy_image
+
 # Documentation build target (runs the Makefile in docs/)
 # Set DOC_TARGET to 'latexmk' or 'pdf' to change behavior. Default: pdf
 DOC_TARGET ?= pdf
@@ -19,8 +21,6 @@ doc:
 	@echo "Building docs ($(DOC_TARGET))"
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs $(DOC_TARGET)
-
-all: clean floppy_image
 
 #
 # Floppy image
