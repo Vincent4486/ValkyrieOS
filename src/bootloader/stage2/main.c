@@ -20,6 +20,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
 	bool drawScreen = true;
 	draw_start_screen(drawScreen);
 
+	delay_ms(1000);
+
 	DISK disk;
 	if (!DISK_Initialize(&disk, bootDrive))
 	{
