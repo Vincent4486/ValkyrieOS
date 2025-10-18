@@ -1,22 +1,18 @@
 include build_scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always
+.PHONY: all floppy_image kernel bootloader clean always run doc
 
 all: clean floppy_image tools_fat
-.PHONY: all floppy_image kernel bootloader clean always tools_fat run doc
 
+include build_scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
 # Set DOC_TARGET to 'latexmk' or 'pdf' to change behavior. Default: pdf
 DOC_TARGET ?= pdf
-
-
 # Docs wrapper targets
 doc:
 	@echo "Building docs ($(DOC_TARGET))"
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs $(DOC_TARGET)
-
-include build_scripts/toolchain.mk
 
 #
 # Floppy image
