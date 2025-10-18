@@ -1,29 +1,48 @@
-#include "stdint.h"
+#include <stdint.h>
 #include "stdio.h"
-#include "disk.h"
 #include "x86.h"
+#include "disk.h"
 #include "fat.h"
+#include "memdefs.h"
+#include "memory.h"
 
-void* g_data = (void*)0x00500200;
+uint8_t* KernelLoadBuffer = (uint8_t*)MEMORY_LOAD_KERNEL;
+uint8_t* Kernel = (uint8_t*)MEMORY_KERNEL_ADDR;
 
-void cstart_(uint32_t bootDrive)
+typedef void (*KernelStart)();
+
+void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
-    volatile uint16_t* vga = (volatile uint16_t*)0xB8000;
-    
-    // Clear screen
-    for (int i = 0; i < 80 * 25; i++) {
-        vga[i] = 0x0720;
+    clrscr();
+
+    DISK disk;
+    if (!DISK_Initialize(&disk, bootDrive))
+    {
+        printf("Disk init error\r\n");
+        goto end;
     }
-    
-    // Show cursor position as numbers on screen
-    vga[0] = 0x0730 + (cursor_x & 0xF);  // cursor_x as hex digit
-    vga[1] = 0x0730 + (cursor_y & 0xF);  // cursor_y as hex digit
-    
-    printf("Test");
-    
-    // Show cursor position after printf
-    vga[10] = 0x0730 + (cursor_x & 0xF);  // cursor_x after printf
-    vga[11] = 0x0730 + (cursor_y & 0xF);  // cursor_y after printf
-    
-    for(;;);
+
+    if (!FAT_Initialize(&disk))
+    {
+        printf("FAT init error\r\n");
+        goto end;
+    }
+
+    // load kernel
+    FAT_File* fd = FAT_Open(&disk, "/kernel.bin");
+    uint32_t read;
+    uint8_t* kernelBuffer = Kernel;
+    while ((read = FAT_Read(&disk, fd, MEMORY_LOAD_SIZE, KernelLoadBuffer)))
+    {
+        memcpy(kernelBuffer, KernelLoadBuffer, read);
+        kernelBuffer += read;
+    }
+    FAT_Close(fd);
+
+    // execute kernel
+    KernelStart kernelStart = (KernelStart)Kernel;
+    kernelStart();
+
+end:
+    for (;;);
 }
