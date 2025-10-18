@@ -1,6 +1,6 @@
 include build_scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always tools_fat
+.PHONY: all floppy_image kernel bootloader clean always
 
 all: clean floppy_image tools_fat
 .PHONY: all floppy_image kernel bootloader clean always tools_fat run doc
@@ -57,13 +57,6 @@ kernel: $(BUILD_DIR)/kernel.bin
 $(BUILD_DIR)/kernel.bin: always
 	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR))
 
-#
-# Tools
-#
-tools_fat: $(BUILD_DIR)/tools/fat
-$(BUILD_DIR)/tools/fat: always tools/fat/fat.c
-	@mkdir -p $(BUILD_DIR)/tools
-	@$(MAKE) -C tools/fat BUILD_DIR=$(abspath $(BUILD_DIR))
 
 #
 # Always
