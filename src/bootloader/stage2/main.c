@@ -4,7 +4,9 @@
 #include "memory.h"
 #include "stdio.h"
 #include "x86.h"
+#include "startscreen.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 uint8_t *KernelLoadBuffer = (uint8_t *)MEMORY_LOAD_KERNEL;
 uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;
@@ -14,6 +16,9 @@ typedef void (*KernelStart)();
 void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
 	clrscr();
+
+	bool drawScreen = true;
+	draw_start_screen(drawScreen);
 
 	DISK disk;
 	if (!DISK_Initialize(&disk, bootDrive))
