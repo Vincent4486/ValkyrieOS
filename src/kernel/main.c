@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <hal/hal.h>
 #include "stdio.h"
 #include "memory.h"
 
@@ -9,11 +10,11 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 {
     memset(&__bss_start, 0, (&__end) - (&__bss_start));
 
+    HAL_Initialize();
+
     clrscr();
 
-    int hello = 10;
-    printf("the number is %d\n", hello);
-    printf("Hello world from kernel!!!\n");
+    printf("[INFO] System kernel started successfully.");
 
 end:
     for (;;);
