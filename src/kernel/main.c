@@ -16,7 +16,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
 	clrscr();
 
-	printf("[INFO] System kernel started successfully.\n");
+	printf("System kernel started successfully.\n");
 
 end:
 	for (;;){
