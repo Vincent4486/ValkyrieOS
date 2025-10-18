@@ -1,1 +1,0 @@
-qemu-system-i386 -fda build/valkyrie_os.img

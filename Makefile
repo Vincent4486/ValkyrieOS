@@ -1,10 +1,10 @@
-include build_scripts/config.mk
+include scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always run doc
+.PHONY: all floppy_image kernel bootloader clean always run doc debug
 
 all: clean floppy_image
 
-include build_scripts/toolchain.mk
+include scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
 # Set DOC_TARGET to 'latexmk' or 'pdf' to change behavior. Default: pdf
 DOC_TARGET ?= pdf
@@ -70,4 +70,8 @@ clean:
 	@rm -rf $(BUILD_DIR)/*
 
 run:
-	@./run.sh
+	@qemu-system-i386 -fda build/valkyrie_os.img
+
+debug:
+	@qemu-system-i386 -fda build/valkyrie_os.img -S -s
+
