@@ -1,8 +1,8 @@
 # Makefile for building the documentation PDF
 
-TEX = The_Basics_of_Valkyrie_OS.tex
+TEX = The_Code_of_Valkyrie_OS.tex
 OUTDIR = generated
-PDF = $(OUTDIR)/The_Basics_of_Valkyrie_OS.pdf
+PDF = $(OUTDIR)/The_Code_of_Valkyrie_OS.pdf
 PDFLATEX ?= pdflatex
 LATEXMK ?= latexmk
 BIBTEX ?= bibtex

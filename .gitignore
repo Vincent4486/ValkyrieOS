@@ -3,3 +3,7 @@ build/
 node_modules/
 toolchain/
 *.log
+*.out
+*.bbl
+*.blg
+*.aux
