@@ -17,7 +17,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
 	clrscr();
 
-	bool drawScreen = true;
+	bool drawScreen = false;
 	draw_start_screen(drawScreen);
 
 	delay_ms(1000);

@@ -1,5 +1,6 @@
 #include "idt.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <util/binary.h>
 
 typedef struct
@@ -45,4 +46,5 @@ void i686_IDT_DisableGate(int interrupt)
 void i686_IDT_Initialize()
 {
     i686_IDT_Load(&g_IDTDescriptor);
+    printf("IDT successfully initialized.\n");
 }
