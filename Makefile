@@ -2,7 +2,7 @@ include build_scripts/config.mk
 
 .PHONY: all floppy_image kernel bootloader clean always run doc
 
-all: clean floppy_image tools_fat
+all: clean floppy_image
 
 include build_scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
@@ -17,9 +17,9 @@ doc:
 #
 # Floppy image
 #
-floppy_image: $(BUILD_DIR)/main_floppy.img
+floppy_image: $(BUILD_DIR)/valkyrie_os.img
 
-$(BUILD_DIR)/main_floppy.img: bootloader kernel
+$(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 	@dd if=/dev/zero of=$@ bs=512 count=2880 >/dev/null
 	@mkfs.fat -F 12 -n "VALKYRIE" $@ >/dev/null
 	@dd if=$(BUILD_DIR)/stage1.bin of=$@ conv=notrunc >/dev/null
