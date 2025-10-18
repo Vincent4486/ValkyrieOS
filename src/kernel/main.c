@@ -17,5 +17,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 	printf("[INFO] System kernel started successfully.");
 
 end:
-	for (;;);
+	for (;;){
+        
+    }
 }
