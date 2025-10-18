@@ -13,4 +13,3 @@ $(BUILD_DIR)/stage1.bin: boot.asm
 
 clean:
 	@rm -f $(BUILD_DIR)/stage1.bin
-	 

@@ -3,8 +3,6 @@ TARGET_CFLAGS += -ffreestanding -nostdlib
 TARGET_LIBS += -lgcc
 TARGET_LINKFLAGS += -T linker.ld -nostdlib
 
-# Safe defaults for toolchain variables in case they're not provided by top-level Makefile
-
 SOURCES_C=$(wildcard *.c)
 SOURCES_ASM=$(wildcard *.asm)
 OBJECTS_C=$(patsubst %.c, $(BUILD_DIR)/stage2/c/%.obj, $(SOURCES_C))
