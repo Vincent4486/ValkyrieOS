@@ -3,7 +3,6 @@
 #include "memory.h"
 #include <hal/hal.h>
 #include <arch/i686/irq.h>
-#include "thread.h"
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
