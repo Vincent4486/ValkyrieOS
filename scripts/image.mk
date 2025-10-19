@@ -9,9 +9,8 @@ $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 	@mkfs.fat -F 12 -n "VALKYRIE" $@ >/dev/null
 	@dd if=$(BUILD_DIR)/stage1.bin of=$@ conv=notrunc >/dev/null
 	@mmd -i $@ "::sys"
-	@mmd -i $@ "::sys/core"
 	@mcopy -i $@ $(BUILD_DIR)/stage2.bin "::stage2.bin"
-	@mcopy -i $@ $(BUILD_DIR)/kernel.bin "::sys/core/kernel.bin"
+	@mcopy -i $@ $(BUILD_DIR)/kernel.bin "::sys/kernel.bin"
 	@mcopy -i $@ test.txt "::test.txt"
 	@mmd -i $@ "::mydir"
 	@mcopy -i $@ test.txt "::mydir/test.txt"
