@@ -20,6 +20,7 @@ entry:
     mov sp, 0xFFF0
     mov bp, sp
 
+
     ; switch to protected mode
     call EnableA20          ; 2 - Enable A20 gate
     call LoadGDT            ; 3 - Load GDT
@@ -167,3 +168,5 @@ g_GDTDesc:  dw g_GDTDesc - g_GDT - 1    ; limit = size of GDT
             dd g_GDT                    ; address of GDT
 
 g_BootDrive: db 0
+
+; (no BIOS memory probe in this build)

@@ -1,5 +1,5 @@
 #include <arch/i686/io.h>
-#include <stdio.h>
+#include "stdio.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -32,10 +32,10 @@ void setcursor(int x, int y)
 {
 	int pos = y * SCREEN_WIDTH + x;
 
-	x86_outb(0x3D4, 0x0F);
-	x86_outb(0x3D5, (uint8_t)(pos & 0xFF));
-	x86_outb(0x3D4, 0x0E);
-	x86_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+    i686_outb(0x3D4, 0x0F);
+    i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
+    i686_outb(0x3D4, 0x0E);
+    i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void clrscr()
@@ -75,6 +75,24 @@ void putc(char c)
 {
 	switch (c)
 	{
+	case '\b':
+		if (g_ScreenX == 0 && g_ScreenY == 0)
+			break; /* nothing to delete */
+
+		if (g_ScreenX == 0)
+		{
+			g_ScreenY -= 1;
+			g_ScreenX = SCREEN_WIDTH - 1;
+		}
+		else
+		{
+			g_ScreenX -= 1;
+		}
+
+		putchr(g_ScreenX, g_ScreenY, '\0');
+		putcolor(g_ScreenX, g_ScreenY, DEFAULT_COLOR);
+		break;
+
 	case '\n':
 		g_ScreenX = 0;
 		g_ScreenY++;

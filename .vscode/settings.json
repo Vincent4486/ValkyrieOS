@@ -21,5 +21,10 @@
   "editor.suggest.showWords": false,
   "editor.suggest.showSnippets": false,
   "C_Cpp.intelliSenseEngine": "default",
-  "C_Cpp.autocomplete": "default"
+  "C_Cpp.autocomplete": "default",
+  "files.associations": {
+    "stdio.h": "c",
+    "gdt.h": "c",
+    "io.h": "c"
+  }
 }

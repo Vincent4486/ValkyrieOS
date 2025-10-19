@@ -59,7 +59,7 @@ clean:
 	@rm -rf $(BUILD_DIR)/*
 
 run:
-	@qemu-system-i386 -fda build/valkyrie_os.img
+	@qemu-system-i386 -fda build/valkyrie_os.img &> /dev/null
 
 debug:
 	@qemu-system-i386 -fda build/valkyrie_os.img -S -s
