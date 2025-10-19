@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include "stdio.h"
-#include "memory.h"
+#include <std/stdio.h>
+#include <memory/memory.h>
 #include <hal/hal.h>
 #include <arch/i686/irq.h>
 
@@ -27,7 +27,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
     printf("Hello from kernel!\n");
 
-    /* demo threads (cooperative) */
+    i686_IRQ_RegisterHandler(0, timer);
 
     //crash_me();
 

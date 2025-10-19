@@ -1,5 +1,5 @@
 #include <arch/i686/io.h>
-#include <stdio.h>
+#include "stdio.h"
 
 #include <stdarg.h>
 #include <stdbool.h>

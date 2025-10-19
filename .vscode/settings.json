@@ -24,6 +24,7 @@
   "C_Cpp.autocomplete": "default",
   "files.associations": {
     "stdio.h": "c",
-    "gdt.h": "c"
+    "gdt.h": "c",
+    "io.h": "c"
   }
 }

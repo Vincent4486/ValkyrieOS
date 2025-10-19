@@ -4,8 +4,8 @@
 #include "io.h"
 #include <stddef.h>
 #include <util/arrays.h>
-#include "stdio.h"
-#include "keyboard.h"
+#include <std/stdio.h>
+#include <keyboard/keyboard.h>
 
 #define PIC_REMAP_OFFSET        0x20
 
