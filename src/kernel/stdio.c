@@ -75,6 +75,24 @@ void putc(char c)
 {
 	switch (c)
 	{
+	case '\b':
+		if (g_ScreenX == 0 && g_ScreenY == 0)
+			break; /* nothing to delete */
+
+		if (g_ScreenX == 0)
+		{
+			g_ScreenY -= 1;
+			g_ScreenX = SCREEN_WIDTH - 1;
+		}
+		else
+		{
+			g_ScreenX -= 1;
+		}
+
+		putchr(g_ScreenX, g_ScreenY, '\0');
+		putcolor(g_ScreenX, g_ScreenY, DEFAULT_COLOR);
+		break;
+
 	case '\n':
 		g_ScreenX = 0;
 		g_ScreenY++;
