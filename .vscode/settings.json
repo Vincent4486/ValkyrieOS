@@ -26,5 +26,13 @@
     "stdio.h": "c",
     "gdt.h": "c",
     "io.h": "c"
-  }
+  },
+  "makefile.launchConfigurations": [
+    {
+      "cwd": "/Users/vincent/Programming/ValkyrieOS/build",
+      "binaryPath": "qemu-system-i386",
+      "binaryArgs": ["-fda", "build/valkyrie_os.img"]
+    }
+  ],
+  "makefile.makefilePath": ""
 }
