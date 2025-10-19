@@ -7,3 +7,4 @@ toolchain/
 *.bbl
 *.blg
 *.aux
+.vscode/
