@@ -2,14 +2,18 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <drivers/ata/ata.h>
 
-typedef struct
-{
-	uint8_t id;
-	uint16_t cylinders;
-	uint16_t sectors;
-	uint16_t heads;
+enum DISK_TYPE {
+    DISK_TYPE_FLOPPY = 0,
+    DISK_TYPE_ATA = 1
+};
+
+typedef struct {
+    uint8_t id;
+    uint16_t cylinders;
+    uint16_t sectors;
+    uint16_t heads;
+    enum DISK_TYPE type;
 } DISK;
 
 bool DISK_Initialize(DISK *disk, uint8_t driveNumber);

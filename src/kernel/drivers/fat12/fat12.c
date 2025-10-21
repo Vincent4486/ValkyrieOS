@@ -1,5 +1,6 @@
 #include "fat12.h"
 #include <drivers/ata/ata.h>
+#include <drivers/fdc/fdc.h>
 #include <std/stdio.h>
 #include <std/ctype.h>
 #include <memory/memdefs.h>
@@ -8,27 +9,6 @@
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
-
-bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
-{
-	// ATA driver does not need geometry for basic LBA access
-	disk->id = driveNumber;
-	// Optionally, you could query drive geometry via ATA IDENTIFY if needed
-	// For now, set dummy values
-	disk->cylinders = 0;
-	disk->heads = 0;
-	disk->sectors = 0;
-	return true;
-}
-
-// Remove CHS conversion, always use LBA
-// void DISK_LBA2CHS(...) { ... }
-
-bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
-{
-	// Use ATA driver for protected mode sector reads
-	return ata_read28(lba, (uint8_t *)dataOut, sectors) == 0;
-}
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
@@ -108,30 +88,39 @@ bool FAT_Initialize(DISK *disk)
 {
 	g_Data = (FAT_Data *)MEMORY_FAT_ADDR;
 
-	// read boot sector
+	printf("[FAT DEBUG] Reading boot sector\n");
 	if (!FAT_ReadBootSector(disk))
 	{
-		printf("FAT: read boot sector failed\r\n");
+		printf("FAT: read boot sector failed\n");
 		return false;
 	}
+	printf("[FAT DEBUG] Boot sector read OK\n");
+	printf("[FAT DEBUG] Boot sector values: BytesPerSector=%u SectorsPerCluster=%u ReservedSectors=%u FatCount=%u DirEntryCount=%u SectorsPerFat=%u\n",
+		g_Data->BS.BootSector.BytesPerSector,
+		g_Data->BS.BootSector.SectorsPerCluster,
+		g_Data->BS.BootSector.ReservedSectors,
+		g_Data->BS.BootSector.FatCount,
+		g_Data->BS.BootSector.DirEntryCount,
+		g_Data->BS.BootSector.SectorsPerFat);
 
-	// read FAT
 	g_Fat = (uint8_t *)g_Data + sizeof(FAT_Data);
 	uint32_t fatSize = g_Data->BS.BootSector.BytesPerSector *
 	                   g_Data->BS.BootSector.SectorsPerFat;
+	printf("[FAT DEBUG] FAT size calculation: %lu bytes\n", fatSize);
 	if (sizeof(FAT_Data) + fatSize >= MEMORY_FAT_SIZE)
 	{
-		printf("FAT: not enough memory to read FAT! Required %lu, only have "
-		       "%u\r\n",
+		printf("FAT: not enough memory to read FAT! Required %lu, only have %u\n",
 		       sizeof(FAT_Data) + fatSize, MEMORY_FAT_SIZE);
 		return false;
 	}
 
+	printf("[FAT DEBUG] Reading FAT\n");
 	if (!FAT_ReadFat(disk))
 	{
-		printf("FAT: read FAT failed\r\n");
+		printf("FAT: read FAT failed\n");
 		return false;
 	}
+	printf("[FAT DEBUG] FAT read OK\n");
 
 	// open root directory file
 	uint32_t rootDirLba =
@@ -139,6 +128,7 @@ bool FAT_Initialize(DISK *disk)
 	    g_Data->BS.BootSector.SectorsPerFat * g_Data->BS.BootSector.FatCount;
 	uint32_t rootDirSize =
 	    sizeof(FAT_DirectoryEntry) * g_Data->BS.BootSector.DirEntryCount;
+	printf("[FAT DEBUG] RootDirLBA=%lu RootDirSize=%lu\n", rootDirLba, rootDirSize);
 
 	g_Data->RootDirectory.Public.Handle = ROOT_DIRECTORY_HANDLE;
 	g_Data->RootDirectory.Public.IsDirectory = true;
@@ -150,22 +140,26 @@ bool FAT_Initialize(DISK *disk)
 	g_Data->RootDirectory.CurrentCluster = rootDirLba;
 	g_Data->RootDirectory.CurrentSectorInCluster = 0;
 
+	printf("[FAT DEBUG] Reading root directory sector\n");
 	if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
 	{
-		printf("FAT: read root directory failed\r\n");
+		printf("FAT: read root directory failed\n");
 		return false;
 	}
+	printf("[FAT DEBUG] Root directory read OK\n");
 
 	// calculate data section
 	uint32_t rootDirSectors =
 	    (rootDirSize + g_Data->BS.BootSector.BytesPerSector - 1) /
 	    g_Data->BS.BootSector.BytesPerSector;
 	g_DataSectionLba = rootDirLba + rootDirSectors;
+	printf("[FAT DEBUG] DataSectionLBA=%lu\n", g_DataSectionLba);
 
 	// reset opened files
 	for (int i = 0; i < MAX_FILE_HANDLES; i++)
 		g_Data->OpenedFiles[i].Opened = false;
 
+	printf("[FAT DEBUG] FAT_Initialize complete\n");
 	return true;
 }
 

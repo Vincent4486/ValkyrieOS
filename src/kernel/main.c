@@ -31,16 +31,24 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
     i686_IRQ_RegisterHandler(0, timer);
 
     // FAT12 test: read /test.txt
+    printf("[DEBUG] Starting disk init\n");
     DISK disk;
     if (DISK_Initialize(&disk, 0)) {
+        printf("[DEBUG] Disk init OK\n");
+        printf("[DEBUG] Starting FAT init\n");
         if (FAT_Initialize(&disk)) {
+            printf("[DEBUG] FAT init OK\n");
+            printf("[DEBUG] Opening /test.txt\n");
             FAT_File *file = FAT_Open(&disk, "/test.txt");
             if (file) {
+                printf("[DEBUG] /test.txt open OK\n");
                 char buf[256] = {0};
+                printf("[DEBUG] Reading file\n");
                 uint32_t bytes = FAT_Read(&disk, file, sizeof(buf)-1, buf);
                 buf[bytes] = '\0';
                 printf("Contents of /test.txt:\n%s\n", buf);
                 FAT_Close(file);
+                printf("[DEBUG] File closed\n");
             } else {
                 printf("FAT: Could not open /test.txt\n");
             }
