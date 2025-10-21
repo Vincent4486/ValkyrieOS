@@ -15,6 +15,32 @@
 #define MAX_FILE_HANDLES 10
 #define ROOT_DIRECTORY_HANDLE -1
 
+// Disk abstraction routines
+bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
+{
+	// No initialization needed for ATA/FDC in current driver
+	return disk != NULL;
+}
+
+bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *lowerDataOut)
+{
+	if (!disk || !lowerDataOut || sectors == 0) return false;
+	int result = -1;
+	printf("[DISK DEBUG] type=%d id=%d lba=%lu sectors=%u\n", disk->type, disk->id, (unsigned long)lba, sectors);
+	switch (disk->type) {
+		case DISK_TYPE_ATA:
+			result = ata_read28(lba, (uint8_t *)lowerDataOut, sectors);
+			break;
+		case DISK_TYPE_FLOPPY:
+			result = fdc_read_lba(lba, (uint8_t *)lowerDataOut, sectors);
+			break;
+		default:
+			printf("[DISK DEBUG] Unknown disk type %d\n", disk->type);
+			return false;
+	}
+	printf("[DISK DEBUG] result=%d\n", result);
+	return result == 0;
+}
 typedef struct
 {
 	uint8_t BootJumpInstruction[3];

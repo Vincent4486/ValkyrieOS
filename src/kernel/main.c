@@ -33,6 +33,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
     // FAT12 test: read /test.txt
     printf("[DEBUG] Starting disk init\n");
     DISK disk;
+    disk.type = DISK_TYPE_FLOPPY; // or DISK_TYPE_ATA for hard disk
+    disk.id = 0; // usually 0 for first drive
     if (DISK_Initialize(&disk, 0)) {
         printf("[DEBUG] Disk init OK\n");
         printf("[DEBUG] Starting FAT init\n");
