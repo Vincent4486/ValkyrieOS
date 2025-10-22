@@ -3,11 +3,13 @@ TARGET_CFLAGS += -ffreestanding -nostdlib -I.
 TARGET_LIBS += -lgcc
 TARGET_LINKFLAGS += -T linker.ld -nostdlib
 
+
 HEADERS_C=$(shell find . -type f -name "*.h")
 HEADERS_ASM=$(shell find . -type f -name "*.inc")
 
 SOURCES_C=$(shell find . -type f -name "*.c")
 SOURCES_ASM=$(shell find . -type f -name "*.asm")
+
 OBJECTS_C=$(patsubst %.c, $(BUILD_DIR)/kernel/c/%.obj, $(SOURCES_C))
 OBJECTS_ASM=$(patsubst %.asm, $(BUILD_DIR)/kernel/asm/%.obj, $(SOURCES_ASM))
 
