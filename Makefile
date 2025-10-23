@@ -1,6 +1,6 @@
 include scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always run doc debug
+.PHONY: all floppy_image kernel bootloader clean always run doc debug format
 
 all: clean floppy_image
 
@@ -64,3 +64,5 @@ run:
 debug:
 	@qemu-system-i386 -fda build/valkyrie_os.img -S -s
 
+format:
+	@clang-format -i $(C_FILES) $(HEADER_FILES)

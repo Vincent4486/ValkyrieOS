@@ -1,5 +1,5 @@
-#include <arch/i686/io.h>
 #include "stdio.h"
+#include <arch/i686/io.h>
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -10,6 +10,8 @@ const uint8_t DEFAULT_COLOR = 0x7;
 
 uint8_t *g_ScreenBuffer = (uint8_t *)0xB8000;
 int g_ScreenX = 0, g_ScreenY = 0;
+
+#include <text/buffer.h>
 
 void putchr(int x, int y, char c)
 {
@@ -32,25 +34,13 @@ void setcursor(int x, int y)
 {
 	int pos = y * SCREEN_WIDTH + x;
 
-    i686_outb(0x3D4, 0x0F);
-    i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
-    i686_outb(0x3D4, 0x0E);
-    i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+	i686_outb(0x3D4, 0x0F);
+	i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
+	i686_outb(0x3D4, 0x0E);
+	i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
-void clrscr()
-{
-	for (int y = 0; y < SCREEN_HEIGHT; y++)
-		for (int x = 0; x < SCREEN_WIDTH; x++)
-		{
-			putchr(x, y, '\0');
-			putcolor(x, y, DEFAULT_COLOR);
-		}
-
-	g_ScreenX = 0;
-	g_ScreenY = 0;
-	setcursor(g_ScreenX, g_ScreenY);
-}
+void clrscr() { buffer_clear(); }
 
 void scrollback(int lines)
 {
@@ -71,65 +61,9 @@ void scrollback(int lines)
 	g_ScreenY -= lines;
 }
 
-void putc(char c)
-{
-	switch (c)
-	{
-	case '\b':
-		if (g_ScreenX == 0 && g_ScreenY == 0)
-			break; /* nothing to delete */
+void putc(char c) { buffer_putc(c); }
 
-		if (g_ScreenX == 0)
-		{
-			g_ScreenY -= 1;
-			g_ScreenX = SCREEN_WIDTH - 1;
-		}
-		else
-		{
-			g_ScreenX -= 1;
-		}
-
-		putchr(g_ScreenX, g_ScreenY, '\0');
-		putcolor(g_ScreenX, g_ScreenY, DEFAULT_COLOR);
-		break;
-
-	case '\n':
-		g_ScreenX = 0;
-		g_ScreenY++;
-		break;
-
-	case '\t':
-		for (int i = 0; i < 4 - (g_ScreenX % 4); i++) putc(' ');
-		break;
-
-	case '\r':
-		g_ScreenX = 0;
-		break;
-
-	default:
-		putchr(g_ScreenX, g_ScreenY, c);
-		g_ScreenX++;
-		break;
-	}
-
-	if (g_ScreenX >= SCREEN_WIDTH)
-	{
-		g_ScreenY++;
-		g_ScreenX = 0;
-	}
-	if (g_ScreenY >= SCREEN_HEIGHT) scrollback(1);
-
-	setcursor(g_ScreenX, g_ScreenY);
-}
-
-void puts(const char *str)
-{
-	while (*str)
-	{
-		putc(*str);
-		str++;
-	}
-}
+void puts(const char *str) { buffer_puts(str); }
 
 const char g_HexChars[] = "0123456789abcdef";
 
@@ -345,12 +279,11 @@ void printf(const char *fmt, ...)
 void print_buffer(const char *msg, const void *buffer, uint32_t count)
 {
 	const uint8_t *u8Buffer = (const uint8_t *)buffer;
-
 	puts(msg);
 	for (uint16_t i = 0; i < count; i++)
 	{
 		putc(g_HexChars[u8Buffer[i] >> 4]);
 		putc(g_HexChars[u8Buffer[i] & 0xF]);
 	}
-	puts("\n");
+	putc('\n');
 }

@@ -2,11 +2,11 @@
 #include "fat.h"
 #include "memdefs.h"
 #include "memory.h"
+#include "startscreen.h"
 #include "stdio.h"
 #include "x86.h"
-#include "startscreen.h"
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 uint8_t *KernelLoadBuffer = (uint8_t *)MEMORY_LOAD_KERNEL;
 uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;

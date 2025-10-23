@@ -2,4 +2,4 @@
 
 #include "pic.h"
 
-const PICDriver* i8259_GetDriver();
+const PICDriver *i8259_GetDriver();

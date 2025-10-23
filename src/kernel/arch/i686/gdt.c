@@ -1,6 +1,6 @@
 #include "gdt.h"
-#include <stdint.h>
 #include <std/stdio.h>
+#include <stdint.h>
 
 typedef struct
 {

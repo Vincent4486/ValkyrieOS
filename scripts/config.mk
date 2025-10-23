@@ -18,6 +18,9 @@ export TARGET_LD = $(TARGET)-gcc
 export TARGET_LINKFLAGS =
 export TARGET_LIBS =
 
+export C_FILES = $(shell find . -type f -name "*.c")
+export HEADER_FILES = $(shell find . -type f -name "*.h")
+
 export SOURCE_DIR = $(abspath .)
 export BUILD_DIR = $(abspath build)
 
