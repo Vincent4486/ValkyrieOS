@@ -1,8 +1,8 @@
 include scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always run doc debug format
+.PHONY: all floppy_image kernel jvm bootloader clean always run doc debug format
 
-all: clean floppy_image
+all: floppy_image
 
 include scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
@@ -40,7 +40,16 @@ $(BUILD_DIR)/stage2.bin: always
 kernel: $(BUILD_DIR)/kernel.bin
 
 $(BUILD_DIR)/kernel.bin: always
-	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR))
+	@$(MAKE) -C src/kernel/core BUILD_DIR=$(abspath $(BUILD_DIR))
+
+#
+# JVM
+#
+
+jvm: $(BUILD_DIR)/jvm.bin
+
+$(BUILD_DIR)/jvm.bin: always
+	@$(MAKE) -C src/kernel/jvm BUILD_DIR=$(abspath $(BUILD_DIR))
 
 
 #

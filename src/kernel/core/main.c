@@ -27,9 +27,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
 	clrscr();
 
-	printf("Hello from kernel!\n");
+    i686_IRQ_RegisterHandler(0, timer);
 
-	i686_IRQ_RegisterHandler(0, timer);
+	printf("Hello from kernel!\n");
 
 	// FAT12 test: read /test.txt
 	printf("[DEBUG] Starting disk init\n");
@@ -73,13 +73,13 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
 	/* Buffer test: print many lines to exercise scrollback and repaint */
 	printf("[DEBUG] Starting buffer test\n");
-	/*for (int i = 0; i < 200; i++)
+	/*for (int i = 0; i < 20; i++)
 	{
 		printf(
 		    "Buffer line %d: The quick brown fox jumps over the lazy dog\n",
 		    i);
-	}
-	printf("[DEBUG] Buffer test complete\n");*/
+	}*/
+	printf("[DEBUG] Buffer test complete\n");
 
 	// crash_me();
 

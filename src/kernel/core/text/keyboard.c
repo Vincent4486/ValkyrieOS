@@ -2,6 +2,7 @@
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
 #include <std/stdio.h> // for putc/printf
+#include <text/buffer.h>
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256
@@ -12,6 +13,7 @@ static int kb_ready = 0; /* 1 when a full line (\n) is available */
 /* modifier state */
 static int shift = 0;
 static int caps = 0;
+static int extended = 0; /* set when 0xE0 prefix received */
 
 /* Minimal set-1 scancode -> ASCII map for printable keys.
    Extend as needed (this is not full; handles letters, digits, space, enter,
@@ -36,11 +38,26 @@ void i686_keyboard_irq(Registers *regs)
 	uint8_t scancode = i686_inb(0x60);
 
 	/* handle key releases and modifier keys */
+
+	/* handle 0xE0 extended prefix */
+	if (scancode == 0xE0)
+	{
+		extended = 1;
+		return;
+	}
+
+	/* key release */
 	if (scancode & 0x80)
 	{
 		/* key release: clear shift if shift released */
 		uint8_t key = scancode & 0x7F;
 		if (key == 0x2A || key == 0x36) shift = 0; /* left/right shift */
+		/* if this was an extended key release, clear extended state */
+		if (extended)
+		{
+			extended = 0;
+			return;
+		}
 		return;
 	}
 
@@ -55,6 +72,50 @@ void i686_keyboard_irq(Registers *regs)
 	if (scancode == 0x3A)
 	{
 		caps = !caps;
+		return;
+	}
+
+	/* If we previously saw 0xE0, handle extended keys (arrows) here */
+	if (extended)
+	{
+		switch (scancode)
+		{
+		case 0x48: /* up */
+		{
+			int x, y;
+			buffer_get_cursor(&x, &y);
+			if (y > 0) y--;
+			buffer_set_cursor(x, y);
+			break;
+		}
+		case 0x50: /* down */
+		{
+			int x, y;
+			buffer_get_cursor(&x, &y);
+			if (y < 24) y++;
+			buffer_set_cursor(x, y);
+			break;
+		}
+		case 0x4B: /* left */
+		{
+			int x, y;
+			buffer_get_cursor(&x, &y);
+			if (x > 0) x--;
+			buffer_set_cursor(x, y);
+			break;
+		}
+		case 0x4D: /* right */
+		{
+			int x, y;
+			buffer_get_cursor(&x, &y);
+			if (x < 79) x++;
+			buffer_set_cursor(x, y);
+			break;
+		}
+		default:
+			break;
+		}
+		extended = 0;
 		return;
 	}
 
