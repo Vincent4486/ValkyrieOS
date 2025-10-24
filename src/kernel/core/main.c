@@ -5,6 +5,7 @@
 #include <std/stdio.h>
 #include <stdint.h>
 #include <text/buffer.h>
+#include <jvm/jvm.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;

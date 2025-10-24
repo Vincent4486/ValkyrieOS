@@ -42,15 +42,6 @@ kernel: $(BUILD_DIR)/kernel.bin
 $(BUILD_DIR)/kernel.bin: always
 	@$(MAKE) -C src/kernel/core BUILD_DIR=$(abspath $(BUILD_DIR))
 
-#
-# JVM
-#
-
-jvm: $(BUILD_DIR)/jvm.bin
-
-$(BUILD_DIR)/jvm.bin: always
-	@$(MAKE) -C src/kernel/jvm BUILD_DIR=$(abspath $(BUILD_DIR))
-
 
 #
 # Always
