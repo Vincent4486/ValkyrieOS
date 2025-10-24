@@ -86,6 +86,44 @@ static void push_newline_at_tail(void)
    }
 }
 
+/* Insert an empty logical line at relative position rel_pos (0..s_lines_used).
+   If buffer is full, the oldest line is dropped (s_head advanced). */
+static void buffer_insert_empty_line_at_rel(uint32_t rel_pos)
+{
+   if (rel_pos > s_lines_used) rel_pos = s_lines_used;
+
+   if (s_lines_used < BUFFER_LINES)
+   {
+      /* shift lines right from tail to rel_pos */
+      for (int i = (int)s_lines_used; i > (int)rel_pos; i--)
+      {
+         uint32_t dst = (s_head + i) % BUFFER_LINES;
+         uint32_t src = (s_head + i - 1) % BUFFER_LINES;
+         for (int c = 0; c < SCREEN_WIDTH; c++)
+            s_buffer[dst][c] = s_buffer[src][c];
+      }
+      uint32_t idx = (s_head + rel_pos) % BUFFER_LINES;
+      for (int c = 0; c < SCREEN_WIDTH; c++) s_buffer[idx][c] = '\0';
+      s_lines_used++;
+   }
+   else
+   {
+      /* buffer full: drop head, then shift (head already moved logically) */
+      s_head = (s_head + 1) % BUFFER_LINES;
+      /* now move lines right from tail-1 down to rel_pos */
+      for (int i = (int)s_lines_used - 1; i > (int)rel_pos; i--)
+      {
+         uint32_t dst = (s_head + i) % BUFFER_LINES;
+         uint32_t src = (s_head + i - 1) % BUFFER_LINES;
+         for (int c = 0; c < SCREEN_WIDTH; c++)
+            s_buffer[dst][c] = s_buffer[src][c];
+      }
+      uint32_t idx = (s_head + rel_pos) % BUFFER_LINES;
+      for (int c = 0; c < SCREEN_WIDTH; c++) s_buffer[idx][c] = '\0';
+      /* s_lines_used remains BUFFER_LINES */
+   }
+}
+
 void buffer_putc(char c)
 {
    ensure_line_exists();
@@ -121,15 +159,57 @@ void buffer_putc(char c)
          printing a trailing '\n'. */
       /* Move view to next visible line. When newlines are produced we want to
          show the bottom by default (reset scroll). */
+      /* Split the current logical line at cursor position: move characters
+         after s_cursor_x into a new line inserted after the current one. */
       s_scroll = 0;
-      if (s_cursor_y < SCREEN_HEIGHT - 1)
-         s_cursor_y++;
+
+      /* compute current visible rel_pos and current line index */
+      int visible_base = (s_lines_used > SCREEN_HEIGHT)
+                             ? (int)(s_lines_used - SCREEN_HEIGHT)
+                             : 0;
+      int visible_start = visible_base - (int)s_scroll;
+      if (visible_start < 0) visible_start = 0;
+      uint32_t rel = (uint32_t)visible_start + (uint32_t)s_cursor_y;
+      if (rel >= s_lines_used) rel = s_lines_used - 1;
+      uint32_t idx_cur = (s_head + rel) % BUFFER_LINES;
+
+      /* compute length */
+      int len = 0;
+      while (len < SCREEN_WIDTH && s_buffer[idx_cur][len]) len++;
+
+      /* If cursor is not at end, move tail text to new line */
+      if (s_cursor_x < len)
+      {
+         /* insert a new empty logical line after rel */
+         buffer_insert_empty_line_at_rel(rel + 1);
+         /* destination index for new line */
+         uint32_t idx_new = (s_head + rel + 1) % BUFFER_LINES;
+         int move = len - s_cursor_x;
+         for (int i = 0; i < move; i++)
+         {
+            s_buffer[idx_new][i] = s_buffer[idx_cur][s_cursor_x + i];
+         }
+         for (int i = move; i < SCREEN_WIDTH; i++) s_buffer[idx_new][i] = '\0';
+         /* truncate current line at cursor */
+         for (int i = s_cursor_x; i < SCREEN_WIDTH; i++)
+            s_buffer[idx_cur][i] = '\0';
+      }
       else
       {
-         /* At bottom visible row: allocate a new logical tail line so the view
-            scrolls down. push_newline_at_tail() will drop the head if the
-            circular buffer is full. */
-         push_newline_at_tail();
+         /* cursor at end: just insert empty line after current */
+         buffer_insert_empty_line_at_rel(rel + 1);
+      }
+
+      /* move cursor to start of next visible line */
+      if (s_cursor_y < SCREEN_HEIGHT - 1)
+      {
+         s_cursor_y++;
+      }
+      else if (s_lines_used > SCREEN_HEIGHT)
+      {
+         /* when inserting at the bottom of the visible window, advance head
+            so the view follows the tail */
+         s_head = (s_head + 1) % BUFFER_LINES;
       }
 
       s_cursor_x = 0;
@@ -319,6 +399,10 @@ void buffer_set_cursor(int x, int y)
    if (x >= SCREEN_WIDTH) x = SCREEN_WIDTH - 1;
    if (y < 0) y = 0;
    if (y >= SCREEN_HEIGHT) y = SCREEN_HEIGHT - 1;
+   /* Clamp x to the actual printable length of the visible logical line so
+      the cursor cannot be positioned in trailing empty space. */
+   int max_x = buffer_get_visible_line_length(y);
+   if (x > max_x) x = max_x;
    s_cursor_x = x;
    s_cursor_y = y;
    setcursor(s_cursor_x, s_cursor_y);
@@ -328,6 +412,21 @@ void buffer_get_cursor(int *x, int *y)
 {
    if (x) *x = s_cursor_x;
    if (y) *y = s_cursor_y;
+}
+
+int buffer_get_visible_line_length(int y)
+{
+   if (y < 0 || y >= SCREEN_HEIGHT) return 0;
+   int base =
+       (s_lines_used > SCREEN_HEIGHT) ? (int)(s_lines_used - SCREEN_HEIGHT) : 0;
+   int start = base - (int)s_scroll;
+   if (start < 0) start = 0;
+   uint32_t logical = (uint32_t)start + (uint32_t)y;
+   if (logical >= s_lines_used) return 0;
+   uint32_t idx = (s_head + logical) % BUFFER_LINES;
+   int len = 0;
+   while (len < SCREEN_WIDTH && s_buffer[idx][len]) len++;
+   return len;
 }
 
 void buffer_repaint(void)

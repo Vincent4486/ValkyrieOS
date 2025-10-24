@@ -120,16 +120,64 @@ void i686_keyboard_irq(Registers *regs)
       {
          int x, y;
          buffer_get_cursor(&x, &y);
-         if (x > 0) x--;
-         buffer_set_cursor(x, y);
+         if (x > 0)
+         {
+            x--;
+            buffer_set_cursor(x, y);
+         }
+         else if (y > 0)
+         {
+            /* move to end of previous visible line */
+            int prev_len = buffer_get_visible_line_length(y - 1);
+            y--;
+            x = prev_len;
+            buffer_set_cursor(x, y);
+         }
+         else
+         {
+            /* at top: scroll up */
+            buffer_scroll(1);
+            buffer_set_cursor(0, 0);
+         }
          break;
       }
       case 0x4D: /* right */
       {
          int x, y;
          buffer_get_cursor(&x, &y);
-         if (x < 79) x++;
-         buffer_set_cursor(x, y);
+         int len = buffer_get_visible_line_length(y);
+         if (x < len)
+         {
+            x++;
+            buffer_set_cursor(x, y);
+         }
+         else
+         {
+            /* At end of current visible line. Only move to the next visible
+               line if that line actually exists (has characters). Otherwise
+               stay at the end of the current line. */
+            if (y < SCREEN_HEIGHT - 1)
+            {
+               int next_len = buffer_get_visible_line_length(y + 1);
+               if (next_len > 0)
+               {
+                  y++;
+                  x = 0;
+                  buffer_set_cursor(x, y);
+               }
+               else
+               {
+                  /* no next visible content: keep cursor at end */
+                  buffer_set_cursor(len, y);
+               }
+            }
+            else
+            {
+               /* bottom row: don't create lines by scrolling; keep cursor at
+                  end of current line */
+               buffer_set_cursor(len, y);
+            }
+         }
          break;
       }
       default:
