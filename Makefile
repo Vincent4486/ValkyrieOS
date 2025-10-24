@@ -40,7 +40,7 @@ $(BUILD_DIR)/stage2.bin: always
 kernel: $(BUILD_DIR)/kernel.bin
 
 $(BUILD_DIR)/kernel.bin: always
-	@$(MAKE) -C src/kernel/core BUILD_DIR=$(abspath $(BUILD_DIR))
+	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR))
 
 
 #
@@ -55,8 +55,7 @@ always:
 clean:
 	@$(MAKE) -C src/bootloader/stage1 BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@$(MAKE) -C src/bootloader/stage2 BUILD_DIR=$(abspath $(BUILD_DIR)) clean
-	@$(MAKE) -C src/kernel/core BUILD_DIR=$(abspath $(BUILD_DIR)) clean
-	@$(MAKE) -C src/kernel/jvm BUILD_DIR=$(abspath $(BUILD_DIR)) clean
+	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@rm -rf $(BUILD_DIR)/*
 	@echo "Build directory cleaned."
 
