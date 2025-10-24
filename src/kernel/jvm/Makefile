@@ -1,4 +1,4 @@
-TARGET_CFLAGS += -ffreestanding -nostdlib -I. -I../core
+TARGET_CXXFLAGS += -ffreestanding -nostdlib -I. -I../core
 TARGET_LIBS += -lgcc
 TARGET_LINKFLAGS += -T linker.ld -nostdlib
 
@@ -16,10 +16,10 @@ $(BUILD_DIR)/jvm.bin: $(OBJECTS_CPP)
 	@$(TARGET_LD) $(TARGET_LINKFLAGS) -Wl,-Map=$(BUILD_DIR)/kernel.map -o $@ $^ $(TARGET_LIBS)
 	@echo "--> Created:  jvm.bin"
 
-$(BUILD_DIR)/kernel/jvm/cpp/%.obj: %.c $(HEADERS_CPP)
+$(BUILD_DIR)/kernel/jvm/cpp/%.obj: %.cpp $(HEADERS_CPP)
 	@mkdir -p $(@D)
-	@$(TARGET_CC) $(TARGET_CFLAGS) -c -o $@ $<
+	@$(TARGET_CXX) $(TARGET_CXXFLAGS) -c -o $@ $<
 	@echo "--> Compiled: " $<
 
 clean: 
-	@rm $(BUILD_DIR)/jvm.bin
+	@rm -f $(BUILD_DIR)/jvm.bin $(OBJECTS_CPP)

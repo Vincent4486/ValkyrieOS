@@ -9,6 +9,7 @@ stage1: $(BUILD_DIR)/stage1.bin
 
 $(BUILD_DIR)/stage1.bin: boot.asm
 	@$(ASM) $< -f bin -o $@
+	@echo "--> Compiled: " $<
 	@echo "--> Created  stage1.bin"
 
 clean:
