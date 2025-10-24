@@ -66,4 +66,9 @@ debug:
 	@qemu-system-i386 -fda build/valkyrie_os.img -S -s
 
 format:
-	@clang-format -i $(C_FILES) $(HEADER_FILES)
+	@for f in $(CPP_FILES) $(C_FILES) $(HEADER_FILES); do \
+		if [ -f "$$f" ]; then \
+			echo "--> Formatting: $$f"; \
+			clang-format -i "$$f"; \
+		fi; \
+	done
