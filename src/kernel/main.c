@@ -14,7 +14,7 @@ void crash_me();
 
 void timer(Registers *regs)
 {
-   // printf(".");
+  //printf(".");
 }
 
 void __attribute__((section(".entry"))) start(uint16_t bootDrive)
@@ -52,8 +52,35 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
             char buf[256] = {0};
             printf("[DEBUG] Reading file\n");
             uint32_t bytes = FAT_Read(&disk, file, sizeof(buf) - 1, buf);
-            buf[bytes] = '\0';
-            printf("Contents of /test.txt:\n%s\n", buf);
+               buf[bytes] = '\0';
+               printf("[DEBUG] FAT_Read returned %u bytes\n", (unsigned)bytes);
+               /* Hex-dump the returned bytes so we can inspect raw contents even
+                * when printing as a string doesn't show anything. */
+               printf("[DEBUG] Hexdump of returned buffer (%u bytes):\n", (unsigned)bytes);
+               /* Use print_buffer() helper which emits hex using the
+                * kernel's own hex routine. Our printf implementation
+                * doesn't support width/zero-padding ("%02X"), which is
+                * why you saw "2X" in the output. print_buffer prints
+                * two hex chars per byte.
+                */
+               print_buffer("", buf, bytes);
+
+               if (bytes > 0)
+               {
+                  printf("Contents of /test.txt:\n%s\n", buf);
+               }
+               else
+               {
+                  /* Hex-dump first 64 bytes to help debug */
+                  printf("[DEBUG] Empty read; hexdump of buffer:\n");
+                  for (unsigned i = 0; i < 64 && i < sizeof(buf); i++)
+                  {
+                     unsigned char c = (unsigned char)buf[i];
+                     printf("%02X ", c);
+                     if ((i & 15) == 15) printf("\n");
+                  }
+                  printf("\n");
+               }
             FAT_Close(file);
             printf("[DEBUG] File closed\n");
          }
@@ -71,16 +98,6 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    {
       printf("DISK: Init failed\n");
    }
-
-   /* Buffer test: print many lines to exercise scrollback and repaint */
-   printf("[DEBUG] Starting buffer test\n");
-   /*for (int i = 0; i < 20; i++)
-   {
-      printf(
-          "Buffer line %d: The quick brown fox jumps over the lazy dog\n",
-          i);
-   }*/
-   printf("[DEBUG] Buffer test complete\n");
 
    // crash_me();
 

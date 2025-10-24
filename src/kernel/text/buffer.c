@@ -429,6 +429,20 @@ int buffer_get_visible_line_length(int y)
    return len;
 }
 
+int buffer_get_max_scroll(void)
+{
+   if (s_lines_used <= SCREEN_HEIGHT) return 0;
+   return (int)(s_lines_used - SCREEN_HEIGHT);
+}
+
+uint32_t buffer_get_visible_start(void)
+{
+   int base = (s_lines_used > SCREEN_HEIGHT) ? (int)(s_lines_used - SCREEN_HEIGHT) : 0;
+   int start = base - (int)s_scroll;
+   if (start < 0) start = 0;
+   return (uint32_t)start;
+}
+
 void buffer_repaint(void)
 {
    /* determine start of visible window (last SCREEN_HEIGHT lines) then apply

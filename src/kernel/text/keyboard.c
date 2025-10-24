@@ -84,17 +84,31 @@ void i686_keyboard_irq(Registers *regs)
       {
          int x, y;
          buffer_get_cursor(&x, &y);
+         /* Compute whether there is older content above the visible start
+          * + current cursor row. If so, prefer to scroll the view rather
+          * than moving the cursor further up within the window. */
+         uint32_t visible_start = buffer_get_visible_start();
+         uint32_t logical_index = visible_start + (uint32_t)y;
+
          if (y > 0)
          {
+            /* still room to move up within visible window */
             y--;
+            buffer_set_cursor(x, y);
+         }
+         else if (logical_index > 0)
+         {
+            /* There is older content above the visible window: jump to the
+             * top of the scrollback so the user can reach the very oldest
+             * lines. This avoids situations where repeated single-line
+             * scrolls appear to stop before the true top. */
+            int max = buffer_get_max_scroll();
+            buffer_scroll(max);
             buffer_set_cursor(x, y);
          }
          else
          {
-            /* at top visible row: scroll view up (older content) */
-            buffer_scroll(1);
-            /* keep cursor at top row */
-            buffer_set_cursor(x, y);
+            /* at very top already */
          }
          break;
       }
@@ -102,17 +116,26 @@ void i686_keyboard_irq(Registers *regs)
       {
          int x, y;
          buffer_get_cursor(&x, &y);
+         uint32_t visible_start = buffer_get_visible_start();
+         uint32_t logical_index = visible_start + (uint32_t)y;
+         uint32_t max_scroll = buffer_get_max_scroll();
+
          if (y < SCREEN_HEIGHT - 1)
          {
+            /* move down within visible window */
             y++;
+            buffer_set_cursor(x, y);
+         }
+         else if (visible_start < max_scroll)
+         {
+            /* There is newer content: jump back to the bottom. */
+            int max = buffer_get_max_scroll();
+            buffer_scroll(-max);
             buffer_set_cursor(x, y);
          }
          else
          {
-            /* at bottom visible row: scroll view down (newer content) */
-            buffer_scroll(-1);
-            /* keep cursor at bottom row */
-            buffer_set_cursor(x, y);
+            /* at very bottom already */
          }
          break;
       }
