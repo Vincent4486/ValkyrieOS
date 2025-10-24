@@ -1,10 +1,12 @@
-#include "fat.h"
-#include "ctype.h"
-#include "memdefs.h"
-#include "memory.h"
-#include "minmax.h"
-#include "stdio.h"
-#include "string.h"
+#include "fat12.h"
+#include <drivers/ata/ata.h>
+#include <drivers/fdc/fdc.h>
+#include <memory/memdefs.h>
+#include <memory/memory.h>
+#include <std/ctype.h>
+#include <std/minmax.h>
+#include <std/stdio.h>
+#include <std/string.h>
 #include <stddef.h>
 
 #define SECTOR_SIZE 512
@@ -12,6 +14,35 @@
 #define MAX_FILE_HANDLES 10
 #define ROOT_DIRECTORY_HANDLE -1
 
+// Disk abstraction routines
+bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
+{
+   // No initialization needed for ATA/FDC in current driver
+   return disk != NULL;
+}
+
+bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors,
+                      void *lowerDataOut)
+{
+   if (!disk || !lowerDataOut || sectors == 0) return false;
+   int result = -1;
+   printf("[DISK DEBUG] type=%d id=%d lba=%lu sectors=%u\n", disk->type,
+          disk->id, (unsigned long)lba, sectors);
+   switch (disk->type)
+   {
+   case DISK_TYPE_ATA:
+      result = ata_read28(lba, (uint8_t *)lowerDataOut, sectors);
+      break;
+   case DISK_TYPE_FLOPPY:
+      result = fdc_read_lba(lba, (uint8_t *)lowerDataOut, sectors);
+      break;
+   default:
+      printf("[DISK DEBUG] Unknown disk type %d\n", disk->type);
+      return false;
+   }
+   printf("[DISK DEBUG] result=%d\n", result);
+   return result == 0;
+}
 typedef struct
 {
    uint8_t BootJumpInstruction[3];
@@ -68,6 +99,13 @@ typedef struct
 
 static FAT_Data *g_Data;
 static uint8_t *g_Fat = NULL;
+/* Kernel-owned storage used when the bootloader preloads FAT/boot sector
+ * into MEMORY_FAT_ADDR. Instead of aliasing that memory (which may have a
+ * different layout), copy the preloaded data into these kernel-owned
+ * structures so the kernel can safely reference them.
+ */
+static FAT_Data s_LocalFatData;
+static uint8_t s_LocalFatBuffer[MEMORY_FAT_SIZE];
 static uint32_t g_DataSectionLba;
 
 bool FAT_ReadBootSector(DISK *disk)
@@ -83,31 +121,84 @@ bool FAT_ReadFat(DISK *disk)
 
 bool FAT_Initialize(DISK *disk)
 {
-   g_Data = (FAT_Data *)MEMORY_FAT_ADDR;
+   /* Use kernel-owned storage for FAT structures. If the bootloader has
+    * preloaded the boot sector/FAT/root dir at MEMORY_FAT_ADDR we will
+    * copy those bytes into our local structures; otherwise we'll read from
+    * disk as usual. */
+   g_Data = &s_LocalFatData;
+   bool preloaded = false;
+   uint8_t *pre = (uint8_t *)MEMORY_FAT_ADDR;
+   FAT_BootSector *bs_pre = (FAT_BootSector *)pre;
 
-   // read boot sector
-   if (!FAT_ReadBootSector(disk))
+   if (bs_pre->BytesPerSector != 0 && bs_pre->SectorsPerFat != 0)
    {
-      printf("FAT: read boot sector failed\r\n");
-      return false;
+      printf("[FAT DEBUG] Found preloaded FAT in memory, copying into kernel buffers\n");
+      preloaded = true;
+      /* Copy the entire FAT_Data header that the bootloader wrote into
+       * MEMORY_FAT_ADDR. This preserves the internal layout (root dir
+       * buffers, open file slots, etc.) rather than trying to guess
+       * offsets relative to the boot sector. */
+      memcpy(g_Data, pre, sizeof(FAT_Data));
    }
+   else
+   {
+      /* Bootsector not present in preloaded region; read it from disk */
+      printf("[FAT DEBUG] Reading boot sector\n");
+      if (!FAT_ReadBootSector(disk))
+      {
+         printf("FAT: read boot sector failed\n");
+         return false;
+      }
+      printf("[FAT DEBUG] Boot sector read OK\n");
+   }
+   printf("[FAT DEBUG] Boot sector values: BytesPerSector=%u "
+          "SectorsPerCluster=%u ReservedSectors=%u FatCount=%u "
+          "DirEntryCount=%u SectorsPerFat=%u\n",
+          g_Data->BS.BootSector.BytesPerSector,
+          g_Data->BS.BootSector.SectorsPerCluster,
+          g_Data->BS.BootSector.ReservedSectors, g_Data->BS.BootSector.FatCount,
+          g_Data->BS.BootSector.DirEntryCount,
+          g_Data->BS.BootSector.SectorsPerFat);
 
-   // read FAT
-   g_Fat = (uint8_t *)g_Data + sizeof(FAT_Data);
+   /* Point g_Fat to our kernel-local fat buffer and populate it either by
+    * copying the preloaded FAT or by reading from disk. */
+   g_Fat = s_LocalFatBuffer;
    uint32_t fatSize = g_Data->BS.BootSector.BytesPerSector *
                       g_Data->BS.BootSector.SectorsPerFat;
-   if (sizeof(FAT_Data) + fatSize >= MEMORY_FAT_SIZE)
+   printf("[FAT DEBUG] FAT size calculation: %lu bytes\n", fatSize);
+   if (fatSize + sizeof(FAT_Data) >= MEMORY_FAT_SIZE)
    {
-      printf("FAT: not enough memory to read FAT! Required %lu, only have "
-             "%u\r\n",
-             sizeof(FAT_Data) + fatSize, MEMORY_FAT_SIZE);
+      printf("FAT: not enough memory to read FAT! Required %lu, only have %u\n",
+             fatSize + sizeof(FAT_Data), MEMORY_FAT_SIZE);
       return false;
    }
 
-   if (!FAT_ReadFat(disk))
+   if (preloaded)
    {
-      printf("FAT: read FAT failed\r\n");
-      return false;
+      printf("[FAT DEBUG] Copying preloaded FAT into kernel buffer\n");
+      /* Bootloader wrote the FAT immediately after the FAT_Data header in
+       * MEMORY_FAT_ADDR. Copy that FAT into our kernel-owned buffer. */
+      memcpy(g_Fat, pre + sizeof(FAT_Data), fatSize);
+      printf("[FAT DEBUG] Using root directory preloaded by bootloader\n");
+      /* The root directory bytes were already copied by memcpy(g_Data, ..)
+       * above because they are part of the FAT_Data header. */
+   }
+   else
+   {
+      printf("[FAT DEBUG] Reading FAT from disk\n");
+      if (!FAT_ReadFat(disk))
+      {
+         printf("FAT: read FAT failed\n");
+         return false;
+      }
+      printf("[FAT DEBUG] FAT read OK\n");
+      if (!DISK_ReadSectors(disk, g_Data->RootDirectory.FirstCluster, 1,
+                            g_Data->RootDirectory.Buffer))
+      {
+         printf("FAT: read root directory failed\n");
+         return false;
+      }
+      printf("[FAT DEBUG] Root directory read OK\n");
    }
 
    // open root directory file
@@ -116,6 +207,8 @@ bool FAT_Initialize(DISK *disk)
        g_Data->BS.BootSector.SectorsPerFat * g_Data->BS.BootSector.FatCount;
    uint32_t rootDirSize =
        sizeof(FAT_DirectoryEntry) * g_Data->BS.BootSector.DirEntryCount;
+   printf("[FAT DEBUG] RootDirLBA=%lu RootDirSize=%lu\n", rootDirLba,
+          rootDirSize);
 
    g_Data->RootDirectory.Public.Handle = ROOT_DIRECTORY_HANDLE;
    g_Data->RootDirectory.Public.IsDirectory = true;
@@ -127,22 +220,33 @@ bool FAT_Initialize(DISK *disk)
    g_Data->RootDirectory.CurrentCluster = rootDirLba;
    g_Data->RootDirectory.CurrentSectorInCluster = 0;
 
-   if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
-   {
-      printf("FAT: read root directory failed\r\n");
-      return false;
-   }
+   printf("[FAT DEBUG] Reading root directory sector\n");
+      if (!preloaded)
+      {
+         if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
+         {
+            printf("FAT: read root directory failed\n");
+            return false;
+         }
+         printf("[FAT DEBUG] Root directory read OK\n");
+      }
+      else
+      {
+         printf("[FAT DEBUG] Using root directory preloaded by bootloader\n");
+      }
 
    // calculate data section
    uint32_t rootDirSectors =
        (rootDirSize + g_Data->BS.BootSector.BytesPerSector - 1) /
        g_Data->BS.BootSector.BytesPerSector;
    g_DataSectionLba = rootDirLba + rootDirSectors;
+   printf("[FAT DEBUG] DataSectionLBA=%lu\n", g_DataSectionLba);
 
    // reset opened files
    for (int i = 0; i < MAX_FILE_HANDLES; i++)
       g_Data->OpenedFiles[i].Opened = false;
 
+   printf("[FAT DEBUG] FAT_Initialize complete\n");
    return true;
 }
 
@@ -362,6 +466,9 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
       FAT_DirectoryEntry entry;
       if (FAT_FindFile(disk, current, name, &entry))
       {
+         printf("[FAT DEBUG] Found directory entry: name=%.11s FirstClusterLow=%u FirstClusterHigh=%u Size=%lu\n",
+                entry.Name, entry.FirstClusterLow, entry.FirstClusterHigh,
+                (unsigned long)entry.Size);
          FAT_Close(current);
 
          // check if directory

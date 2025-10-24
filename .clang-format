@@ -1,8 +1,8 @@
 Language: C
 BasedOnStyle: LLVM
-IndentWidth: 4
-TabWidth: 4
-UseTab: ForIndentation
+IndentWidth: 3
+TabWidth: 3
+UseTab: Never
 ColumnLimit: 80
 BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: WithoutElse

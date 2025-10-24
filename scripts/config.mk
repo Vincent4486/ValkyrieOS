@@ -4,6 +4,7 @@ export CC = gcc
 export CXX = g++
 export LD = gcc
 export ASM = nasm
+export RS = rustc
 export LINKFLAGS =
 export LIBS =
 
@@ -11,11 +12,16 @@ export TARGET = i686-elf
 export TARGET_ASM = nasm
 export TARGET_ASMFLAGS =
 export TARGET_CFLAGS = -std=c99 -g #-O2
+export TARGET_CXXFLAGS = -std=c++17 -g #-O2
 export TARGET_CC = $(TARGET)-gcc
 export TARGET_CXX = $(TARGET)-g++
 export TARGET_LD = $(TARGET)-gcc
 export TARGET_LINKFLAGS =
 export TARGET_LIBS =
+
+export C_FILES = $(shell find . -type f -name "*.c")
+export CPP_FILES = $(shell find . -type f -name "*.cpp")
+export HEADER_FILES = $(shell find . -type f -name "*.h")
 
 export SOURCE_DIR = $(abspath .)
 export BUILD_DIR = $(abspath build)

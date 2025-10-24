@@ -7,3 +7,8 @@ toolchain/
 *.bbl
 *.blg
 *.aux
+.vscode/
+# Emacs temporary files
+*~
+.#*
+*.*#

@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* Basic memory helpers (sizes in bytes) */
 void *memcpy(void *dst, const void *src, size_t num);

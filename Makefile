@@ -1,8 +1,8 @@
 include scripts/config.mk
 
-.PHONY: all floppy_image kernel bootloader clean always run doc debug
+.PHONY: all floppy_image kernel jvm bootloader clean always run doc debug format
 
-all: clean floppy_image
+all: floppy_image
 
 include scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
@@ -57,6 +57,7 @@ clean:
 	@$(MAKE) -C src/bootloader/stage2 BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@rm -rf $(BUILD_DIR)/*
+	@echo "Build directory cleaned."
 
 run:
 	@qemu-system-i386 -fda build/valkyrie_os.img &> /dev/null
@@ -64,3 +65,10 @@ run:
 debug:
 	@qemu-system-i386 -fda build/valkyrie_os.img -S -s
 
+format:
+	@for f in $(CPP_FILES) $(C_FILES) $(HEADER_FILES); do \
+		if [ -f "$$f" ]; then \
+			echo "--> Formatting: $$f"; \
+			clang-format -i "$$f"; \
+		fi; \
+	done
