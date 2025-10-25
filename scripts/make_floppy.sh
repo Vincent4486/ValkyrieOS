@@ -41,7 +41,7 @@ TARGET_PARTITION="${DEVICE}p1"
 
 # create file system
 echo "Formatting ${TARGET_PARTITION}..."
-mkfs.fat -n "VALKYRIE" $TARGET_PARTITION >/dev/null
+mkfs.fat -n "NBOS" $TARGET_PARTITION >/dev/null
 
 # install bootloader
 echo "Installing bootloader on ${TARGET_PARTITION}..."
@@ -53,14 +53,14 @@ echo "01 00 00 00" | xxd -r -p | dd of=$TARGET_PARTITION conv=notrunc bs=1 seek=
 printf "%x" ${STAGE2_SECTORS} | xxd -r -p | dd of=$TARGET_PARTITION conv=notrunc bs=1 seek=$(( $STAGE1_STAGE2_LOCATION_OFFSET + 4 ))
 
 # copy files
-echo "Copying files to ${TARGET_PARTITION} (mounted on /tmp/valkyrie)..."
-mkdir -p /tmp/valkyrie
-mount ${TARGET_PARTITION} /tmp/valkyrie
-cp ${BUILD_DIR}/kernel.bin /tmp/valkyrie
-cp test.txt /tmp/valkyrie
-mkdir /tmp/valkyrie/test
-cp test.txt /tmp/valkyrie/test
-umount /tmp/valkyrie
+echo "Copying files to ${TARGET_PARTITION} (mounted on /tmp/nbos)..."
+mkdir -p /tmp/nbos
+mount ${TARGET_PARTITION} /tmp/nbos
+cp ${BUILD_DIR}/kernel.bin /tmp/nbos
+cp test.txt /tmp/nbos
+mkdir /tmp/nbos/test
+cp test.txt /tmp/nbos/test
+umount /tmp/nbos
 
 # destroy loopback device
 losetup -d ${DEVICE}
