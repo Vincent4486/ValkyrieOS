@@ -4,7 +4,6 @@ include scripts/config.mk
 
 all: floppy_image
 
-include scripts/toolchain.mk
 # Documentation build target (runs the Makefile in docs/)
 # Set DOC_TARGET to 'latexmk' or 'pdf' to change behavior. Default: pdf
 DOC_TARGET ?= pdf
@@ -17,7 +16,11 @@ doc:
 #
 # Floppy image
 #
-include scripts/image.mk
+floppy_image: $(BUILD_DIR)/valkyrie_os.img
+
+$(BUILD_DIR)/valkyrie_os.img: bootloader kernel
+	@$(abspath .)/scripts/make_floppy.sh $@
+	@echo "--> Created: " $@
 
 #
 # Bootloader
