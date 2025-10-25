@@ -15,7 +15,7 @@ void crash_me();
 
 void timer(Registers *regs)
 {
-   //printf(".");
+   printf(".");
 }
 
 void __attribute__((section(".entry"))) start(uint16_t bootDrive)
@@ -30,6 +30,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    clrscr();
 
    i686_IRQ_RegisterHandler(0, timer);
+
+   printf("Kernel running");
 
    // crash_me();
 
