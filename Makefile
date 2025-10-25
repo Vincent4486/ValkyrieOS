@@ -1,22 +1,22 @@
 include scripts/config.mk
 
+<<<<<<< HEAD
 .PHONY: all floppy_image disk_image kernel bootloader clean always
 all: floppy_image
+=======
+.PHONY: all floppy_image disk_image kernel bootloader clean always tools_fat
 
-# Documentation build target (runs the Makefile in docs/)
-# Set DOC_TARGET to 'latexmk' or 'pdf' to change behavior. Default: pdf
-DOC_TARGET ?= pdf
-# Docs wrapper targets
-doc:
-	@echo "Building docs ($(DOC_TARGET))"
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs $(DOC_TARGET)
+all: floppy_image tools_fat
+>>>>>>> c8852e10b58ca765b20692c12c5aaafede882141
+
+include scripts/toolchain.mk
 
 #
 # Floppy image
 #
-floppy_image: $(BUILD_DIR)/valkyrie_os.img
+floppy_image: $(BUILD_DIR)/main_floppy.img
 
+<<<<<<< HEAD
 $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 	@./scripts/make_floppy.sh $@
 	@echo "--> Created: " $@
@@ -29,7 +29,22 @@ disk_image: $(BUILD_DIR)/valkyrie_os.raw
 
 $(BUILD_DIR)/main_disk.raw: bootloader kernel
 	@./scripts/make_disk.sh $@ $(MAKE_DISK_SIZE)
+=======
+$(BUILD_DIR)/main_floppy.img: bootloader kernel
+	@./scripts/make_floppy_image.sh $@
+>>>>>>> c8852e10b58ca765b20692c12c5aaafede882141
 	@echo "--> Created: " $@
+
+
+#
+# Disk image
+#
+disk_image: $(BUILD_DIR)/main_disk.raw
+
+$(BUILD_DIR)/main_disk.raw: bootloader kernel
+	@./scripts/make_disk_image.sh $@ $(MAKE_DISK_SIZE)
+	@echo "--> Created: " $@
+
 
 #
 # Bootloader
@@ -54,6 +69,13 @@ kernel: $(BUILD_DIR)/kernel.bin
 $(BUILD_DIR)/kernel.bin: always
 	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR))
 
+#
+# Tools
+#
+tools_fat: $(BUILD_DIR)/tools/fat
+$(BUILD_DIR)/tools/fat: always tools/fat/fat.c
+	@mkdir -p $(BUILD_DIR)/tools
+	@$(MAKE) -C tools/fat BUILD_DIR=$(abspath $(BUILD_DIR))
 
 #
 # Always
@@ -68,6 +90,7 @@ clean:
 	@$(MAKE) -C src/bootloader/stage1 BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@$(MAKE) -C src/bootloader/stage2 BUILD_DIR=$(abspath $(BUILD_DIR)) clean
 	@$(MAKE) -C src/kernel BUILD_DIR=$(abspath $(BUILD_DIR)) clean
+<<<<<<< HEAD
 	@rm -rf $(BUILD_DIR)/*
 	@echo "--> Build directory cleaned."
 
@@ -90,3 +113,6 @@ format:
 			clang-format -i "$$f"; \
 		fi; \
 	done
+=======
+	@rm -rf $(BUILD_DIR)/*
+>>>>>>> c8852e10b58ca765b20692c12c5aaafede882141
