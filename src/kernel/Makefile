@@ -47,4 +47,4 @@ arch/i686/isrs_gen.inc arch/i686/isrs_gen.c:
 	@$(SOURCE_DIR)/scripts/generate_isr.sh $@
 
 clean:
-	rm -f $(BUILD_DIR)/kernel.bin
+	@rm -f $(BUILD_DIR)/kernel.bin

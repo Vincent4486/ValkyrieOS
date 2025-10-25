@@ -74,9 +74,12 @@ start:
     jne .no_disk_extensions
 
     mov byte [have_extensions], 1
+    jmp .after_disk_extensions_check
 
 .no_disk_extensions:
     mov byte [have_extensions], 0
+
+.after_disk_extensions_check:
 
     mov si, stage2_location
 
@@ -310,13 +313,13 @@ extension_dap:
     .offset:            dw 0
     .lba:               dq 0
 
-stage2_location:        times 30 db 0
-
 STAGE2_LOAD_SEGMENT     equ 0x0
 STAGE2_LOAD_OFFSET      equ 0x500
 
 
-times 510-($-$$) db 0
+times 510-30-($-$$) db 0
+stage2_location:        times 30 db 0
+
 dw 0AA55h
 
 buffer:
