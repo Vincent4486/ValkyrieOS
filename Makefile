@@ -19,7 +19,17 @@ doc:
 floppy_image: $(BUILD_DIR)/valkyrie_os.img
 
 $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
-	@$(abspath .)/scripts/make_floppy.sh $@
+	@sudo ./scripts/make_floppy.sh $@
+	@echo "--> Created: " $@
+
+
+#
+# Disk image
+#
+disk_image: $(BUILD_DIR)/main_disk.raw
+
+$(BUILD_DIR)/main_disk.raw: bootloader kernel
+	@./scripts/make_disk_image.sh $@ $(MAKE_DISK_SIZE)
 	@echo "--> Created: " $@
 
 #
