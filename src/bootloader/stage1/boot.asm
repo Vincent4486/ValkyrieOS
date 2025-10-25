@@ -30,8 +30,10 @@ ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, use
                             db 0                    ; reserved
 ebr_signature:              db 29h
 ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
-ebr_volume_label:           db 'VALKYRIE OS'        ; 11 bytes, padded with spaces
+ebr_volume_label:           db 'NANOBYTE OS'        ; 11 bytes, padded with spaces
 ebr_system_id:              db 'FAT12   '           ; 8 bytes
+
+times 90-($-$$) db 0
 
 ;
 ; Code goes here
@@ -63,7 +65,7 @@ start:
     mov si, msg_loading
     call puts
 
-    ;check disk extension
+    ; check extensions present
     mov ah, 0x41
     mov bx, 0x55AA
     stc
@@ -73,6 +75,7 @@ start:
     cmp bx, 0xAA55
     jne .no_disk_extensions
 
+    ; extensions are present
     mov byte [have_extensions], 1
     jmp .after_disk_extensions_check
 
@@ -80,10 +83,10 @@ start:
     mov byte [have_extensions], 0
 
 .after_disk_extensions_check:
-
+    ; load stage2
     mov si, stage2_location
 
-    mov ax, STAGE2_LOAD_SEGMENT
+    mov ax, STAGE2_LOAD_SEGMENT         ; set segment registers
     mov es, ax
 
     mov bx, STAGE2_LOAD_OFFSET
@@ -226,28 +229,28 @@ lba_to_chs:
 ;
 disk_read:
 
-    push eax                             ; save registers we will modify
+    push eax                            ; save registers we will modify
     push bx
     push cx
     push dx
+    push si
     push di
 
-    ;check extension
     cmp byte [have_extensions], 1
     jne .no_disk_extensions
 
-    mov [extension_dap.lba], eax
-    mov [extension_dap.segment], es
-    mov [extension_dap.offset], bx
-    mov [extension_dap.count], cl
+    ; with extensions
+    mov [extensions_dap.lba], eax
+    mov [extensions_dap.segment], es
+    mov [extensions_dap.offset], bx
+    mov [extensions_dap.count], cl
 
     mov ah, 0x42
-    mov si, extension_dap
-    mov di, 3
+    mov si, extensions_dap
+    mov di, 3                           ; retry count
     jmp .retry
 
 .no_disk_extensions:
-
     push cx                             ; temporarily save CL (number of sectors to read)
     call lba_to_chs                     ; compute CHS
     pop ax                              ; AL = number of sectors to read
@@ -277,10 +280,11 @@ disk_read:
     popa
 
     pop di
+    pop si
     pop dx
     pop cx
     pop bx
-    pop eax                             ; restore registers modified
+    pop eax                            ; restore registers modified
     ret
 
 
@@ -305,19 +309,21 @@ msg_stage2_not_found:   db 'STAGE2.BIN file not found!', ENDL, 0
 file_stage2_bin:        db 'STAGE2  BIN'
 
 have_extensions:        db 0
-extension_dap:
+extensions_dap:
     .size:              db 10h
                         db 0
     .count:             dw 0
-    .segment:           dw 0
     .offset:            dw 0
+    .segment:           dw 0
     .lba:               dq 0
+
+
 
 STAGE2_LOAD_SEGMENT     equ 0x0
 STAGE2_LOAD_OFFSET      equ 0x500
 
-
 times 510-30-($-$$) db 0
+
 stage2_location:        times 30 db 0
 
 dw 0AA55h
