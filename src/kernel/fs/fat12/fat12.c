@@ -99,6 +99,12 @@ typedef struct
 
 static FAT_Data *g_Data;
 static uint8_t *g_Fat = NULL;
+/* When the bootloader preloads data into MEMORY_FAT_ADDR we set this flag
+ * and keep a pointer to the preloaded region so higher-level code (like
+ * FAT_FindFile) can inspect it without assuming the bootloader and kernel
+ * share identical C struct layouts. */
+static bool g_preloaded = false;
+static uint8_t *g_preloaded_ptr = NULL;
 /* Kernel-owned storage used when the bootloader preloads FAT/boot sector
  * into MEMORY_FAT_ADDR. Instead of aliasing that memory (which may have a
  * different layout), copy the preloaded data into these kernel-owned
@@ -132,13 +138,15 @@ bool FAT_Initialize(DISK *disk)
 
    if (bs_pre->BytesPerSector != 0 && bs_pre->SectorsPerFat != 0)
    {
-      printf("[FAT DEBUG] Found preloaded FAT in memory, copying into kernel buffers\n");
+      printf("[FAT DEBUG] Found preloaded FAT in memory\n");
       preloaded = true;
-      /* Copy the entire FAT_Data header that the bootloader wrote into
-       * MEMORY_FAT_ADDR. This preserves the internal layout (root dir
-       * buffers, open file slots, etc.) rather than trying to guess
-       * offsets relative to the boot sector. */
-      memcpy(g_Data, pre, sizeof(FAT_Data));
+      g_preloaded = true;
+      g_preloaded_ptr = pre;
+      /* Copy only the raw boot sector bytes into our local boot sector
+       * structure so we can compute sizes/locations. Do NOT memcpy the
+       * entire FAT_Data header because the bootloader's C build may use
+       * a different ABI/struct layout than the kernel. */
+      memcpy(&g_Data->BS.BootSector, pre, SECTOR_SIZE);
    }
    else
    {
@@ -175,13 +183,24 @@ bool FAT_Initialize(DISK *disk)
 
    if (preloaded)
    {
-      printf("[FAT DEBUG] Copying preloaded FAT into kernel buffer\n");
-      /* Bootloader wrote the FAT immediately after the FAT_Data header in
-       * MEMORY_FAT_ADDR. Copy that FAT into our kernel-owned buffer. */
-      memcpy(g_Fat, pre + sizeof(FAT_Data), fatSize);
-      printf("[FAT DEBUG] Using root directory preloaded by bootloader\n");
-      /* The root directory bytes were already copied by memcpy(g_Data, ..)
-       * above because they are part of the FAT_Data header. */
+      printf("[FAT DEBUG] Copying preloaded FAT into kernel buffer (best-effort)\n");
+      /* We can't safely assume the bootloader placed the FAT at a fixed
+       * offset relative to the boot sector that matches the kernel's
+       * sizeof(FAT_Data). Instead, attempt to copy the FAT from a
+       * conservative location: the preloaded region immediately after the
+       * boot sector (this is likely but not guaranteed). If that doesn't
+       * match, higher-level lookup (FAT_FindFile) will fall back to
+       * scanning the preloaded region for directory entries. */
+      uint8_t *candidate = pre + SECTOR_SIZE;
+      if ((uintptr_t)candidate + fatSize <= (uintptr_t)pre + MEMORY_FAT_SIZE)
+      {
+         memcpy(g_Fat, candidate, fatSize);
+      }
+      else
+      {
+         /* cannot copy: region too small */
+         printf("[FAT DEBUG] Preloaded region too small to contain FAT copy\n");
+      }
    }
    else
    {
@@ -419,6 +438,48 @@ bool FAT_FindFile(DISK *disk, FAT_File *file, const char *name,
    {
       for (int i = 0; i < 3 && ext[i + 1]; i++)
          fatName[i + 8] = toupper(ext[i + 1]);
+   }
+
+   /* If the bootloader preloaded filesystem structures into memory, avoid
+    * relying on kernel disk reads to iterate the root directory; instead
+    * scan the preloaded region for the directory entry matching the name.
+    */
+   if (g_preloaded && file->Handle == ROOT_DIRECTORY_HANDLE && g_preloaded_ptr)
+   {
+      /* Calculate offset of the RootDirectory.Buffer inside the preloaded
+       * FAT_Data using offsetof so we match the bootloader's layout. Then
+       * scan the root directory entries (32 bytes each) rather than the
+       * entire preloaded region to avoid false positives. */
+      size_t root_buffer_off = offsetof(FAT_Data, RootDirectory) +
+                               offsetof(FAT_FileData, Buffer);
+      uint8_t *root_ptr = g_preloaded_ptr + root_buffer_off;
+      uint32_t rootDirSize = sizeof(FAT_DirectoryEntry) *
+                             g_Data->BS.BootSector.DirEntryCount;
+      if (root_buffer_off + rootDirSize <= MEMORY_FAT_SIZE)
+      {
+         for (uint32_t offs = 0; offs < rootDirSize; offs += sizeof(FAT_DirectoryEntry))
+         {
+            uint8_t *p = root_ptr + offs;
+            if (memcmp(p, fatName, 11) == 0)
+            {
+               /* copy raw bytes into FAT_DirectoryEntry fields */
+               memcpy(entry.Name, p, 11);
+               entry.Attributes = *(p + 11);
+               entry._Reserved = *(p + 12);
+               entry.CreatedTimeTenths = *(p + 13);
+               entry.CreatedTime = *(uint16_t *)(p + 14);
+               entry.CreatedDate = *(uint16_t *)(p + 16);
+               entry.AccessedDate = *(uint16_t *)(p + 18);
+               entry.FirstClusterHigh = *(uint16_t *)(p + 20);
+               entry.ModifiedTime = *(uint16_t *)(p + 22);
+               entry.ModifiedDate = *(uint16_t *)(p + 24);
+               entry.FirstClusterLow = *(uint16_t *)(p + 26);
+               entry.Size = *(uint32_t *)(p + 28);
+               *entryOut = entry;
+               return true;
+            }
+         }
+      }
    }
 
    while (FAT_ReadEntry(disk, file, &entry))
