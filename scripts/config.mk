@@ -8,14 +8,16 @@ export RS = rustc
 export LINKFLAGS =
 export LIBS =
 
+export TOOLCHAIN_DIR = $(abspath .)/toolchain/i686-elf/bin/
+
 export TARGET = i686-elf
 export TARGET_ASM = nasm
 export TARGET_ASMFLAGS =
 export TARGET_CFLAGS = -std=c99 -g #-O2
 export TARGET_CXXFLAGS = -std=c++17 -g #-O2
-export TARGET_CC = $(TARGET)-gcc
-export TARGET_CXX = $(TARGET)-g++
-export TARGET_LD = $(TARGET)-gcc
+export TARGET_CC = $(TOOLCHAIN_DIR) $(TARGET)-gcc
+export TARGET_CXX = $(TOOLCHAIN_DIR) $(TARGET)-g++
+export TARGET_LD = $(TOOLCHAIN_DIR) $(TARGET)-gcc
 export TARGET_LINKFLAGS =
 export TARGET_LIBS =
 
