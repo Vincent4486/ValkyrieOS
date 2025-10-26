@@ -16,7 +16,7 @@ To install Valkyrie OS, you can use the pre-built floppy image from the release 
 
 On Mac OS, you would need to install <a href="https://brew.sh">Homebrew</a>, you can use this link to install brew, then follow the following steps to install needed tools.
 
-```brew install make mtools mkfs.fat nasm i686-elf-binutils i686-elf-gcc qemu-system-i386```
+```brew install make mtools mkfs.fat nasm i686-elf-binutils i686-elf-gcc qemu-system-i386 perl```
 
 Then goto the directory of the operating system and run
 
@@ -24,7 +24,9 @@ Then goto the directory of the operating system and run
 
 You can see the final disk image inside the ```build``` directory, then run
 
-```qemu-system-i386 -fda build/valkyrie_os.img``` to run the OS inside a virtual machine.
+```qemu-system-i386 -fda build/valkyrie_os.img``` 
+
+to run the OS inside a virtual machine.
 
 ### Linux
 On linux, you can follow the steps for Mac OS, but swich Homebrew with your prefered package manager, some managers like ```apt``` does not have curtain packages.
