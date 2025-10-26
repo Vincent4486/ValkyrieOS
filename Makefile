@@ -21,7 +21,7 @@ $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 #
 disk_image: $(BUILD_DIR)/valkyrie_os.raw
 
-$(BUILD_DIR)/main_disk.raw: bootloader kernel
+$(BUILD_DIR)/valkyrie_os.raw: bootloader kernel
 	@./scripts/make_disk.sh $@ $(MAKE_DISK_SIZE)
 	@echo "--> Created: " $@
 
@@ -59,6 +59,7 @@ $(BUILD_DIR)/tools/fat: always tools/fat/fat.c
 #
 # Always
 #
+
 always:
 	@mkdir -p $(BUILD_DIR)
 

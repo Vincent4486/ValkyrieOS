@@ -6,7 +6,19 @@ STAGE1_STAGE2_LOCATION_OFFSET=480
 
 dd if=/dev/zero of="$TARGET" bs=512 count=2880 >/dev/null 2>&1
 
-STAGE2_SIZE=$(stat -f%z "${BUILD_DIR}/stage2.bin")
+# portable file-size helper: GNU stat (-c), BSD stat (-f), fallback wc -c
+get_size() {
+    local f="$1"
+    if stat -c%s "$f" >/dev/null 2>&1; then
+        stat -c%s "$f"
+    elif stat -f%z "$f" >/dev/null 2>&1; then
+        stat -f%z "$f"
+    else
+        wc -c <"$f" | tr -d ' '
+    fi
+}
+
+STAGE2_SIZE=$(get_size "$BUILD_DIR/stage2.bin")
 echo "--> Stage2 size: ${STAGE2_SIZE}"
 STAGE2_SECTORS=$(( 1 + ( ( ${STAGE2_SIZE} + 511 ) / 512 ) ))
 echo "--> Stage2 sectors: ${STAGE2_SECTORS}"

@@ -26,7 +26,7 @@ export CPP_FILES = $(shell find . -type f -name "*.cpp")
 export HEADER_FILES = $(shell find . -type f -name "*.h")
 
 export SOURCE_DIR = $(abspath .)
-export BUILD_DIR = $(abspath build)
+export BUILD_DIR=build
 
 BINUTILS_VERSION = 2.37
 BINUTILS_URL = https://ftp.gnu.org/gnu/binutils/binutils-$(BINUTILS_VERSION).tar.xz
