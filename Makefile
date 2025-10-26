@@ -22,7 +22,7 @@ $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 disk_image: $(BUILD_DIR)/valkyrie_os.raw
 
 $(BUILD_DIR)/valkyrie_os.raw: bootloader kernel
-	@./scripts/make_disk.sh $@ $(MAKE_DISK_SIZE)
+	@sudo ./scripts/make_disk.sh $@ $(MAKE_DISK_SIZE)
 	@echo "--> Created: " $@
 
 #

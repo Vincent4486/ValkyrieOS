@@ -23,13 +23,6 @@ export TARGET_LD = $(TARGET)-gcc
 export TARGET_LINKFLAGS =
 export TARGET_LIBS =
 
-C_FILES := $(shell find . -type f -name "*.c")
-CPP_FILES := $(shell find . -type f -name "*.cpp")
-HEADER_FILES := $(shell find . -type f -name "*.h")
-# Note: do NOT export these large variables into the environment.
-# If you must give sub-makes these lists, do so explicitly, e.g.:
-# @$(MAKE) -C src/kernel C_FILES="$(C_FILES)"
-
 export SOURCE_DIR = $(abspath .)
 export BUILD_DIR= $(abspath build)
 
