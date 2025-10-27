@@ -2,6 +2,6 @@
 
 #include <std/stdio.h>
 
-void java(const char *classPath, ...){
+extern "C" void java(const char *classPath){
     printf("hello\n");
 }

@@ -10,6 +10,9 @@ static char kb_line[KB_LINE_BUF];
 static int kb_len = 0;
 static int kb_ready = 0; /* 1 when a full line (\n) is available */
 
+/* Global counter for keypress events for debugging (incremented in IRQ). */
+volatile uint32_t g_kb_count = 0;
+
 /* modifier state */
 static int shift = 0;
 static int caps = 0;
@@ -98,12 +101,11 @@ void i686_keyboard_irq(Registers *regs)
          }
          else if (logical_index > 0)
          {
-            /* There is older content above the visible window: jump to the
-             * top of the scrollback so the user can reach the very oldest
-             * lines. This avoids situations where repeated single-line
-             * scrolls appear to stop before the true top. */
-            int max = buffer_get_max_scroll();
-            buffer_scroll(max);
+            /* There is older content above the visible window: scroll up by
+             * one line instead of jumping to the very top. This lets users
+             * reach the middle lines incrementally. */
+            buffer_scroll(1);
+            /* keep cursor at the top row of the visible window */
             buffer_set_cursor(x, y);
          }
          else
@@ -128,9 +130,10 @@ void i686_keyboard_irq(Registers *regs)
          }
          else if (visible_start < max_scroll)
          {
-            /* There is newer content: jump back to the bottom. */
-            int max = buffer_get_max_scroll();
-            buffer_scroll(-max);
+            /* There is newer content below: scroll down by one line rather
+             * than jumping straight to the bottom so the user can traverse
+             * the middle region. */
+            buffer_scroll(-1);
             buffer_set_cursor(x, y);
          }
          else

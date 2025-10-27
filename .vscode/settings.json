@@ -25,7 +25,8 @@
   "files.associations": {
     "stdio.h": "c",
     "gdt.h": "c",
-    "io.h": "c"
+    "io.h": "c",
+    "stdint.h": "c"
   },
   "makefile.launchConfigurations": [
     {

@@ -2,7 +2,7 @@
 #include <arch/i686/io.h>
 
 #include <stdarg.h>
-#include <stdbool.h>
+#include <stdbool.h>     
 
 const unsigned SCREEN_WIDTH = 80;
 const unsigned SCREEN_HEIGHT = 25;
@@ -286,3 +286,131 @@ void print_buffer(const char *msg, const void *buffer, uint32_t count)
    }
    putc('\n');
 }
+
+int snprintf(char *buffer, size_t buf_size, const char *format, ...){
+   va_list ap;
+   va_start(ap, format);
+
+   size_t out_idx = 0;     /* next write position in buffer (0..buf_size-1) */
+   size_t would_have = 0;  /* total chars that would have been written */
+
+   /* helper to emit a single char */
+   #define EMIT_CH(c)         \
+      do {                     \
+         if (out_idx + 1 < buf_size) buffer[out_idx++] = (c); \
+         would_have++;           \
+      } while (0)
+
+   /* helper to emit a whole string */
+   #define EMIT_STR(s)                                 \
+      do {                                            \
+         const char *_p = (s);                         \
+         while (*_p) { EMIT_CH(*_p); _p++; }           \
+      } while (0)
+
+   const char *p = format;
+   while (*p)
+   {
+      if (*p != '%')
+      {
+         EMIT_CH(*p);
+         p++;
+         continue;
+      }
+      /* handle % */
+      p++;
+      if (*p == '%')
+      {
+         EMIT_CH('%');
+         p++;
+         continue;
+      }
+
+      /* No length modifiers supported here; keep it small for kernel */
+      char spec = *p++;
+      if (!spec) break;
+      if (spec == 'c')
+      {
+         int ch = va_arg(ap, int);
+         EMIT_CH((char)ch);
+      }
+      else if (spec == 's')
+      {
+         const char *s = va_arg(ap, const char *);
+         if (!s) s = "(null)";
+         EMIT_STR(s);
+      }
+      else if (spec == 'd' || spec == 'i')
+      {
+         long long val = va_arg(ap, int);
+         if (val < 0)
+         {
+            EMIT_CH('-');
+            val = -val;
+         }
+         /* unsigned print */
+         char tmp[32]; int t = 0;
+         if (val == 0) tmp[t++] = '0';
+         while (val > 0 && t < (int)sizeof(tmp))
+         {
+            tmp[t++] = '0' + (val % 10);
+            val /= 10;
+         }
+         while (t--) EMIT_CH(tmp[t]);
+      }
+      else if (spec == 'u')
+      {
+         unsigned long long val = va_arg(ap, unsigned int);
+         char tmp[32]; int t = 0;
+         if (val == 0) tmp[t++] = '0';
+         while (val > 0 && t < (int)sizeof(tmp))
+         {
+            tmp[t++] = '0' + (val % 10);
+            val /= 10;
+         }
+         while (t--) EMIT_CH(tmp[t]);
+      }
+      else if (spec == 'x' || spec == 'X' || spec == 'p')
+      {
+         unsigned long long val = va_arg(ap, unsigned long long);
+         char tmp[32]; int t = 0;
+         const char *hex = (spec == 'X') ? "0123456789ABCDEF" : "0123456789abcdef";
+         if (val == 0) tmp[t++] = '0';
+         while (val > 0 && t < (int)sizeof(tmp))
+         {
+            tmp[t++] = hex[val & 0xF];
+            val >>= 4;
+         }
+         while (t--) EMIT_CH(tmp[t]);
+      }
+      else if (spec == 'o')
+      {
+         unsigned long long val = va_arg(ap, unsigned int);
+         char tmp[32]; int t = 0;
+         if (val == 0) tmp[t++] = '0';
+         while (val > 0 && t < (int)sizeof(tmp))
+         {
+            tmp[t++] = '0' + (val & 7);
+            val >>= 3;
+         }
+         while (t--) EMIT_CH(tmp[t]);
+      }
+      else
+      {
+         /* unsupported specifier: emit it literally */
+         EMIT_CH('%');
+         EMIT_CH(spec);
+      }
+   }
+
+   /* NUL-terminate if there's space */
+   if (buf_size > 0)
+   {
+      if (out_idx < buf_size) buffer[out_idx] = '\0';
+      else buffer[buf_size - 1] = '\0';
+   }
+
+   va_end(ap);
+   return (int)would_have;
+}
+
