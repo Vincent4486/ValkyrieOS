@@ -2,7 +2,7 @@
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
 #include <std/stdio.h> // for putc/printf
-#include <text/buffer.h>
+#include <display/buffer.h>
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256

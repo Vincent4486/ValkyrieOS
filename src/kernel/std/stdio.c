@@ -11,7 +11,7 @@ const uint8_t DEFAULT_COLOR = 0x7;
 uint8_t *g_ScreenBuffer = (uint8_t *)0xB8000;
 int g_ScreenX = 0, g_ScreenY = 0;
 
-#include <text/buffer.h>
+#include <display/buffer.h>
 
 void putchr(int x, int y, char c)
 {

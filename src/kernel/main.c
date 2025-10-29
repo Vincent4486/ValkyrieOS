@@ -6,7 +6,7 @@
 #include <memory/memdefs.h>
 #include <std/stdio.h>
 #include <stdint.h>
-#include <text/buffer.h>
+#include <display/buffer.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
