@@ -22,11 +22,11 @@ OBJECTS_CPP=$(patsubst %.cpp, $(BUILD_DIR)/kernel/cpp/%.obj, $(SOURCES_CPP))
 
 all: kernel
 
-kernel: $(BUILD_DIR)/kernel.bin
+kernel: $(BUILD_DIR)/kernel.elf
 
-$(BUILD_DIR)/kernel.bin: $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_CPP)
+$(BUILD_DIR)/kernel.elf: $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_CPP)
 	@$(TARGET_LD) $(TARGET_LINKFLAGS) -Wl,-Map=$(BUILD_DIR)/kernel.map -o $@ $^ $(TARGET_LIBS)
-	@echo "--> Created:  kernel.bin"
+	@echo "--> Created:  kernel.elf"
 
 $(BUILD_DIR)/kernel/c/%.obj: %.c $(HEADERS_C)
 	@mkdir -p $(@D)
@@ -47,4 +47,4 @@ arch/i686/isrs_gen.inc arch/i686/isrs_gen.c:
 	@$(SOURCE_DIR)/scripts/generate_isr.sh $@
 
 clean:
-	@rm -f $(BUILD_DIR)/kernel.bin
+	@rm -f $(BUILD_DIR)/kernel.elf

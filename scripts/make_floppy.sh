@@ -37,6 +37,7 @@ echo "01 00 00 00" | xxd -r -p | dd of="$TARGET" conv=notrunc bs=1 seek="$STAGE1
 printf "%x" "${STAGE2_SECTORS}" | xxd -r -p | dd of="$TARGET" conv=notrunc bs=1 seek=$(( STAGE1_STAGE2_LOCATION_OFFSET + 4 )) >/dev/null 2>&1
 
 mmd -i "$TARGET" "::sys" >/dev/null 2>&1 || true
-mcopy -i "$TARGET" "${BUILD_DIR}/kernel.bin" "::sys/kernel.bin" >/dev/null 2>&1
+# copy kernel ELF into the image so stage2 can load /sys/kernel.elf
+mcopy -i "$TARGET" "${BUILD_DIR}/kernel.elf" "::/sys/kernel.elf" >/dev/null 2>&1
 mmd -i "$TARGET" "::test" >/dev/null 2>&1 || true
 mcopy -i "$TARGET" test.txt "::test.txt" >/dev/null 2>&1

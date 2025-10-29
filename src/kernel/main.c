@@ -31,6 +31,13 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
    printf("Kernel running...\n");
 
+   DISK disk;
+   if (!DISK_Initialize(&disk, bootDrive))
+   {
+      printf("Disk init error\r\n");
+      goto end;
+   }
+
 end:
    for (;;);
 }
