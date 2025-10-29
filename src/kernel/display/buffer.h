@@ -24,3 +24,7 @@ int buffer_get_visible_line_length(int y);
 int buffer_get_max_scroll(void);
 /* Return the logical index (relative to head) of the first visible line. */
 uint32_t buffer_get_visible_start(void);
+
+/* Debug: draw a small overlay on row 0 with buffer internals (s_lines_used,
+   s_head, s_scroll, max_scroll). This is temporary debugging aid. */
+void buffer_debug_overlay(void);

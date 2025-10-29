@@ -4,8 +4,8 @@
 #include "pic.h"
 #include <std/stdio.h>
 #include <stddef.h>
-#include <text/keyboard.h>
-#include <util/arrays.h>
+#include <display/keyboard.h>
+#include <std/arrays.h>
 
 #define PIC_REMAP_OFFSET 0x20
 
@@ -50,7 +50,7 @@ void i686_IRQ_Initialize()
       return;
    }
 
-   printf("Found %s PIC.\n", g_Driver->Name);
+   printf("Found %s.\n", g_Driver->Name);
    g_Driver->Initialize(PIC_REMAP_OFFSET, PIC_REMAP_OFFSET + 8, false);
 
    // register ISR handlers for each of the 16 irq lines
