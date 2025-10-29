@@ -14,12 +14,12 @@ all: pdf
 
 
 pdf:
-	@echo "Building $(PDF) with $(PDFLATEX) (outputs -> $(OUTDIR)/)"
-	@mkdir -p $(OUTDIR)
+#echo "Building $(PDF) with $(PDFLATEX) (outputs -> $(OUTDIR)/)"
+	mkdir -p $(OUTDIR)
 	# first pdflatex pass (write aux files into $(OUTDIR))
 	$(PDFLATEX) -interaction=nonstopmode -output-directory=$(OUTDIR) $(TEX) || true
 	# run bibtex inside the output directory if a .aux was produced
-	@if [ -f $(OUTDIR)/$(BASE).aux ]; then \
+	if [ -f $(OUTDIR)/$(BASE).aux ]; then \
 		( cd $(OUTDIR) && $(BIBTEX) $(BASE) ) || true; \
 	fi
 	# subsequent pdflatex passes to resolve references
@@ -27,13 +27,13 @@ pdf:
 	$(PDFLATEX) -interaction=nonstopmode -output-directory=$(OUTDIR) $(TEX) || true
 
 latexmk:
-	@echo "Building with latexmk (outputs -> $(OUTDIR)/)"
-	@mkdir -p $(OUTDIR)
+#echo "Building with latexmk (outputs -> $(OUTDIR)/)"
+	mkdir -p $(OUTDIR)
 	# latexmk supports -outdir to set output directory for pdflatex
 	$(LATEXMK) -pdf -outdir=$(OUTDIR) -interaction=nonstopmode $(TEX)
 
 clean:
-	@echo "Cleaning temporary LaTeX files (docs)"
+#echo "Cleaning temporary LaTeX files (docs)"
 	# Try to let latexmk clean any known files in the output directory
 	-$(LATEXMK) -C -outdir=$(OUTDIR) || true
 	# Remove any stray aux/bbl/log/out files in the docs/ dir (from older runs)
@@ -44,5 +44,5 @@ clean:
 
 
 view: pdf
-	@echo "Opening $(PDF)"
+#echo "Opening $(PDF)"
 	open "$(PDF)"

@@ -25,26 +25,26 @@ all: kernel
 kernel: $(BUILD_DIR)/kernel.elf
 
 $(BUILD_DIR)/kernel.elf: $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_CPP)
-	@$(TARGET_LD) $(TARGET_LINKFLAGS) -Wl,-Map=$(BUILD_DIR)/kernel.map -o $@ $^ $(TARGET_LIBS)
-	@echo "--> Created:  kernel.elf"
+	$(TARGET_LD) $(TARGET_LINKFLAGS) -Wl,-Map=$(BUILD_DIR)/kernel.map -o $@ $^ $(TARGET_LIBS)
+#echo "--> Created:  kernel.elf"
 
 $(BUILD_DIR)/kernel/c/%.obj: %.c $(HEADERS_C)
-	@mkdir -p $(@D)
-	@$(TARGET_CC) $(TARGET_CFLAGS) -c -o $@ $<
-	@echo "--> Compiled: " $<
+	mkdir -p $(@D)
+	$(TARGET_CC) $(TARGET_CFLAGS) -c -o $@ $<
+#echo "--> Compiled: " $<
 
 $(BUILD_DIR)/kernel/asm/%.obj: %.asm $(HEADERS_ASM)
-	@mkdir -p $(@D)
-	@$(TARGET_ASM) $(TARGET_ASMFLAGS) -o $@ $<
-	@echo "--> Compiled: " $<
+	mkdir -p $(@D)
+	$(TARGET_ASM) $(TARGET_ASMFLAGS) -o $@ $<
+#echo "--> Compiled: " $<
 
 $(BUILD_DIR)/kernel/cpp/%.obj: %.cpp $(HEADERS_CPP)
-	@mkdir -p $(@D)
-	@$(TARGET_CXX) $(TARGET_CXXFLAGS) -c -o $@ $<
-	@echo "--> Compiled: " $<
+	mkdir -p $(@D)
+	$(TARGET_CXX) $(TARGET_CXXFLAGS) -c -o $@ $<
+#echo "--> Compiled: " $<
 
 arch/i686/isrs_gen.inc arch/i686/isrs_gen.c:
-	@$(SOURCE_DIR)/scripts/generate_isr.sh $@
+	$(SOURCE_DIR)/scripts/generate_isr.sh $@
 
 clean:
-	@rm -f $(BUILD_DIR)/kernel.elf
+	rm -f $(BUILD_DIR)/kernel.elf
