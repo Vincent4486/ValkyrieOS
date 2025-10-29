@@ -5,6 +5,7 @@
 #include <memory/memory.h>
 #include <memory/memdefs.h>
 #include <std/stdio.h>
+#include "memory/dylink.h"
 #include <stdint.h>
 #include <display/buffer.h>
 
@@ -30,14 +31,18 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    i686_IRQ_RegisterHandler(0, timer);
 
    printf("Kernel running...\n");
-
+      
+   /* Print loaded modules registered by stage2 so we can see what's available.
+    * Use the dylink helper which reads the shared registry populated by stage2.
+    */
+   dylib_list();
+   
    DISK disk;
    if (!DISK_Initialize(&disk, bootDrive))
    {
       printf("Disk init error\r\n");
       goto end;
    }
-
 end:
    for (;;);
 }

@@ -1,8 +1,8 @@
 ENTRY(start)
 /* Produce ELF output (default) instead of raw binary so the bootloader can
-    load an ELF image. The kernel should be linked to physical address 0x00100000
-    by setting the start location below. */
-phys = 0x00100000;
+   load an ELF image. The kernel is linked to physical address 0x00A00000
+   (10 MiB) so stage2 may place libraries below this region. */
+phys = 0x00A00000;
 
 SECTIONS
 {
