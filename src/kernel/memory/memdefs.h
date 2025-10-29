@@ -21,4 +21,17 @@
 // 0x000A0000 - 0x000C7FFF - Video
 // 0x000C8000 - 0x000FFFFF - BIOS
 
-#define MEMORY_KERNEL_ADDR ((void *)0x100000)
+#define MEMORY_KERNEL_ADDR ((void *)0x00A00000)
+
+// Library registry placed in low memory (inside FAT area). Stage2 populates
+// this with loaded modules so the kernel can find them.
+#define LIB_NAME_MAX 32
+typedef struct {
+	char name[LIB_NAME_MAX];
+	void *base;
+	void *entry;
+	uint32_t size;
+} LibRecord;
+
+#define LIB_REGISTRY_ADDR ((LibRecord *)0x00028000)
+#define LIB_REGISTRY_MAX 16

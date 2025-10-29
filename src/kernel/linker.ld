@@ -1,6 +1,8 @@
 ENTRY(start)
-OUTPUT_FORMAT("binary")
-phys = 0x00100000;
+/* Produce ELF output (default) instead of raw binary so the bootloader can
+   load an ELF image. The kernel is linked to physical address 0x00A00000
+   (10 MiB) so stage2 may place libraries below this region. */
+phys = 0x00A00000;
 
 SECTIONS
 {

@@ -385,3 +385,66 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
 
    return current;
 }
+
+bool FAT_Seek(DISK *disk, FAT_File *file, uint32_t position)
+{
+   FAT_FileData *fd = (file->Handle == ROOT_DIRECTORY_HANDLE)
+                          ? &g_Data->RootDirectory
+                          : &g_Data->OpenedFiles[file->Handle];
+
+   // don't seek past end
+   if (position > fd->Public.Size) return false;
+
+   fd->Public.Position = position;
+
+   // compute cluster/sector for the position
+   uint32_t bytesPerSector = g_Data->BS.BootSector.BytesPerSector;
+   uint32_t sectorsPerCluster = g_Data->BS.BootSector.SectorsPerCluster;
+   uint32_t clusterBytes = bytesPerSector * sectorsPerCluster;
+
+   if (fd->Public.Handle == ROOT_DIRECTORY_HANDLE)
+   {
+      // root directory is organized by sectors (not clusters)
+      uint32_t sectorIndex = position / bytesPerSector;
+      fd->CurrentCluster = fd->FirstCluster + sectorIndex;
+      fd->CurrentSectorInCluster = 0;
+
+      if (!DISK_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
+      {
+         printf("FAT: seek read error (root)\r\n");
+         return false;
+      }
+   }
+   else
+   {
+      uint32_t clusterIndex = position / clusterBytes;
+      uint32_t sectorInCluster = (position % clusterBytes) / bytesPerSector;
+
+      // walk cluster chain clusterIndex times from first cluster
+      uint32_t c = fd->FirstCluster;
+      for (uint32_t i = 0; i < clusterIndex; i++)
+      {
+         c = FAT_NextCluster(c);
+         if (c >= 0xFF8)
+         {
+            // invalid / end of chain
+            fd->Public.Size = fd->Public.Position;
+            return false;
+         }
+      }
+
+      fd->CurrentCluster = c;
+      fd->CurrentSectorInCluster = sectorInCluster;
+
+      if (!DISK_ReadSectors(disk,
+                            FAT_ClusterToLba(fd->CurrentCluster) +
+                                fd->CurrentSectorInCluster,
+                            1, fd->Buffer))
+      {
+         printf("FAT: seek read error (file)\r\n");
+         return false;
+      }
+   }
+
+   return true;
+}
