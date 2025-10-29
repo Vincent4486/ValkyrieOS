@@ -1,4 +1,4 @@
-Language: C
+# Apply to C and C++ (no Language key so clang-format uses these rules for both)
 BasedOnStyle: LLVM
 IndentWidth: 3
 TabWidth: 3
