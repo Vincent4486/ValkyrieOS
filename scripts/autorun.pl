@@ -3,161 +3,191 @@ use strict;
 use warnings;
 use Getopt::Long;
 
-# Simple option parsing (keep existing script compatible)
+# Default configuration values
+my %config = (
+    'FLOPPY_IMAGE' => 'build/valkyrie_os.img',
+    'DISK_IMAGE' => 'build/valkyrie_os.raw',
+    'BOCHS_FLOPPY_CONFIG' => 'scripts/config/bochs_fda.txt',
+    'BOCHS_DISK_CONFIG' => 'scripts/config/bochs_hda.txt',
+    'GDB_FLOPPY_CONFIG' => 'scripts/config/gdb_fda.gdb',
+    'GDB_DISK_CONFIG' => 'scripts/config/gdb_hda.gdb',
+    'BUILD_COMMAND' => 'make',
+);
+
+# Parse options
 my $help = 0;
-GetOptions('help|h' => \$help) or usage();
+my $config_file = '';
+GetOptions(
+    'help|h' => \$help,
+    'config=s' => \$config_file
+) or usage();
 usage() if $help;
 
-# Declare a package-level array that will hold the characters of the first arg
-our @FIRST_ARG_CHARS;
+# Load configuration from file if specified
+if ($config_file && -f $config_file) {
+    load_config($config_file);
+}
 
-# Consume the first positional argument (if provided) and split it into characters
-my $first_arg = shift @ARGV;
-if (defined $first_arg) {
-    @FIRST_ARG_CHARS = split //, $first_arg;
-    # Debug line: prints the split characters. Remove or silence when not needed.
-    my $c = $FIRST_ARG_CHARS[0] // '';
-    my $d = $FIRST_ARG_CHARS[1] // '';
-    my $e = $FIRST_ARG_CHARS[2] // '';
+# Build command configuration table using loaded config
+my %commands = (
+    # Auto-build and run commands (a*)
+    'aqf' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
+    'aqh' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
+    'abf' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
+    'abh' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
+    'agf' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
+    'agh' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
+    
+    # Build-only commands (b-*)
+    'b-f' => { build => $config{BUILD_COMMAND} . ' floppy_image', run => undef },
+    'b-h' => { build => $config{BUILD_COMMAND} . ' disk_image', run => undef },
+    
+    # Run-only commands (r*)
+    'rqf' => { build => undef, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
+    'rqh' => { build => undef, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
+    'rbf' => { build => undef, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
+    'rbh' => { build => undef, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
+    'rgf' => { build => undef, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
+    'rgh' => { build => undef, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
+);
 
-    if ($c eq 'a') {
-        if ($d eq 'q') {
-            if ($e eq 'f') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'qemu-system-i386', '-fda', 'build/valkyrie_os.img';
-                    warn "Failed to exec qemu: $!\n";
-                    exit 1;
-                }
-            } elsif ($e eq 'h') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'qemu-system-i386', '-hda', 'build/valkyrie_os.raw';
-                    warn "Failed to exec qemu: $!\n";
-                    exit 1;
-                }
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } elsif ($d eq 'b') {
-            if ($e eq 'f') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'bochs', '-f', 'scripts/debug/bochs_fda.txt';
-                    warn "Failed to exec bochs: $!\n";
-                    exit 1;
-                }
-            } elsif ($e eq 'h') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'bochs', '-f', 'scripts/debug/bochs_hda.txt';
-                    warn "Failed to exec bochs: $!\n";
-                    exit 1;
-                }
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } elsif ($d eq 'g') {
-            if ($e eq 'f') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'gdb', '-x', 'scripts/debug/gdb_fda.gdb';
-                    warn "Failed to exec gdb: $!\n";
-                    exit 1;
-                }
-            } elsif ($e eq 'h') {
-                my $cmd_a = system('make');
-                if ($cmd_a == 0) {
-                    exec 'gdb', '-x', 'scripts/debug/gdb_hda.gdb';
-                    warn "Failed to exec gdb: $!\n";
-                    exit 1;
-                }
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } else {
-            print "Invalid arguments!\n";
-            usage();
-        }
-    } elsif ($c eq 'b') {
-        if ($d eq '-') {
-            if ($e eq 'f') {
-                my $cmd_a = system('make', 'floppy_image');
-                if ($cmd_a == 0) {
-                    exit(0);
-                }
-            } elsif ($e eq 'h') {
-                my $cmd_a = system('make', 'disk_image');
-                if ($cmd_a == 0) {
-                    exit(0);
-                }
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } else {
-            print "Invalid arguments!\n";
-            usage();
-        }
-    } elsif ($c eq 'r') {
-        if ($d eq 'q') {
-            if ($e eq 'f') {
-                exec 'qemu-system-i386', '-fda', 'build/valkyrie_os.img';
-                warn "Failed to exec qemu: $!\n";
-                exit 1;
-            } elsif ($e eq 'h') {
-                exec 'qemu-system-i386', '-hda', 'build/valkyrie_os.raw';
-                warn "Failed to exec qemu: $!\n";
-                exit 1;
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } elsif ($d eq 'b') {
-            if ($e eq 'f') {
-                exec 'bochs', '-f', 'scripts/debug/bochs_fda.txt';
-                warn "Failed to exec bochs: $!\n";
-                exit 1;
-            } elsif ($e eq 'h') {
-                exec 'bochs', '-f', 'scripts/debug/bochs_hda.txt';
-                warn "Failed to exec bochs: $!\n";
-                exit 1;
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } elsif ($d eq 'g') {
-            if ($e eq 'f') {
-                exec 'gdb', '-x', 'scripts/debug/gdb_fda.gdb';
-                warn "Failed to exec gdb: $!\n";
-                exit 1;
-            } elsif ($e eq 'h') {
-                exec 'gdb', '-x', 'scripts/debug/gdb_hda.gdb';
-                warn "Failed to exec gdb: $!\n";
-                exit 1;
-            } else {
-                print "Invalid arguments!\n";
-                usage();
-            }
-        } else {
-            print "Invalid arguments!\n";
-            usage();
-        }
-    } else {
-        print "Invalid arguments!\n";
-        usage();
-    }
-} else {
-    @FIRST_ARG_CHARS = ();
-    warn "Not enough arguments!\n";
+# Get command argument
+my $cmd_arg = shift @ARGV;
+unless (defined $cmd_arg) {
+    warn "Error: No command specified!\n\n";
     usage();
 }
 
+# Check if build command is specified as second argument (e.g., "aqf make" or "aqf scons")
+my $build_override = shift @ARGV;
+if (defined $build_override) {
+    # Valid build commands
+    if ($build_override eq 'make' || $build_override eq 'scons') {
+        $config{BUILD_COMMAND} = $build_override;
+        # Rebuild command table with new build command
+        %commands = (
+            # Auto-build and run commands (a*)
+            'aqf' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
+            'aqh' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
+            'abf' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
+            'abh' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
+            'agf' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
+            'agh' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
+            
+            # Build-only commands (b-*)
+            'b-f' => { build => $config{BUILD_COMMAND} . ' floppy_image', run => undef },
+            'b-h' => { build => $config{BUILD_COMMAND} . ' disk_image', run => undef },
+            
+            # Run-only commands (r*)
+            'rqf' => { build => undef, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
+            'rqh' => { build => undef, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
+            'rbf' => { build => undef, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
+            'rbh' => { build => undef, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
+            'rgf' => { build => undef, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
+            'rgh' => { build => undef, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
+        );
+    } else {
+        warn "Error: Unknown build command '$build_override'. Use 'make' or 'scons'.\n\n";
+        usage();
+    }
+}
+
+# Look up command in table
+my $cmd = $commands{$cmd_arg};
+unless ($cmd) {
+    warn "Error: Unknown command '$cmd_arg'!\n\n";
+    usage();
+}
+
+# Execute build step if needed
+if (defined $cmd->{build}) {
+    print "Building: $cmd->{build}\n";
+    my $result = system($cmd->{build});
+    if ($result != 0) {
+        die "Build failed with exit code $result\n";
+    }
+}
+
+# Execute run step if needed
+if (defined $cmd->{run}) {
+    my @run_cmd = @{$cmd->{run}};
+    print "Running: @run_cmd\n";
+    exec @run_cmd or die "Failed to exec @run_cmd: $!\n";
+}
+
+exit 0;
+
+sub load_config {
+    my ($file) = @_;
+    open my $fh, '<', $file or die "Failed to open config file '$file': $!\n";
+    
+    while (my $line = <$fh>) {
+        # Skip comments and empty lines
+        next if $line =~ /^\s*#/ || $line =~ /^\s*$/;
+        
+        # Parse KEY=VALUE pairs
+        if ($line =~ /^\s*([A-Z_]+)\s*=\s*(.+?)\s*$/) {
+            my ($key, $value) = ($1, $2);
+            $config{$key} = $value;
+        }
+    }
+    
+    close $fh;
+}
+
 sub usage {
-    print "Usage: $0 [--help] <argument>\n";
+    print <<"USAGE";
+Usage: $0 [OPTIONS] <command> [build_tool]
+
+Commands:
+  Auto-build and run:
+    aqf     - Build and run in QEMU with floppy image
+    aqh     - Build and run in QEMU with hard disk image
+    abf     - Build and run in Bochs with floppy image
+    abh     - Build and run in Bochs with hard disk image
+    agf     - Build and debug with GDB (floppy)
+    agh     - Build and debug with GDB (hard disk)
+  
+  Build only:
+    b-f     - Build floppy image only
+    b-h     - Build hard disk image only
+  
+  Run only (no build):
+    rqf     - Run in QEMU with floppy image
+    rqh     - Run in QEMU with hard disk image
+    rbf     - Run in Bochs with floppy image
+    rbh     - Run in Bochs with hard disk image
+    rgf     - Debug with GDB (floppy)
+    rgh     - Debug with GDB (hard disk)
+
+Build Tool (optional):
+  make    - Use Make build system
+  scons   - Use SCons build system
+  If not specified, uses BUILD_COMMAND from config file (default: make)
+
+Options:
+  -h, --help          Show this help message
+  --config <file>     Load configuration from file
+
+Configuration:
+  You can customize disk images and config paths in .automate file:
+    FLOPPY_IMAGE          - Path to floppy disk image
+    DISK_IMAGE            - Path to hard disk image
+    BOCHS_FLOPPY_CONFIG   - Bochs config for floppy
+    BOCHS_DISK_CONFIG     - Bochs config for hard disk
+    GDB_FLOPPY_CONFIG     - GDB script for floppy
+    GDB_DISK_CONFIG       - GDB script for hard disk
+    BUILD_COMMAND         - Build command (e.g., 'make' or 'scons')
+
+Examples:
+  $0 aqf                      # Build and run with QEMU (floppy) using default build tool
+  $0 aqf make                 # Build with Make and run in QEMU (floppy)
+  $0 aqf scons                # Build with SCons and run in QEMU (floppy)
+  $0 --config .automate aqf   # Use custom config file
+  $0 b-f scons                # Build floppy image only using SCons
+  $0 rqh                      # Run existing hard disk image in QEMU
+
+USAGE
     exit 1;
 }
 

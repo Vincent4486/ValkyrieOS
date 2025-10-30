@@ -1,10 +1,10 @@
-include scripts/config.mk
+include scripts/make/config.mk
 
 .PHONY: all floppy_image disk_image kernel bootloader clean always
 
 all: floppy_image
 
-include scripts/toolchain.mk
+include scripts/make/toolchain.mk
 
 #
 # Floppy image
@@ -12,7 +12,7 @@ include scripts/toolchain.mk
 floppy_image: $(BUILD_DIR)/valkyrie_os.img
 
 $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
-	./scripts/make_floppy.sh $@
+	./scripts/make/make_floppy.sh $@
 #echo "--> Created: " $@
 
 
@@ -22,7 +22,7 @@ $(BUILD_DIR)/valkyrie_os.img: bootloader kernel
 disk_image: $(BUILD_DIR)/valkyrie_os.raw
 
 $(BUILD_DIR)/valkyrie_os.raw: bootloader kernel
-	sudo ./scripts/make_disk.sh $@ $(MAKE_DISK_SIZE)
+	sudo ./scripts/make/make_disk.sh $@ $(MAKE_DISK_SIZE)
 #echo "--> Created: " $@
 
 #
