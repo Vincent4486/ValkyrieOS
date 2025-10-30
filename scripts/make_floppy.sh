@@ -50,3 +50,4 @@ mmd -i "$TARGET" "::sys"  || true
 mcopy -i "$TARGET" "${BUILD_DIR}/kernel.elf" "::/sys/kernel.elf" 
 mmd -i "$TARGET" "::test"  || true
 mcopy -i "$TARGET" "test.txt" "::test.txt" 
+mcopy -i "$TARGET" "test.txt" "::test/test.txt" 

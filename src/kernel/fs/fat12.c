@@ -206,30 +206,24 @@ bool FAT_Initialize(DISK *disk)
    g_Data->RootDirectory.CurrentCluster = rootDirLba;
    g_Data->RootDirectory.CurrentSectorInCluster = 0;
 
-   if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
+   // Check if stage2 already loaded the root directory
+   uint8_t first = g_Data->RootDirectory.Buffer[0];
+   bool preloaded = ((first >= 0x20 && first < 0x7F) || first == 0x00 || first == 0xE5);
+   
+   if (preloaded)
    {
-      // If disk read failed, accept a preloaded root directory if present in
-      // memory (stage2 may have copied directory contents). Treat as success
-      // if the buffer contains any non-zero byte.
-      bool any = false;
-      for (int i = 0; i < SECTOR_SIZE; i++)
-      {
-         if (g_Data->RootDirectory.Buffer[i] != 0)
-         {
-            any = true;
-            break;
-         }
-      }
-      if (any)
-      {
-         printf("FAT: using preloaded root directory in memory (disk read failed)\n");
-      }
-      else
+      printf("FAT: using preloaded root directory from stage2\n");
+   }
+   else
+   {
+      // Try to read from disk
+      if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
       {
          printf("FAT: read root directory failed\r\n");
          return false;
       }
    }
+
 
    // calculate data section
    uint32_t rootDirSectors =
@@ -444,26 +438,29 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
       if (delim != NULL)
       {
          memcpy(name, path, delim - path);
-         name[delim - path + 1] = '\0';
+         name[delim - path] = '\0';
          path = delim + 1;
       }
       else
       {
          unsigned len = strlen(path);
          memcpy(name, path, len);
-         name[len + 1] = '\0';
+         name[len] = '\0';
          path += len;
          isLast = true;
       }
 
       // find directory entry in current directory
       FAT_DirectoryEntry entry;
+      
+      printf("FAT: Looking for '%s' in current directory\n", name);
+      
       if (FAT_FindFile(disk, current, name, &entry))
       {
          FAT_Close(current);
 
          // check if directory
-         if (!isLast && entry.Attributes & FAT_ATTRIBUTE_DIRECTORY == 0)
+         if (!isLast && (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY) == 0)
          {
             printf("FAT: %s not a directory\r\n", name);
             return NULL;

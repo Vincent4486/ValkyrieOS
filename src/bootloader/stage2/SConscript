@@ -1,0 +1,42 @@
+Import('target_env', 'TARGET')
+
+# Clone environment for stage2
+stage2_env = target_env.Clone()
+stage2_env.Append(
+    CPPPATH=['.'],
+    CFLAGS=['-I', '.'],
+)
+
+# Find all C and ASM sources
+import os
+stage2_c_sources = Glob('*.c')
+stage2_asm_sources = Glob('*.asm')
+
+# Compile C files
+stage2_c_objs = []
+for src in stage2_c_sources:
+    obj = stage2_env.Object(
+        f'c/{os.path.basename(str(src))}.obj',
+        src
+    )
+    stage2_c_objs.append(obj)
+
+# Compile ASM files
+stage2_asm_objs = []
+for src in stage2_asm_sources:
+    obj = stage2_env.Command(
+        f'asm/{os.path.basename(str(src))}.obj',
+        src,
+        'nasm -f elf -o $TARGET $SOURCE'
+    )
+    stage2_asm_objs.append(obj)
+
+# Link stage2 directly to binary
+stage2_bin = stage2_env.Command(
+    'stage2.bin',
+    stage2_c_objs + stage2_asm_objs,
+    f'{TARGET}-gcc -T src/bootloader/stage2/linker.ld -nostdlib '
+    f'-Wl,-Map=${{TARGET.dir}}/stage2.map -o $TARGET $SOURCES -lgcc'
+)
+
+Return('stage2_bin')

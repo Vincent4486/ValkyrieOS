@@ -1,0 +1,86 @@
+Import('target_env')
+
+import os
+import subprocess
+
+# Clone environment for kernel
+kernel_env = target_env.Clone()
+kernel_env.Append(
+    CPPPATH=['#/src/kernel'],  # Use # to reference from repository root
+)
+
+# Helper function to generate ISR files
+def generate_isr(target, source, env):
+    """Generate ISR files"""
+    c_file = str(target[1])  # isrs_gen.c
+    inc_file = str(target[0])  # isrs_gen.inc
+    subprocess.run(['./scripts/generate_isr.sh', c_file, inc_file], check=True)
+    return None
+
+# Generate ISR files
+isr_gen = kernel_env.Command(
+    ['arch/i686/isrs_gen.inc', 'arch/i686/isrs_gen.c'],
+    [],
+    generate_isr
+)
+AlwaysBuild(isr_gen)
+
+# Find all kernel sources
+kernel_c_sources = []
+kernel_asm_sources = []
+kernel_cpp_sources = []
+
+for root, dirs, files in os.walk('.'):
+    for f in files:
+        full_path = os.path.join(root, f)
+        if f.endswith('.c'):
+            kernel_c_sources.append(full_path)
+        elif f.endswith('.asm'):
+            kernel_asm_sources.append(full_path)
+        elif f.endswith('.cpp'):
+            kernel_cpp_sources.append(full_path)
+
+# Add generated ISR C file
+kernel_c_sources.append('arch/i686/isrs_gen.c')
+
+# Compile C files
+kernel_c_objs = []
+for src in kernel_c_sources:
+    obj = kernel_env.Object(
+        f'c/{src}.obj',
+        src
+    )
+    # Add dependency on ISR generation for isrs_gen.c
+    if 'isrs_gen.c' in src:
+        Depends(obj, isr_gen)
+    kernel_c_objs.append(obj)
+
+# Compile ASM files
+kernel_asm_objs = []
+for src in kernel_asm_sources:
+    obj = kernel_env.Command(
+        f'asm/{src}.obj',
+        [src, isr_gen],
+        'nasm -f elf -i ${SOURCE.dir}/ -o $TARGET $SOURCE'
+    )
+    kernel_asm_objs.append(obj)
+
+# Compile C++ files
+kernel_cpp_objs = []
+for src in kernel_cpp_sources:
+    obj = kernel_env.Object(
+        f'cpp/{src}.obj',
+        src
+    )
+    kernel_cpp_objs.append(obj)
+
+# Link kernel
+kernel_elf = kernel_env.Program(
+    'kernel.elf',
+    kernel_c_objs + kernel_asm_objs + kernel_cpp_objs,
+    LINKFLAGS=['-T', 'src/kernel/linker.ld', '-nostdlib',
+               '-Wl,-Map=${TARGET.dir}/kernel.map'],
+    LIBS=['gcc']
+)
+
+Return('kernel_elf')
