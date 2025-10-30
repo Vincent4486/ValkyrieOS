@@ -24,19 +24,17 @@ if (defined $first_arg) {
         if ($d eq 'q') {
             if ($e eq 'f') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.img');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'qemu-system-i386', '-fda', 'build/valkyrie_os.img';
+                    warn "Failed to exec qemu: $!\n";
+                    exit 1;
                 }
             } elsif ($e eq 'h') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('qemu-system-i386', '-hda', 'build/valkyrie_os.raw');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'qemu-system-i386', '-hda', 'build/valkyrie_os.raw';
+                    warn "Failed to exec qemu: $!\n";
+                    exit 1;
                 }
             } else {
                 print "Invalid arguments!\n";
@@ -45,19 +43,17 @@ if (defined $first_arg) {
         } elsif ($d eq 'b') {
             if ($e eq 'f') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('bochs', '-f', 'scripts/bochs_fda.txt');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'bochs', '-f', 'scripts/debug/bochs_fda.txt';
+                    warn "Failed to exec bochs: $!\n";
+                    exit 1;
                 }
             } elsif ($e eq 'h') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('bochs', '-f', 'scripts/bochs_hda.txt');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'bochs', '-f', 'scripts/debug/bochs_hda.txt';
+                    warn "Failed to exec bochs: $!\n";
+                    exit 1;
                 }
             } else {
                 print "Invalid arguments!\n";
@@ -66,19 +62,17 @@ if (defined $first_arg) {
         } elsif ($d eq 'g') {
             if ($e eq 'f') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.img', '-S', '-s');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'gdb', '-x', 'scripts/debug/gdb_fda.gdb';
+                    warn "Failed to exec gdb: $!\n";
+                    exit 1;
                 }
             } elsif ($e eq 'h') {
                 my $cmd_a = system('make');
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.raw', '-S', '-s');
                 if ($cmd_a == 0) {
-                    if ($cmd_b == 0) {
-                        exit(0);
-                    }
+                    exec 'gdb', '-x', 'scripts/debug/gdb_hda.gdb';
+                    warn "Failed to exec gdb: $!\n";
+                    exit 1;
                 }
             } else {
                 print "Invalid arguments!\n";
@@ -111,45 +105,39 @@ if (defined $first_arg) {
     } elsif ($c eq 'r') {
         if ($d eq 'q') {
             if ($e eq 'f') {
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.img');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'qemu-system-i386', '-fda', 'build/valkyrie_os.img';
+                warn "Failed to exec qemu: $!\n";
+                exit 1;
             } elsif ($e eq 'h') {
-                my $cmd_b = system('qemu-system-i386', '-hda', 'build/valkyrie_os.raw');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'qemu-system-i386', '-hda', 'build/valkyrie_os.raw';
+                warn "Failed to exec qemu: $!\n";
+                exit 1;
             } else {
                 print "Invalid arguments!\n";
                 usage();
             }
         } elsif ($d eq 'b') {
             if ($e eq 'f') {
-                my $cmd_b = system('bochs', '-f', 'scripts/bochs_fda.txt');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'bochs', '-f', 'scripts/debug/bochs_fda.txt';
+                warn "Failed to exec bochs: $!\n";
+                exit 1;
             } elsif ($e eq 'h') {
-                my $cmd_b = system('bochs', '-f', 'scripts/bochs_hda.txt');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'bochs', '-f', 'scripts/debug/bochs_hda.txt';
+                warn "Failed to exec bochs: $!\n";
+                exit 1;
             } else {
                 print "Invalid arguments!\n";
                 usage();
             }
         } elsif ($d eq 'g') {
             if ($e eq 'f') {
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.img', '-S', '-s');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'gdb', '-x', 'scripts/debug/gdb_fda.gdb';
+                warn "Failed to exec gdb: $!\n";
+                exit 1;
             } elsif ($e eq 'h') {
-                my $cmd_b = system('qemu-system-i386', '-fda', 'build/valkyrie_os.raw', '-S', '-s');
-                if ($cmd_b == 0) {
-                    exit(0);
-                }
+                exec 'gdb', '-x', 'scripts/debug/gdb_hda.gdb';
+                warn "Failed to exec gdb: $!\n";
+                exit 1;
             } else {
                 print "Invalid arguments!\n";
                 usage();

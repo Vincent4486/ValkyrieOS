@@ -1,5 +1,5 @@
 #include <arch/i686/irq.h>
-#include <fs/fat12/fat12.h>
+#include <fs/fat12.h>
 #include <hal/hal.h>
 #include <jvm/jvm.h>
 #include <memory/memory.h>
@@ -42,6 +42,38 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    {
       printf("Disk init error\r\n");
       goto end;
+   }
+
+   /* Quick FAT test: initialize FAT on the detected disk and list the root
+    * directory entries. This helps verify the FDC driver + FAT code are
+    * working together.
+    */
+   if (FAT_Initialize(&disk))
+   {
+      printf("FAT initialized\n");
+     
+      FAT_File *tf = FAT_Open(&disk, "/test.txt");
+      if (tf)
+      {
+         printf("/test.txt: \n");
+         char buf[256];
+         uint32_t read;
+         while ((read = FAT_Read(&disk, tf, sizeof(buf), buf)) > 0)
+         {
+            // print chunks (not NUL terminated)
+            printf("%.*s", (int)read, buf);
+         }
+         printf("\n");
+         FAT_Close(tf);
+      }
+      else
+      {
+         printf("FAT: /test.txt not found\n");
+      }
+   }
+   else
+   {
+      printf("FAT initialize failed\n");
    }
 end:
    for (;;);

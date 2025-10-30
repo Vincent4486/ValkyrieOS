@@ -31,13 +31,42 @@ static void fdc_motor_off(void) { i686_outb(FDC_DOR, FDC_MOTOR_OFF); }
 
 static void fdc_send_byte(uint8_t byte)
 {
-   while (!(i686_inb(FDC_MSR) & 0x80));
+   /* Wait for controller to be ready to accept a command/data byte.
+    * MSR bit 7 = RQM (Request for Master). MSR bit 6 = DIO (Data Input/Output)
+    * For host->controller transfers we need RQM=1 and DIO=0.
+    */
+   uint8_t msr;
+   unsigned loops = 0;
+   do
+   {
+      msr = i686_inb(FDC_MSR);
+      loops++;
+      if ((loops & 0x3FFF) == 0) printf("[FDC DEBUG] waiting to send byte, MSR=0x%02x\n", msr);
+      if (loops > 0x40000)
+      {
+         printf("[FDC DEBUG] timeout waiting to send byte (msr=0x%02x)\n", msr);
+         break;
+      }
+   } while (!(msr & 0x80) || (msr & 0x40));
    i686_outb(FDC_FIFO, byte);
 }
 
 static uint8_t fdc_read_byte(void)
 {
-   while (!(i686_inb(FDC_MSR) & 0x80));
+   /* Wait for controller to have data for us. Need RQM=1 and DIO=1. */
+   uint8_t msr;
+   unsigned loops = 0;
+   do
+   {
+      msr = i686_inb(FDC_MSR);
+      loops++;
+      if ((loops & 0x3FFF) == 0) printf("[FDC DEBUG] waiting to read byte, MSR=0x%02x\n", msr);
+      if (loops > 0x40000)
+      {
+         printf("[FDC DEBUG] timeout waiting to read byte (msr=0x%02x)\n", msr);
+         break;
+      }
+   } while (!(msr & 0x80) || !(msr & 0x40));
    return i686_inb(FDC_FIFO);
 }
 
@@ -74,10 +103,20 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
 {
    printf("[FDC DEBUG] fdc_read_lba: lba=%lu buffer=%p count=%lu\n",
           (unsigned long)lba, buffer, (unsigned long)count);
+  if (count == 0)
+  {
+     /* Nothing to do; caller asked for zero sectors. Return success but
+      * warn the caller because this is often a sign of an upstream bug.
+      */
+     printf("[FDC DEBUG] fdc_read_lba called with count=0 (lba=%lu)\n",
+            (unsigned long)lba);
+     return 0;
+  }
    for (size_t i = 0; i < count; i++)
    {
       uint8_t head, track, sector;
       lba_to_chs(lba + i, &head, &track, &sector);
+      printf("[FDC DEBUG] read sector: index=%lu CHS=(%u,%u,%u)\n", (unsigned long)i, track, head, sector);
       fdc_motor_on();
       fdc_recalibrate();
       fdc_send_byte(FDC_CMD_SEEK);
@@ -100,6 +139,10 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
       {
          buffer[i * FLOPPY_SECTOR_SIZE + b] = fdc_read_byte();
       }
+      /* Print first 16 bytes of the sector we just read to help debugging */
+      printf("[FDC DEBUG] sector %lu read complete, first bytes:", (unsigned long)i);
+      for (int j = 0; j < 16; j++) printf(" %02x", buffer[i * FLOPPY_SECTOR_SIZE + j]);
+      printf("\n");
       fdc_motor_off();
    }
    return 0;

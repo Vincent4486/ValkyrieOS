@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 TARGET=$1
 
 STAGE1_STAGE2_LOCATION_OFFSET=480

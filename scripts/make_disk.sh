@@ -54,14 +54,14 @@ echo "01 00 00 00" | xxd -r -p | dd of=$TARGET_PARTITION conv=notrunc bs=1 seek=
 printf "%x" ${STAGE2_SECTORS} | xxd -r -p | dd of=$TARGET_PARTITION conv=notrunc bs=1 seek=$(( $STAGE1_STAGE2_LOCATION_OFFSET + 4 ))
 
 # copy files
-echo "Copying files to ${TARGET_PARTITION} (mounted on /tmp/nbos)..."
-mkdir -p /tmp/nbos
-mount ${TARGET_PARTITION} /tmp/nbos
-cp ${BUILD_DIR}/kernel.bin /tmp/nbos
-cp test.txt /tmp/nbos
-mkdir /tmp/nbos/test
-cp test.txt /tmp/nbos/test
-umount /tmp/nbos
+echo "Copying files to ${TARGET_PARTITION} (mounted on /tmp/valkyrie_oa)..."
+mkdir -p /tmp/valkyrie_oa
+mount ${TARGET_PARTITION} /tmp/valkyrie_oa
+cp ${BUILD_DIR}/kernel.bin /tmp/valkyrie_oa
+cp test.txt /tmp/valkyrie_oa
+mkdir /tmp/valkyrie_oa/test
+cp test.txt /tmp/valkyrie_oa/test
+umount /tmp/valkyrie_oa
 
 # destroy loopback device
 losetup -d ${DEVICE}
