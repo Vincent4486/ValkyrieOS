@@ -23,6 +23,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 {
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
 
+   _init();
    /* initialize basic memory allocator before other subsystems */
    mem_init();
 

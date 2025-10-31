@@ -1,5 +1,0 @@
-#!/bin/sh
-# Execute the contents of ./.automate with positional parameters forwarded
-# Usage: ./test.sh arg1 arg2 ...
-# Inside ./.automate you can reference these as $1, $2, etc.
-sh -s -- "$@" < ./.automate
