@@ -37,18 +37,18 @@ if [ "$OPERATION" = "build" ]; then
     BINUTILS_SRC="binutils-${BINUTILS_VERSION}"
     BINUTILS_BUILD="binutils-build-${BINUTILS_VERSION}"
 
-    wget ${BINUTILS_URL}
+    #wget ${BINUTILS_URL}
     tar -xf binutils-${BINUTILS_VERSION}.tar.xz
 
     mkdir -p ${BINUTILS_BUILD}
-    cd ${BINUTILS_BUILD} && CFLAGS= ASMFLAGS= CC= CXX= LD= ASM= LINKFLAGS= LIBS= ../binutils-${BINUTILS_VERSION}/configure \
-        --prefix="${TOOLCHAIN_PREFIX}"	\
-        --target=${TARGET}				\
-        --with-sysroot					\
-        --disable-nls					\
-        --disable-werror
-    make -j8 -C ${BINUTILS_BUILD}
-    make -C ${BINUTILS_BUILD} install
+    (cd ${BINUTILS_BUILD} && CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS= ../binutils-${BINUTILS_VERSION}/configure \
+        --prefix="${TOOLCHAIN_PREFIX}" \
+        --target=${TARGET} \
+        --with-sysroot \
+        --disable-nls \
+        --disable-werror \
+        && make -j8 \
+        && make install)
 
     # Download and build GCC
     GCC_SRC="gcc-${GCC_VERSION}"
@@ -57,14 +57,14 @@ if [ "$OPERATION" = "build" ]; then
     wget ${GCC_URL}
     tar -xf gcc-${GCC_VERSION}.tar.xz
     mkdir -p ${GCC_BUILD}
-    cd ${GCC_BUILD} && CFLAGS= ASMFLAGS= CC= CXX= LD= ASM= LINKFLAGS= LIBS= ../gcc-${GCC_VERSION}/configure \
-        --prefix="${TOOLCHAIN_PREFIX}" 	\
-        --target=${TARGET}				\
-        --disable-nls					\
-        --enable-languages=c,c++		\
-        --without-headers
-    make -j8 -C ${GCC_BUILD} all-gcc all-target-libgcc
-    make -C ${GCC_BUILD} install-gcc install-target-libgcc
+        (cd ${GCC_BUILD} && CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS= ../gcc-${GCC_VERSION}/configure \
+            --prefix="${TOOLCHAIN_PREFIX}" \
+            --target=${TARGET} \
+            --disable-nls \
+            --enable-languages=c,c++ \
+            --without-headers \
+            && make -j8 all-gcc all-target-libgcc \
+            && make install-gcc install-target-libgcc)
 
 elif [ "$OPERATION" = "clean" ]; then
 	rm -rf *
