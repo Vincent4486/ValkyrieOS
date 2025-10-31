@@ -38,7 +38,7 @@ VARS.Add("imageName",
          default="valkyrie_os")
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
-         default="toolchain")
+         default="toolchain/")
 
 DEPS = {
     'binutils': '2.37',
@@ -160,10 +160,10 @@ Clean('.', variantDir)
 
 # Phony targets
 PhonyTargets(HOST_ENVIRONMENT, 
-             run=['./scripts/run.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             debug=['./scripts/debug.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             bochs=['./scripts/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             toolchain=['./scripts/setup_toolchain.sh', HOST_ENVIRONMENT['toolchain']])
+             run=['./scripts/base/qemu.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
+             debug=['./scripts/base/gdb.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
+             bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
+             toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']])
 
 Depends('run', image)
 Depends('debug', image)

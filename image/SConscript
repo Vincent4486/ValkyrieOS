@@ -5,12 +5,14 @@ from decimal import Decimal
 from io import SEEK_CUR, SEEK_SET
 from pathlib import Path
 from shutil import copy2
+import parted
+import sh
 
 from SCons.Action import Action
 from SCons.Builder import Builder
 from SCons.Environment import Environment
 
-from scripts.scons.utility import FindIndex, GlobRecursive, IsFileName
+from build_scripts.utility import FindIndex, GlobRecursive, IsFileName
 
 Import('stage1')
 Import('stage2')
@@ -28,7 +30,6 @@ def generate_image_file(target: str, size_sectors: int):
         fout.close()
 
 def create_filesystem(target: str, filesystem, reserved_sectors=0, offset=0):
-    import sh
     if filesystem in ['fat12', 'fat16', 'fat32']:
         reserved_sectors += 1
         if filesystem == 'fat32':
@@ -37,14 +38,14 @@ def create_filesystem(target: str, filesystem, reserved_sectors=0, offset=0):
         mkfs_fat = sh.Command('mkfs.fat')
         mkfs_fat(target,
                  F=filesystem[3:],            # fat size
-                 n='VALKYRIE',                    # label
+                 n='NBOS',                    # label
                  R=reserved_sectors,      # reserved sectors
                  offset=offset
         )
     elif filesystem == 'ext2':
         mkfs_ext2 = sh.Command('mkfs.ext2')
         mkfs_ext2(target,
-                  L='VALKYRIE',                   # label
+                  L='NBOS',                   # label
                   E=f'offset={offset * SECTOR_SIZE}'
         )
     else:
@@ -101,7 +102,6 @@ def install_stage2(target: str, stage2: str, offset=0, limit=None):
             ftarget.write(fstage2.read())
 
 def build_floppy(image, stage1, stage2, kernel, files, env):
-    import sh
     size_sectors = 2880
     stage2_size = os.stat(stage2).st_size
     stage2_sectors = (stage2_size + SECTOR_SIZE - 1) // SECTOR_SIZE
@@ -138,7 +138,6 @@ def build_floppy(image, stage1, stage2, kernel, files, env):
 
 
 def create_partition_table(target: str, align_start: int):
-    import parted
     device = parted.getDevice(target)
     disk = parted.freshDisk(device, 'msdos')
     freeSpace = disk.getFreeSpaceRegions()
@@ -150,11 +149,9 @@ def create_partition_table(target: str, align_start: int):
 
 
 def mount_fs(image: str, mount_dir: str):
-    import sh
     sh.guestmount(mount_dir, add=image, mount='/dev/sda1')
 
 def unmount_fs(mount_dir: str):
-    import sh
     time.sleep(3)
     sh.fusermount(u=mount_dir)
 
