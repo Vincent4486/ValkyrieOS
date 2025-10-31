@@ -58,40 +58,6 @@ unless (defined $cmd_arg) {
     usage();
 }
 
-# Check if build command is specified as second argument (e.g., "aqf make" or "aqf scons")
-my $build_override = shift @ARGV;
-if (defined $build_override) {
-    # Valid build commands
-    if ($build_override eq 'make' || $build_override eq 'scons') {
-        $config{BUILD_COMMAND} = $build_override;
-        # Rebuild command table with new build command
-        %commands = (
-            # Auto-build and run commands (a*)
-            'aqf' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
-            'aqh' => { build => $config{BUILD_COMMAND}, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
-            'abf' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
-            'abh' => { build => $config{BUILD_COMMAND}, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
-            'agf' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
-            'agh' => { build => $config{BUILD_COMMAND}, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
-            
-            # Build-only commands (b-*)
-            'b-f' => { build => $config{BUILD_COMMAND} . ' floppy_image', run => undef },
-            'b-h' => { build => $config{BUILD_COMMAND} . ' disk_image', run => undef },
-            
-            # Run-only commands (r*)
-            'rqf' => { build => undef, run => ['qemu-system-i386', '-fda', $config{FLOPPY_IMAGE}] },
-            'rqh' => { build => undef, run => ['qemu-system-i386', '-hda', $config{DISK_IMAGE}] },
-            'rbf' => { build => undef, run => ['bochs', '-f', $config{BOCHS_FLOPPY_CONFIG}] },
-            'rbh' => { build => undef, run => ['bochs', '-f', $config{BOCHS_DISK_CONFIG}] },
-            'rgf' => { build => undef, run => ['gdb', '-x', $config{GDB_FLOPPY_CONFIG}] },
-            'rgh' => { build => undef, run => ['gdb', '-x', $config{GDB_DISK_CONFIG}] },
-        );
-    } else {
-        warn "Error: Unknown build command '$build_override'. Use 'make' or 'scons'.\n\n";
-        usage();
-    }
-}
-
 # Look up command in table
 my $cmd = $commands{$cmd_arg};
 unless ($cmd) {
@@ -137,7 +103,7 @@ sub load_config {
 
 sub usage {
     print <<"USAGE";
-Usage: $0 [OPTIONS] <command> [build_tool]
+Usage: $0 [OPTIONS] <command>
 
 Commands:
   Auto-build and run:
@@ -160,11 +126,6 @@ Commands:
     rgf     - Debug with GDB (floppy)
     rgh     - Debug with GDB (hard disk)
 
-Build Tool (optional):
-  make    - Use Make build system
-  scons   - Use SCons build system
-  If not specified, uses BUILD_COMMAND from config file (default: make)
-
 Options:
   -h, --help          Show this help message
   --config <file>     Load configuration from file
@@ -177,14 +138,12 @@ Configuration:
     BOCHS_DISK_CONFIG     - Bochs config for hard disk
     GDB_FLOPPY_CONFIG     - GDB script for floppy
     GDB_DISK_CONFIG       - GDB script for hard disk
-    BUILD_COMMAND         - Build command (e.g., 'make' or 'scons')
+    BUILD_COMMAND         - Build command (default: make)
 
 Examples:
-  $0 aqf                      # Build and run with QEMU (floppy) using default build tool
-  $0 aqf make                 # Build with Make and run in QEMU (floppy)
-  $0 aqf scons                # Build with SCons and run in QEMU (floppy)
+  $0 aqf                      # Build and run with QEMU (floppy)
   $0 --config .automate aqf   # Use custom config file
-  $0 b-f scons                # Build floppy image only using SCons
+  $0 b-f                      # Just build floppy image
   $0 rqh                      # Run existing hard disk image in QEMU
 
 USAGE
