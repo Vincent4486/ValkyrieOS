@@ -1,7 +1,7 @@
 import os
 
 from SCons.Environment import Environment
-from build_scripts.utility import GlobRecursive, FindIndex, IsFileName
+from scripts.scons.utility import GlobRecursive, FindIndex, IsFileName
 
 
 Import('TARGET_ENVIRONMENT')
@@ -18,9 +18,28 @@ env.Append(
     ASFLAGS = [ '-I', env.Dir('.').srcnode(), '-f', 'elf' ]
 )
 
-sources = GlobRecursive(env, '*.c') + \
-          GlobRecursive(env, '*.cpp') + \
-          GlobRecursive(env, '*.asm')
+c_sources = GlobRecursive(env, '*.c')
+cpp_sources = GlobRecursive(env, '*.cpp')
+asm_sources = GlobRecursive(env, '*.asm')
+
+# Get basenames of C/C++ files to avoid compiling .asm files with the same name
+c_cpp_basenames = set()
+for source_list in [c_sources, cpp_sources]:
+    for sources in source_list:
+        for source in sources:
+            basename = os.path.splitext(str(source))[0]
+            c_cpp_basenames.add(basename)
+
+# Filter out .asm files that have corresponding .c/.cpp files
+filtered_asm_sources = []
+for source_list in asm_sources:
+    for source in source_list:
+        basename = os.path.splitext(str(source))[0]
+        if basename not in c_cpp_basenames:
+            filtered_asm_sources.append(source)
+
+sources = c_sources + cpp_sources + [filtered_asm_sources]
+sources = [item for sublist in sources for item in (sublist if isinstance(sublist, list) else [sublist])]
 
 objects = env.Object(sources)
 obj_crti = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crti.o')))

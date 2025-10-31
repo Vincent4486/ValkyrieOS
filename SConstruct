@@ -33,6 +33,9 @@ VARS.Add("imageSize",
               "For floppies, the size is fixed to 1.44MB.",
          default="250m",
          converter=ParseSize)
+VARS.Add("imageName",
+         help="Name of the output image file (without extension).",
+         default="valkyrie_os")
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
          default="toolchain")
@@ -141,6 +144,19 @@ SConscript('src/kernel/SConscript', variant_dir=variantDir + '/kernel', duplicat
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 Import('image')
+
+# Clean target for entire build directory
+import shutil
+def clean_build_dir(target, source, env):
+    build_dir = variantDir
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
+        print(f"Removed {build_dir}")
+
+HOST_ENVIRONMENT.Command('clean-build', [], Action(clean_build_dir))
+
+# Also clean the build directory with 'scons -c'
+Clean('.', variantDir)
 
 # Phony targets
 PhonyTargets(HOST_ENVIRONMENT, 

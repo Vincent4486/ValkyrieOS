@@ -1,6 +1,6 @@
 from SCons.Environment import Environment
 
-from build_scripts.utility import GlobRecursive
+from scripts.scons.utility import GlobRecursive
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
