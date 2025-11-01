@@ -119,8 +119,8 @@ def build_floppy(image, stage1, stage2, kernel, files, env):
 
     print(f"> copying files...")
     print('    ... copying', kernel)
-    sh.mmd('-i', image, "::sys")
-    sh.mcopy('-i', image, kernel, "::sys/")
+    sh.mmd('-i', image, "::boot")
+    sh.mcopy('-i', image, kernel, "::boot/")
 
     # copy rest of files
     src_root = env['BASEDIR']
@@ -194,7 +194,7 @@ def build_disk(image, stage1, stage2, kernel, files, env):
 
         # copy kernel
         print(f"> copying kernel...")
-        bootdir = os.path.join(tempdir, 'sys')
+        bootdir = os.path.join(tempdir, 'boot')
         os.makedirs(bootdir)
         copy2(kernel, bootdir)
 
@@ -246,10 +246,11 @@ output_fmt = 'img'
 # if env['imageType'] == 'qcow3':
 #     output_fmt = 'qcow3'
 
-output = f'{TARGET_ENVIRONMENT["imageName"]}.{output_fmt}'
+output = f'image.{output_fmt}'
 
 image = env.Command(output, inputs,
                     action=Action(build_image, 'Creating disk image...'), 
                     BASEDIR=root.srcnode().path)
+env.Depends(image, inputs)
 
 Export('image')

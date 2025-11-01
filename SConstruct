@@ -3,9 +3,9 @@ from SCons.Variables import *
 from SCons.Environment import *
 from SCons.Node import *
 from scripts.scons.phony_targets import PhonyTargets
-from scripts.scons.utility import ParseSize
+from scripts.scons.utility import ParseSize, RemoveSuffix
 
-VARS = Variables('scripts/scons/config.py', ARGUMENTS)
+VARS = Variables('scripts/config.py', ARGUMENTS)
 VARS.AddVariables(
     EnumVariable("config",
                  help="Build configuration",
@@ -33,12 +33,9 @@ VARS.Add("imageSize",
               "For floppies, the size is fixed to 1.44MB.",
          default="250m",
          converter=ParseSize)
-VARS.Add("imageName",
-         help="Name of the output image file (without extension).",
-         default="valkyrie_os")
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
-         default="toolchain/")
+         default="toolchain")
 
 DEPS = {
     'binutils': '2.45',
@@ -57,6 +54,10 @@ HOST_ENVIRONMENT = Environment(variables=VARS,
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
     STRIP = 'strip',
+)
+
+HOST_ENVIRONMENT.Append(
+    PROJECTDIR = HOST_ENVIRONMENT.Dir('.').srcnode()
 )
 
 if HOST_ENVIRONMENT['config'] == 'debug':
@@ -89,9 +90,9 @@ platform_prefix = ''
 if HOST_ENVIRONMENT['arch'] == 'i686':
     platform_prefix = 'i686-elf-'
 
-toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], platform_prefix.removesuffix('-')).resolve()
+toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], RemoveSuffix(platform_prefix, '-')).resolve()
 toolchainBin = Path(toolchainDir, 'bin')
-toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', platform_prefix.removesuffix('-'), DEPS['gcc'])
+toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', RemoveSuffix(platform_prefix, '-'), DEPS['gcc'])
 
 TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
     AR = f'{platform_prefix}ar',
@@ -138,40 +139,20 @@ Export('TARGET_ENVIRONMENT')
 variantDir = 'build/{0}_{1}'.format(TARGET_ENVIRONMENT['arch'], TARGET_ENVIRONMENT['config'])
 variantDirStage1 = variantDir + '/stage1_{0}'.format(TARGET_ENVIRONMENT['imageFS'])
 
-# Check if toolchain exists; if not, provide a helpful message
-if not toolchainBin.exists():
-    print(f"\nWARNING: Toolchain not found at {toolchainBin}")
-    print(f"Run 'scons toolchain' first to build it.\n")
-
 SConscript('src/bootloader/stage1/SConscript', variant_dir=variantDirStage1, duplicate=0)
 SConscript('src/bootloader/stage2/SConscript', variant_dir=variantDir + '/stage2', duplicate=0)
 SConscript('src/kernel/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 Import('image')
-
-# Clean target for entire build directory
-import shutil
-def clean_build_dir(target, source, env):
-    build_dir = variantDir
-    if os.path.exists(build_dir):
-        shutil.rmtree(build_dir)
-        print(f"Removed {build_dir}")
-
-HOST_ENVIRONMENT.Command('clean-build', [], Action(clean_build_dir))
-
-# Also clean the build directory with 'scons -c'
-Clean('.', variantDir)
+Default(image)
 
 # Phony targets
-# For toolchain target, pass TOOLCHAIN_PREFIX and TARGET env vars
-toolchain_cmd = f"TARGET={platform_prefix.removesuffix('-')} TOOLCHAIN_PREFIX={toolchainDir} ./scripts/base/toolchain.sh"
-
 PhonyTargets(HOST_ENVIRONMENT, 
              run=['./scripts/base/qemu.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              debug=['./scripts/base/gdb.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             toolchain=toolchain_cmd)
+             toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']])
 
 Depends('run', image)
 Depends('debug', image)

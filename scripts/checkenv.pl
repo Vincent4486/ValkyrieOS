@@ -4,7 +4,7 @@ use warnings;
 use Getopt::Long;
 
 # checkenv.pl - verify required build/runtime dependencies are available
-# Usage: ./scripts/checkenv.pl [--verbose]
+# Usage: ./scripts/base/checkenv.pl [--verbose]
 
 my $verbose = 0;
 GetOptions('verbose|v' => \$verbose) or die "Invalid options\n";
