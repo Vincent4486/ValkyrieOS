@@ -2,46 +2,55 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Simple VGA text-mode helper for stage2 (80x25, color attributes).
-   This is intentionally small and self-contained so it can be used in
-   a freestanding environment during early boot. */
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25
+#define VGA_BUFFER ((volatile uint16_t *)0xB8000)
 
-static volatile uint16_t *const VGA = (volatile uint16_t *)0xB8000;
+#define BOX_WIDTH 60
+#define BOX_HEIGHT 15
+#define BOX_OFFSET_Y 1
+
+#define ANIMATION_DELAY_MS 300
+#define CHAR_PRINT_DELAY_MS 300
+
+#define DELAY_ITERS_PER_MS 40000UL
+
+static volatile uint16_t *const VGA = VGA_BUFFER;
 static int cur_x = 0;
 static int cur_y = 0;
-static uint8_t cur_attr = 0x07; /* light gray on black */
+static uint8_t cur_attr = 0x07;
 
 static inline int clamp_x(int x)
 {
    if (x < 0) return 0;
-   if (x > 79) return 79;
+   if (x >= VGA_WIDTH) return VGA_WIDTH - 1;
    return x;
 }
 
 static inline int clamp_y(int y)
 {
    if (y < 0) return 0;
-   if (y > 24) return 24;
+   if (y >= VGA_HEIGHT) return VGA_HEIGHT - 1;
    return y;
 }
 
 static void scroll_up_if_needed(void)
 {
-   if (cur_y < 25) return;
+   if (cur_y < VGA_HEIGHT) return;
    /* move lines 1..24 to 0..23 */
-   for (int row = 0; row < 24; ++row)
+   for (int row = 0; row < VGA_HEIGHT - 1; ++row)
    {
-      for (int col = 0; col < 80; ++col)
+      for (int col = 0; col < VGA_WIDTH; ++col)
       {
-         VGA[row * 80 + col] = VGA[(row + 1) * 80 + col];
+         VGA[row * VGA_WIDTH + col] = VGA[(row + 1) * VGA_WIDTH + col];
       }
    }
    /* clear last row */
-   for (int col = 0; col < 80; ++col)
+   for (int col = 0; col < VGA_WIDTH; ++col)
    {
-      VGA[24 * 80 + col] = (uint16_t)(' ') | ((uint16_t)cur_attr << 8);
+      VGA[(VGA_HEIGHT - 1) * VGA_WIDTH + col] = (uint16_t)(' ') | ((uint16_t)cur_attr << 8);
    }
-   cur_y = 24;
+   cur_y = VGA_HEIGHT - 1;
 }
 
 void draw_start_screen(bool showBoot)
@@ -59,12 +68,12 @@ void draw_outline()
       Draw each cell and pause after each to create a per-character animation.
     */
    /* compute centered box dimensions */
-   const int box_width = 60; /* interior including borders */
-   const int box_height = 15;
-   const int left = (80 - box_width) / 2;
-   int top = (25 - box_height) / 2;
-   /* move the whole outline up by 2 rows, clamp to screen */
-   top -= 1;
+   const int box_width = BOX_WIDTH; /* interior including borders */
+   const int box_height = BOX_HEIGHT;
+   const int left = (VGA_WIDTH - box_width) / 2;
+   int top = (VGA_HEIGHT - box_height) / 2;
+   /* move the whole outline up by BOX_OFFSET_Y rows, clamp to screen */
+   top -= BOX_OFFSET_Y;
    if (top < 0) top = 0;
    const int right = left + box_width - 1;
    const int bottom = top + box_height - 1;
@@ -78,12 +87,12 @@ void draw_outline()
    {
       uint8_t bg = palette[idx % pcount];
       uint8_t attr = (bg << 4) | 0x00;
-      VGA[top * 80 + x] = (uint16_t)(' ') | ((uint16_t)attr << 8);
-      delay_ms(300);
+      VGA[top * VGA_WIDTH + x] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+      delay_ms(ANIMATION_DELAY_MS);
       if (x + 1 <= right)
       {
-         VGA[top * 80 + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
-         delay_ms(300);
+         VGA[top * VGA_WIDTH + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+         delay_ms(ANIMATION_DELAY_MS);
       }
       ++idx;
    }
@@ -93,12 +102,12 @@ void draw_outline()
    {
       uint8_t bg = palette[idx % pcount];
       uint8_t attr = (bg << 4) | 0x00;
-      VGA[bottom * 80 + x] = (uint16_t)(' ') | ((uint16_t)attr << 8);
-      delay_ms(300);
+      VGA[bottom * VGA_WIDTH + x] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+      delay_ms(ANIMATION_DELAY_MS);
       if (x + 1 <= right)
       {
-         VGA[bottom * 80 + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
-         delay_ms(300);
+         VGA[bottom * VGA_WIDTH + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+         delay_ms(ANIMATION_DELAY_MS);
       }
       ++idx;
    }
@@ -108,19 +117,19 @@ void draw_outline()
       /* left pair (same color horizontally) */
       uint8_t bg_left = palette[idx % pcount];
       uint8_t attr_left = (bg_left << 4) | 0x00;
-      VGA[y * 80 + left] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
-      delay_ms(300);
-      VGA[y * 80 + (left + 1)] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
-      delay_ms(300);
+      VGA[y * VGA_WIDTH + left] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
+      delay_ms(ANIMATION_DELAY_MS);
+      VGA[y * VGA_WIDTH + (left + 1)] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
+      delay_ms(ANIMATION_DELAY_MS);
       ++idx;
 
       /* right pair (same color horizontally) */
       uint8_t bg_right = palette[idx % pcount];
       uint8_t attr_right = (bg_right << 4) | 0x00;
-      VGA[y * 80 + right] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
-      delay_ms(300);
-      VGA[y * 80 + (right - 1)] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
-      delay_ms(300);
+      VGA[y * VGA_WIDTH + right] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
+      delay_ms(ANIMATION_DELAY_MS);
+      VGA[y * VGA_WIDTH + (right - 1)] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
+      delay_ms(ANIMATION_DELAY_MS);
       ++idx;
    }
    /* corners are already filled by the top/bottom and left/right pairs */
@@ -134,12 +143,12 @@ void draw_text()
    /* center title on box */
    int title_len = 0;
    while (title[title_len]) ++title_len;
-   int x = (80 - title_len) / 2;
+   int x = (VGA_WIDTH - title_len) / 2;
    int y = 10;
    gotoxy(x, y);
    for (int i = 0; title[i]; ++i) printChar(title[i], 0x0F);
 
-   gotoxy((80 - 10) / 2, y + 2);
+   gotoxy((VGA_WIDTH - 10) / 2, y + 2);
    for (int i = 0; line2[i]; ++i) printChar(line2[i], 0x0F);
 }
 
@@ -160,30 +169,22 @@ void printChar(char character, uint8_t color)
       return;
    }
 
-   VGA[cur_y * 80 + cur_x] = (uint16_t)character | ((uint16_t)cur_attr << 8);
+   VGA[cur_y * VGA_WIDTH + cur_x] = (uint16_t)character | ((uint16_t)cur_attr << 8);
    ++cur_x;
-   if (cur_x >= 80)
+   if (cur_x >= VGA_WIDTH)
    {
       cur_x = 0;
       ++cur_y;
       scroll_up_if_needed();
    }
 
-   /* Busy-wait ~300 ms. This is approximate and depends on CPU speed.
-   If you need precise timing, use PIT calibration or the PIT itself. */
-   extern void delay_ms(unsigned int ms);
-   delay_ms(300);
+   delay_ms(CHAR_PRINT_DELAY_MS);
 }
 
-/* Very small, approximate busy-wait delay. Calibrate or replace with PIT
-   for accurate timings. This loops a simple number of cycles; value chosen
-   to be reasonable for typical emulator speeds. */
 void delay_ms(unsigned int ms)
 {
-   /* inner loop iterations per millisecond; tuned for QEMU/typical x86 speed.
-      If this is too slow/fast on your machine, reduce/increase the factor. */
    volatile unsigned long outer = ms;
-   const unsigned long iters_per_ms = 40000UL; /* rough, emulator-friendly */
+   const unsigned long iters_per_ms = DELAY_ITERS_PER_MS;
    for (; outer; --outer)
    {
       volatile unsigned long i = iters_per_ms;

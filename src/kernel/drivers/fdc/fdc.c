@@ -341,8 +341,5 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
 
 int fdc_write_lba(uint32_t lba, const uint8_t *buffer, size_t count)
 {
-   printf("[FDC DEBUG] fdc_write_lba: lba=%lu buffer=%p count=%lu\n",
-          (unsigned long)lba, buffer, (unsigned long)count);
-   // Not implemented: writing to floppy is more complex
    return 1;
 }
