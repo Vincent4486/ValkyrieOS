@@ -13,22 +13,6 @@ set -e
 TOOLCHAINS_DIR=toolchain
 OPERATION='build'
 
-while test $# -gt 0
-do
-    case "$1" in
-        -c) OPERATION='clean'
-            ;;
-        *)  TOOLCHAINS_DIR="$1"
-            ;;
-    esac
-    shift
-done
-
-if [ -z "$TOOLCHAINS_DIR" ]; then
-    echo "Missing arg: toolchains directory"
-    exit 1
-fi
-
 pushd "$TOOLCHAINS_DIR"
 
 if [ "$OPERATION" = "build" ]; then
