@@ -3,7 +3,7 @@ from SCons.Variables import *
 from SCons.Environment import *
 from SCons.Node import *
 from scripts.scons.phony_targets import PhonyTargets
-from scripts.scons.utility import ParseSize, RemoveSuffix
+from scripts.scons.utility import ParseSize
 
 VARS = Variables('scripts/config.py', ARGUMENTS)
 VARS.AddVariables(
