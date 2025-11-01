@@ -33,10 +33,18 @@ def GlobRecursive(env: Environment, pattern, node='.'):
         for d in directories:
             dir_list.append(os.path.join(root, d))
 
+    # Collect and flatten all matching nodes from subdirectories. env.Glob
+    # returns a NodeList; we convert each to a list and extend the result so
+    # callers get a flat list of nodes (instead of a list of NodeLists).
     globs = []
     for d in dir_list:
-        glob = env.Glob(os.path.join(os.path.relpath(d, cwd), pattern))
-        globs.append(glob)
+        matched = env.Glob(os.path.join(os.path.relpath(d, cwd), pattern))
+        # matched may be a NodeList; convert to list and extend
+        try:
+            globs.extend(list(matched))
+        except TypeError:
+            # Fallback: if not iterable, append the single item
+            globs.append(matched)
 
     return globs
 

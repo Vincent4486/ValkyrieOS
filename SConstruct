@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from SCons.Variables import *
 from SCons.Environment import *
 from SCons.Node import *
