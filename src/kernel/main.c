@@ -16,7 +16,6 @@ void crash_me();
 
 void timer(Registers *regs)
 {
-   //printf(".");
 }
 
 void __attribute__((section(".entry"))) start(uint16_t bootDrive)

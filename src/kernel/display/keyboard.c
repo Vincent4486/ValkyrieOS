@@ -1,7 +1,7 @@
 #include "keyboard.h"
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
-#include <std/stdio.h> // for putc/printf
+#include <std/stdio.h>
 #include <display/buffer.h>
 
 /* Input line buffer for simple line editing */
