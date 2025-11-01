@@ -1,12 +1,11 @@
 from pathlib import Path
-import os
 from SCons.Variables import *
 from SCons.Environment import *
 from SCons.Node import *
 from scripts.scons.phony_targets import PhonyTargets
-from scripts.scons.utility import ParseSize, RemoveSuffix
+from scripts.scons.utility import ParseSize
 
-VARS = Variables('scripts/config.py', ARGUMENTS)
+VARS = Variables('scripts/scons/config.py', ARGUMENTS)
 VARS.AddVariables(
     EnumVariable("config",
                  help="Build configuration",
@@ -36,11 +35,11 @@ VARS.Add("imageSize",
          converter=ParseSize)
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
-         default="toolchain")
+         default="../toolchain")
 
 DEPS = {
-    'binutils': '2.45',
-    'gcc': '15.2.0'
+    'binutils': '2.37',
+    'gcc': '11.2.0'
 }
 
 
@@ -55,10 +54,6 @@ HOST_ENVIRONMENT = Environment(variables=VARS,
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
     STRIP = 'strip',
-)
-
-HOST_ENVIRONMENT.Append(
-    PROJECTDIR = HOST_ENVIRONMENT.Dir('.').srcnode()
 )
 
 if HOST_ENVIRONMENT['config'] == 'debug':
@@ -91,9 +86,9 @@ platform_prefix = ''
 if HOST_ENVIRONMENT['arch'] == 'i686':
     platform_prefix = 'i686-elf-'
 
-toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], RemoveSuffix(platform_prefix, '-')).resolve()
+toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], platform_prefix.removesuffix('-')).resolve()
 toolchainBin = Path(toolchainDir, 'bin')
-toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', RemoveSuffix(platform_prefix, '-'), DEPS['gcc'])
+toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', platform_prefix.removesuffix('-'), DEPS['gcc'])
 
 TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
     AR = f'{platform_prefix}ar',
@@ -146,7 +141,6 @@ SConscript('src/kernel/SConscript', variant_dir=variantDir + '/kernel', duplicat
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 Import('image')
-Default(image)
 
 # Phony targets
 PhonyTargets(HOST_ENVIRONMENT, 

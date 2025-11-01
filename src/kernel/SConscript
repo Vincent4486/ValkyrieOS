@@ -13,10 +13,8 @@ env.Append(
         '-Wl,-T', env.File('linker.ld').srcnode().path,
         '-Wl,-Map=' + env.File('kernel.map').path
     ],
-    CPPPATH = [ 
-        env.Dir('.').srcnode(),
-        env['PROJECTDIR'].Dir('src/libs')
-    ],
+    CPATH = [ env.Dir('.').srcnode() ],
+    CPPPATH = [ env.Dir('.').srcnode() ],
     ASFLAGS = [ '-I', env.Dir('.').srcnode(), '-f', 'elf' ]
 )
 
@@ -36,10 +34,6 @@ objects = [
     obj_crtn
 ]
 
-kernel = env.Program('kernel.elf', objects)
-
-kernel_stripped = env.Command('kernel-stripped.elf', kernel, '$STRIP -o $TARGET $SOURCE')
-env.Default(kernel_stripped)
+kernel = env.Program('kernel.bin', objects)
 
 Export('kernel')
-Export('kernel_stripped')
