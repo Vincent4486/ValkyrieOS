@@ -2,31 +2,23 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Simple VGA text-mode helper for stage2 (80x25, color attributes).
-   This is intentionally small and self-contained so it can be used in
-   a freestanding environment during early boot. */
-
-/* VGA text mode constants */
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_BUFFER ((volatile uint16_t *)0xB8000)
 
-/* Display box constants */
 #define BOX_WIDTH 60
 #define BOX_HEIGHT 15
 #define BOX_OFFSET_Y 1
 
-/* Animation timing */
 #define ANIMATION_DELAY_MS 300
 #define CHAR_PRINT_DELAY_MS 300
 
-/* Delay calibration (iterations per millisecond for typical emulator) */
 #define DELAY_ITERS_PER_MS 40000UL
 
 static volatile uint16_t *const VGA = VGA_BUFFER;
 static int cur_x = 0;
 static int cur_y = 0;
-static uint8_t cur_attr = 0x07; /* light gray on black */
+static uint8_t cur_attr = 0x07;
 
 static inline int clamp_x(int x)
 {
@@ -151,12 +143,12 @@ void draw_text()
    /* center title on box */
    int title_len = 0;
    while (title[title_len]) ++title_len;
-   int x = (80 - title_len) / 2;
+   int x = (VGA_WIDTH - title_len) / 2;
    int y = 10;
    gotoxy(x, y);
    for (int i = 0; title[i]; ++i) printChar(title[i], 0x0F);
 
-   gotoxy((80 - 10) / 2, y + 2);
+   gotoxy((VGA_WIDTH - 10) / 2, y + 2);
    for (int i = 0; line2[i]; ++i) printChar(line2[i], 0x0F);
 }
 
@@ -177,30 +169,22 @@ void printChar(char character, uint8_t color)
       return;
    }
 
-   VGA[cur_y * 80 + cur_x] = (uint16_t)character | ((uint16_t)cur_attr << 8);
+   VGA[cur_y * VGA_WIDTH + cur_x] = (uint16_t)character | ((uint16_t)cur_attr << 8);
    ++cur_x;
-   if (cur_x >= 80)
+   if (cur_x >= VGA_WIDTH)
    {
       cur_x = 0;
       ++cur_y;
       scroll_up_if_needed();
    }
 
-   /* Busy-wait ~300 ms. This is approximate and depends on CPU speed.
-   If you need precise timing, use PIT calibration or the PIT itself. */
-   extern void delay_ms(unsigned int ms);
-   delay_ms(300);
+   delay_ms(CHAR_PRINT_DELAY_MS);
 }
 
-/* Very small, approximate busy-wait delay. Calibrate or replace with PIT
-   for accurate timings. This loops a simple number of cycles; value chosen
-   to be reasonable for typical emulator speeds. */
 void delay_ms(unsigned int ms)
 {
-   /* inner loop iterations per millisecond; tuned for QEMU/typical x86 speed.
-      If this is too slow/fast on your machine, reduce/increase the factor. */
    volatile unsigned long outer = ms;
-   const unsigned long iters_per_ms = 40000UL; /* rough, emulator-friendly */
+   const unsigned long iters_per_ms = DELAY_ITERS_PER_MS;
    for (; outer; --outer)
    {
       volatile unsigned long i = iters_per_ms;
