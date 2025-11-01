@@ -138,6 +138,11 @@ Export('TARGET_ENVIRONMENT')
 variantDir = 'build/{0}_{1}'.format(TARGET_ENVIRONMENT['arch'], TARGET_ENVIRONMENT['config'])
 variantDirStage1 = variantDir + '/stage1_{0}'.format(TARGET_ENVIRONMENT['imageFS'])
 
+# Check if toolchain exists; if not, provide a helpful message
+if not toolchainBin.exists():
+    print(f"\nWARNING: Toolchain not found at {toolchainBin}")
+    print(f"Run 'scons toolchain' first to build it.\n")
+
 SConscript('src/bootloader/stage1/SConscript', variant_dir=variantDirStage1, duplicate=0)
 SConscript('src/bootloader/stage2/SConscript', variant_dir=variantDir + '/stage2', duplicate=0)
 SConscript('src/kernel/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
@@ -159,11 +164,14 @@ HOST_ENVIRONMENT.Command('clean-build', [], Action(clean_build_dir))
 Clean('.', variantDir)
 
 # Phony targets
+# For toolchain target, pass TOOLCHAIN_PREFIX and TARGET env vars
+toolchain_cmd = f"TARGET={platform_prefix.removesuffix('-')} TOOLCHAIN_PREFIX={toolchainDir} ./scripts/base/toolchain.sh"
+
 PhonyTargets(HOST_ENVIRONMENT, 
              run=['./scripts/base/qemu.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              debug=['./scripts/base/gdb.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']])
+             toolchain=toolchain_cmd)
 
 Depends('run', image)
 Depends('debug', image)
