@@ -37,51 +37,6 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
       goto end;
    }
 
-   // Try to load a test library (search common paths). If found, register it
-   // so the kernel can call it by looking up the registry.
-   {
-      const char *paths[] = { "/sys/hello.elf", "/test/hello.elf" };
-      for (int p = 0; p < (int)(sizeof(paths) / sizeof(paths[0])); p++)
-      {
-         FAT_File *libfd = FAT_Open(&disk, paths[p]);
-         if (!libfd) continue;
-
-         void *libEntry = NULL;
-         if (ELF_Load(&disk, libfd, &libEntry))
-         {
-            printf("Loaded %s -> entry=%p\r\n", paths[p], libEntry);
-
-            // populate first free slot in registry
-            LibRecord *reg = LIB_REGISTRY_ADDR;
-            for (int i = 0; i < LIB_REGISTRY_MAX; i++)
-            {
-               if (reg[i].name[0] == '\0')
-               {
-                  // store simple name (basename without extension)
-                  const char *src = paths[p];
-                  const char *b = src;
-                  // find last '/'
-                  for (const char *q = src; *q; q++) if (*q == '/') b = q + 1;
-                  // copy up to '.' or end
-                  int j = 0;
-                  while (b[j] && b[j] != '.' && j < LIB_NAME_MAX - 1)
-                  {
-                     reg[i].name[j] = b[j];
-                     j++;
-                  }
-                  reg[i].name[j] = '\0';
-                  reg[i].base = libEntry; // best-effort; precise base may be equal to entry
-                  reg[i].entry = libEntry;
-                  reg[i].size = 0;
-                  break;
-               }
-            }
-         }
-
-         FAT_Close(libfd);
-      }
-   }
-
    // load ELF kernel
    FAT_File *fd = FAT_Open(&disk, "/sys/kernel.elf");
    if (!fd)

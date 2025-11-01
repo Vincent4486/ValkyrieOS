@@ -4,6 +4,7 @@ section .entry
 
 extern __bss_start
 extern __end
+extern _init
 
 extern start
 global entry
@@ -19,7 +20,6 @@ entry:
     mov ss, ax
     mov sp, 0xFFF0
     mov bp, sp
-
 
     ; switch to protected mode
     call EnableA20          ; 2 - Enable A20 gate
@@ -49,6 +49,9 @@ entry:
     mov al, 0
     cld
     rep stosb
+
+    ; call global constructors
+    call _init
 
     ; expect boot drive in dl, send it as argument to cstart function
     xor edx, edx
@@ -168,5 +171,3 @@ g_GDTDesc:  dw g_GDTDesc - g_GDT - 1    ; limit = size of GDT
             dd g_GDT                    ; address of GDT
 
 g_BootDrive: db 0
-
-; (no BIOS memory probe in this build)

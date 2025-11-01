@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 // 0x00000000 - 0x000003FF - interrupt vector table
 // 0x00000400 - 0x000004FF - BIOS data area
 

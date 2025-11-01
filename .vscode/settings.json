@@ -35,5 +35,11 @@
       "binaryArgs": ["-fda", "build/valkyrie_os.img"]
     }
   ],
-  "makefile.makefilePath": ""
+  "python.linting.enabled": false,
+  "python.analysis.enabled": false,
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportGeneralTypeIssues": "none",
+    "reportOptionalMemberAccess": "none",
+    "reportUnusedImport": "none"
+  }
 }

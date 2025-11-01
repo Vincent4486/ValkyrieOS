@@ -36,8 +36,8 @@ int dylib_call_if_exists(const char *name)
 
 void dylib_list(void)
 {
+    printf("Loaded dynamic library modules:\n");
     LibRecord *reg = LIB_REGISTRY_ADDR;
-    printf("Loaded modules:\n");
     for (int i = 0; i < LIB_REGISTRY_MAX; i++)
     {
         if (reg[i].name[0] != '\0')

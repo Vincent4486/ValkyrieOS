@@ -1,2 +1,25 @@
-#!/bin/bash
-perl scripts/autorun.pl $1
+# ValkyrieOS Automation Configuration
+# This file configures disk images and configuration paths for the build system
+
+# Disk images
+FLOPPY_IMAGE=build/valkyrie_os.img
+DISK_IMAGE=build/valkyrie_os.raw
+
+# Configuration files
+BOCHS_FLOPPY_CONFIG=scripts/config/bochs_fda.txt
+BOCHS_DISK_CONFIG=scripts/config/bochs_hda.txt
+GDB_FLOPPY_CONFIG=scripts/config/gdb_fda.gdb
+GDB_DISK_CONFIG=scripts/config/gdb_hda.gdb
+
+# Build command
+BUILD_COMMAND=make
+
+
+CONFIG_FILE=".automate"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file '$CONFIG_FILE' not found!"
+    exit 1
+fi
+
+exec perl scripts/autorun.pl --config "$CONFIG_FILE" "$@"
