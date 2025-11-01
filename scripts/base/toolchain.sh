@@ -3,6 +3,9 @@
 BINUTILS_VERSION=2.45
 GCC_VERSION=15.2.0
 
+TARGET=i686-elf
+TOOLCHAIN_PREFIX=/home/vincent/Documents/ValkyrieOS/toolchain/${TARGET}
+
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
 
@@ -36,19 +39,6 @@ if [ "$OPERATION" = "build" ]; then
     # Download and build binutils
     BINUTILS_SRC="binutils-${BINUTILS_VERSION}"
     BINUTILS_BUILD="binutils-build-${BINUTILS_VERSION}"
-
-    #wget ${BINUTILS_URL}
-    tar -xf binutils-${BINUTILS_VERSION}.tar.xz
-
-    mkdir -p ${BINUTILS_BUILD}
-    (cd ${BINUTILS_BUILD} && CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS= ../binutils-${BINUTILS_VERSION}/configure \
-        --prefix="${TOOLCHAIN_PREFIX}" \
-        --target=${TARGET} \
-        --with-sysroot \
-        --disable-nls \
-        --disable-werror \
-        && make -j8 \
-        && make install)
 
     # Download and build GCC
     GCC_SRC="gcc-${GCC_VERSION}"
