@@ -34,15 +34,12 @@
 static int ata_wait_bsy(void)
 {
    int timeout = ATA_WAIT_TIMEOUT;
-   uint8_t status = i686_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
-   printf("[ATA DEBUG] ata_wait_bsy: status=0x%02X\n", status);
+   uint8_t status;
    while (timeout-- > 0)
    {
       status = i686_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
       if (!(status & ATA_SR_BSY))
       {
-         if (timeout < ATA_WAIT_TIMEOUT - 1)
-            printf("[ATA DEBUG] ata_wait_bsy: ready, status=0x%02X\n", status);
          return 0;
       }
    }
@@ -53,15 +50,12 @@ static int ata_wait_bsy(void)
 static int ata_wait_drq(void)
 {
    int timeout = ATA_WAIT_TIMEOUT;
-   uint8_t status = i686_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
-   printf("[ATA DEBUG] ata_wait_drq: status=0x%02X\n", status);
+   uint8_t status;
    while (timeout-- > 0)
    {
       status = i686_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
       if (status & ATA_SR_DRQ)
       {
-         if (timeout < ATA_WAIT_TIMEOUT - 1)
-            printf("[ATA DEBUG] ata_wait_drq: ready, status=0x%02X\n", status);
          return 0;
       }
    }
@@ -79,17 +73,12 @@ void ata_soft_reset(void)
 
 int ata_read28(uint32_t lba, uint8_t *buffer, size_t count)
 {
-   printf("[ATA DEBUG] ata_read28: lba=%lu buffer=%p count=%lu\n",
-          (unsigned long)lba, buffer, (unsigned long)count);
    if (lba > 0x0FFFFFFF || count == 0)
    {
-      printf("[ATA DEBUG] Invalid lba or count\n");
       return 1;
    }
    for (size_t sector = 0; sector < count; ++sector)
    {
-      printf("[ATA DEBUG] Reading sector %lu (lba=%lu)\n",
-             (unsigned long)sector, (unsigned long)lba);
       if (ata_wait_bsy()) return 2;
       i686_outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, 0xE0 | ((lba >> 24) & 0x0F));
       i686_outb(ATA_PRIMARY_IO + ATA_REG_SECCOUNT0, 1);
@@ -109,7 +98,6 @@ int ata_read28(uint32_t lba, uint8_t *buffer, size_t count)
       }
       lba++;
    }
-   printf("[ATA DEBUG] ata_read28 complete\n");
    return 0;
 }
 
@@ -134,7 +122,6 @@ int ata_write28(uint32_t lba, const uint8_t *buffer, size_t count)
          i686_outb(ATA_PRIMARY_IO, (uint8_t)(data & 0xFF));
          i686_outb(ATA_PRIMARY_IO, (uint8_t)((data >> 8) & 0xFF));
       }
-      // Flush cache
       i686_outb(ATA_PRIMARY_IO + ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
       ata_wait_bsy();
       lba++;

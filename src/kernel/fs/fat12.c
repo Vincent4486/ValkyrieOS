@@ -319,11 +319,8 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
       fd->Public.Position += take;
       byteCount -= take;
 
-      // printf("leftInBuffer=%lu take=%lu\r\n", leftInBuffer, take);
-      // See if we need to read more data
       if (leftInBuffer == take)
       {
-         // Special handling for root directory
          if (fd->Public.Handle == ROOT_DIRECTORY_HANDLE)
          {
             ++fd->CurrentCluster;
