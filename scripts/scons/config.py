@@ -3,4 +3,4 @@
 #imageType = 'disk'
 #imageFS = 'fat32'
 #imageSize = '250m'
-toolchain='toolchain/i686-elf'
+toolchain='toolchain/'
