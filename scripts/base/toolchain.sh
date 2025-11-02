@@ -61,13 +61,15 @@ if [ "$OPERATION" = "build" ]; then
     wget ${GCC_URL}
     tar -xf gcc-${GCC_VERSION}.tar.xz
     mkdir -p ${GCC_BUILD}
-    cd ${GCC_BUILD} && CFLAGS= ASMFLAGS= CC= CXX= LD= ASM= LINKFLAGS= LIBS= ../gcc-${GCC_VERSION}/configure \
-        --prefix="${TOOLCHAIN_PREFIX}" 	\
-        --target=${TARGET}				\
-        --disable-nls					\
-        --enable-languages=c,c++		\
-        --without-headers
-    make -j8 -C ${GCC_BUILD} all-gcc all-target-libgcc
-    make -C ${GCC_BUILD} install-gcc install-target-libgcc
+        (cd ${GCC_BUILD} && CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS= ../gcc-${GCC_VERSION}/configure \
+            --prefix="${TOOLCHAIN_PREFIX}" \
+            --target=${TARGET} \
+            --disable-nls \
+            --enable-languages=c,c++ \
+            --without-headers \
+            && make -j8 all-gcc all-target-libgcc \
+            && make install-gcc install-target-libgcc)
 
+elif [ "$OPERATION" = "clean" ]; then
+	rm -rf *
 fi
