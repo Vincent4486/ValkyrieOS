@@ -35,10 +35,13 @@ VARS.Add("imageSize",
          converter=ParseSize)
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
-         default="../toolchain")
+         default="toolchain/")
 VARS.Add("outputFile", 
          help="The name of final image.",
-         default="valkyrie_os")
+         default="image")
+VARS.Add("outputFormat", 
+         help="The extension of the disk image.",
+         default="img")
 
 DEPS = {
     'binutils': '2.37',

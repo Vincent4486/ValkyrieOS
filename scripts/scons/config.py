@@ -4,3 +4,4 @@
 #imageFS = 'fat32'
 #imageSize = '250m'
 toolchain='../os_toolchain'
+outputFile='valkyrie_os'
