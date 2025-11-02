@@ -1,7 +1,9 @@
 #!/bin/bash
 
-BINUTILS_VERSION=2.45
+BINUTILS_VERSION=2.37
 GCC_VERSION=15.2.0
+
+TARGET=i686-elf
 
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
@@ -13,7 +15,25 @@ set -e
 TOOLCHAINS_DIR=toolchain
 OPERATION='build'
 
-pushd "$TOOLCHAINS_DIR"
+while test $# -gt 0
+do
+    case "$1" in
+        -c) OPERATION='clean'
+            ;;
+        *)  TOOLCHAINS_DIR="$1"
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$TOOLCHAINS_DIR" ]; then
+    echo "Missing arg: toolchains directory"
+    exit 1
+fi
+
+mkdir -p "$TOOLCHAINS_DIR"
+cd "$TOOLCHAINS_DIR"
+TOOLCHAIN_PREFIX="$(pwd)/${TARGET}"
 
 if [ "$OPERATION" = "build" ]; then
 
@@ -21,18 +41,18 @@ if [ "$OPERATION" = "build" ]; then
     BINUTILS_SRC="binutils-${BINUTILS_VERSION}"
     BINUTILS_BUILD="binutils-build-${BINUTILS_VERSION}"
 
-    #wget ${BINUTILS_URL}
+    wget ${BINUTILS_URL}
     tar -xf binutils-${BINUTILS_VERSION}.tar.xz
 
     mkdir -p ${BINUTILS_BUILD}
-    (cd ${BINUTILS_BUILD} && CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS= ../binutils-${BINUTILS_VERSION}/configure \
-        --prefix="${TOOLCHAIN_PREFIX}" \
-        --target=${TARGET} \
-        --with-sysroot \
-        --disable-nls \
-        --disable-werror \
-        && make -j8 \
-        && make install)
+    cd ${BINUTILS_BUILD} && CFLAGS= ASMFLAGS= CC= CXX= LD= ASM= LINKFLAGS= LIBS= ../binutils-${BINUTILS_VERSION}/configure \
+        --prefix="${TOOLCHAIN_PREFIX}"	\
+        --target=${TARGET}				\
+        --with-sysroot					\
+        --disable-nls					\
+        --disable-werror
+    make -j8 -C ${BINUTILS_BUILD}
+    make -C ${BINUTILS_BUILD} install
 
     # Download and build GCC
     GCC_SRC="gcc-${GCC_VERSION}"

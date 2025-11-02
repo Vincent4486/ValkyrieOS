@@ -11,6 +11,7 @@
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
+extern void _init();
 
 void crash_me();
 
