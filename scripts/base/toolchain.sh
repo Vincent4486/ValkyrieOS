@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BINUTILS_VERSION=2.37
-GCC_VERSION=11.2.0
+GCC_VERSION=15.2.0
 
 TARGET=i686-elf
 
@@ -35,7 +35,7 @@ mkdir -p "$TOOLCHAINS_DIR"
 cd "$TOOLCHAINS_DIR"
 TOOLCHAIN_PREFIX="$(pwd)/${TARGET}"
 
-if [ "$OPERATION" = "build" ];:
+if [ "$OPERATION" = "build" ]; then
 
     # Download and build binutils
     BINUTILS_SRC="binutils-${BINUTILS_VERSION}"
@@ -70,6 +70,4 @@ if [ "$OPERATION" = "build" ];:
     make -j8 -C ${GCC_BUILD} all-gcc all-target-libgcc
     make -C ${GCC_BUILD} install-gcc install-target-libgcc
 
-elif [ "$OPERATION" = "clean" ]; then
-	rm -rf *
 fi
