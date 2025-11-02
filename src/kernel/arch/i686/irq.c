@@ -2,10 +2,10 @@
 #include "i8259.h"
 #include "io.h"
 #include "pic.h"
-#include <std/stdio.h>
-#include <stddef.h>
 #include <display/keyboard.h>
 #include <std/arrays.h>
+#include <std/stdio.h>
+#include <stddef.h>
 
 #define PIC_REMAP_OFFSET 0x20
 

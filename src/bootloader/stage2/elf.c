@@ -1,7 +1,7 @@
 #include "elf.h"
-#include "stdio.h"
 #include "memdefs.h"
 #include "memory.h"
+#include "stdio.h"
 #include "string.h"
 
 // ELF structures for 32-bit little-endian
@@ -117,7 +117,8 @@ bool ELF_Load(DISK *disk, FAT_File *file, void **entryOut)
       // read file data for this segment
       uint32_t remaining = phdr.p_filesz;
       uint32_t fileOffset = phdr.p_offset;
-      const uint32_t CHUNK = 512; // FAT sector size, read in sector-sized chunks
+      const uint32_t CHUNK =
+          512; // FAT sector size, read in sector-sized chunks
 
       if (remaining > 0)
       {

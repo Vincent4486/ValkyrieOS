@@ -26,11 +26,12 @@
 // Library registry placed in low memory (inside FAT area). Stage2 populates
 // this with loaded modules so the kernel can find them.
 #define LIB_NAME_MAX 32
-typedef struct {
-	char name[LIB_NAME_MAX];
-	void *base;
-	void *entry;
-	uint32_t size;
+typedef struct
+{
+   char name[LIB_NAME_MAX];
+   void *base;
+   void *entry;
+   uint32_t size;
 } LibRecord;
 
 #define LIB_REGISTRY_ADDR ((LibRecord *)0x00028000)

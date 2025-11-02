@@ -1,14 +1,14 @@
 #include "disk.h"
+#include "elf.h"
 #include "fat.h"
 #include "memdefs.h"
 #include "memory.h"
 #include "startscreen.h"
 #include "stdio.h"
 #include "x86.h"
-#include "elf.h"
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 uint8_t *KernelLoadBuffer = (uint8_t *)MEMORY_LOAD_KERNEL;
 uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;
@@ -55,7 +55,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
 
    FAT_Close(fd);
 
-   // jump to kernel entry (pass the boot drive number so kernel can access disk)
+   // jump to kernel entry (pass the boot drive number so kernel can access
+   // disk)
    KernelStart kernelStart = (KernelStart)entry;
    kernelStart(bootDrive);
 

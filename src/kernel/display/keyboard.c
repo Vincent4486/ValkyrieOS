@@ -1,8 +1,8 @@
 #include "keyboard.h"
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
-#include <std/stdio.h> // for putc/printf
 #include <display/buffer.h>
+#include <std/stdio.h> // for putc/printf
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256

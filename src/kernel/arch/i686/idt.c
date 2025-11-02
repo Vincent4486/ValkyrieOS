@@ -1,7 +1,7 @@
 #include "idt.h"
+#include <std/binary.h>
 #include <std/stdio.h>
 #include <stdint.h>
-#include <std/binary.h>
 
 typedef struct
 {

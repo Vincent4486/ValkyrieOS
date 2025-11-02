@@ -2,7 +2,7 @@
 #include <arch/i686/io.h>
 
 #include <stdarg.h>
-#include <stdbool.h>     
+#include <stdbool.h>
 
 const unsigned SCREEN_WIDTH = 80;
 const unsigned SCREEN_HEIGHT = 25;
@@ -287,26 +287,33 @@ void print_buffer(const char *msg, const void *buffer, uint32_t count)
    putc('\n');
 }
 
-int snprintf(char *buffer, size_t buf_size, const char *format, ...){
+int snprintf(char *buffer, size_t buf_size, const char *format, ...)
+{
    va_list ap;
    va_start(ap, format);
 
-   size_t out_idx = 0;     /* next write position in buffer (0..buf_size-1) */
-   size_t would_have = 0;  /* total chars that would have been written */
+   size_t out_idx = 0;    /* next write position in buffer (0..buf_size-1) */
+   size_t would_have = 0; /* total chars that would have been written */
 
-   /* helper to emit a single char */
-   #define EMIT_CH(c)         \
-      do {                     \
-         if (out_idx + 1 < buf_size) buffer[out_idx++] = (c); \
-         would_have++;           \
-      } while (0)
+/* helper to emit a single char */
+#define EMIT_CH(c)                                                             \
+   do                                                                          \
+   {                                                                           \
+      if (out_idx + 1 < buf_size) buffer[out_idx++] = (c);                     \
+      would_have++;                                                            \
+   } while (0)
 
-   /* helper to emit a whole string */
-   #define EMIT_STR(s)                                 \
-      do {                                            \
-         const char *_p = (s);                         \
-         while (*_p) { EMIT_CH(*_p); _p++; }           \
-      } while (0)
+/* helper to emit a whole string */
+#define EMIT_STR(s)                                                            \
+   do                                                                          \
+   {                                                                           \
+      const char *_p = (s);                                                    \
+      while (*_p)                                                              \
+      {                                                                        \
+         EMIT_CH(*_p);                                                         \
+         _p++;                                                                 \
+      }                                                                        \
+   } while (0)
 
    const char *p = format;
    while (*p)
@@ -349,7 +356,8 @@ int snprintf(char *buffer, size_t buf_size, const char *format, ...){
             val = -val;
          }
          /* unsigned print */
-         char tmp[32]; int t = 0;
+         char tmp[32];
+         int t = 0;
          if (val == 0) tmp[t++] = '0';
          while (val > 0 && t < (int)sizeof(tmp))
          {
@@ -361,7 +369,8 @@ int snprintf(char *buffer, size_t buf_size, const char *format, ...){
       else if (spec == 'u')
       {
          unsigned long long val = va_arg(ap, unsigned int);
-         char tmp[32]; int t = 0;
+         char tmp[32];
+         int t = 0;
          if (val == 0) tmp[t++] = '0';
          while (val > 0 && t < (int)sizeof(tmp))
          {
@@ -373,8 +382,10 @@ int snprintf(char *buffer, size_t buf_size, const char *format, ...){
       else if (spec == 'x' || spec == 'X' || spec == 'p')
       {
          unsigned long long val = va_arg(ap, unsigned long long);
-         char tmp[32]; int t = 0;
-         const char *hex = (spec == 'X') ? "0123456789ABCDEF" : "0123456789abcdef";
+         char tmp[32];
+         int t = 0;
+         const char *hex =
+             (spec == 'X') ? "0123456789ABCDEF" : "0123456789abcdef";
          if (val == 0) tmp[t++] = '0';
          while (val > 0 && t < (int)sizeof(tmp))
          {
@@ -386,7 +397,8 @@ int snprintf(char *buffer, size_t buf_size, const char *format, ...){
       else if (spec == 'o')
       {
          unsigned long long val = va_arg(ap, unsigned int);
-         char tmp[32]; int t = 0;
+         char tmp[32];
+         int t = 0;
          if (val == 0) tmp[t++] = '0';
          while (val > 0 && t < (int)sizeof(tmp))
          {
@@ -406,11 +418,12 @@ int snprintf(char *buffer, size_t buf_size, const char *format, ...){
    /* NUL-terminate if there's space */
    if (buf_size > 0)
    {
-      if (out_idx < buf_size) buffer[out_idx] = '\0';
-      else buffer[buf_size - 1] = '\0';
+      if (out_idx < buf_size)
+         buffer[out_idx] = '\0';
+      else
+         buffer[buf_size - 1] = '\0';
    }
 
    va_end(ap);
    return (int)would_have;
 }
-

@@ -49,7 +49,8 @@ static void ensure_line_exists(void)
    s_scroll and clamps to >= 0. */
 static int compute_visible_start(void)
 {
-   int base = (s_lines_used > SCREEN_HEIGHT) ? (int)(s_lines_used - SCREEN_HEIGHT) : 0;
+   int base =
+       (s_lines_used > SCREEN_HEIGHT) ? (int)(s_lines_used - SCREEN_HEIGHT) : 0;
    int start = base - (int)s_scroll;
    if (start < 0) start = 0;
    return start;
@@ -234,7 +235,8 @@ void buffer_putc(char c)
          {
             /* inserted line is below the visible window: advance head so the
                tail is visible (keep behavior consistent with previous code) */
-            if (s_lines_used > SCREEN_HEIGHT) s_head = (s_head + 1) % BUFFER_LINES;
+            if (s_lines_used > SCREEN_HEIGHT)
+               s_head = (s_head + 1) % BUFFER_LINES;
             new_y = SCREEN_HEIGHT - 1;
          }
          s_cursor_y = new_y;
@@ -342,10 +344,10 @@ void buffer_putc(char c)
 
    /* Printable character: insert at cursor position in the target line. */
    {
-   /* recompute visible_start (consider scroll) because s_lines_used might
-    * have changed */
-   visible_start = compute_visible_start();
-   rel_pos = (uint32_t)visible_start + (uint32_t)s_cursor_y;
+      /* recompute visible_start (consider scroll) because s_lines_used might
+       * have changed */
+      visible_start = compute_visible_start();
+      rel_pos = (uint32_t)visible_start + (uint32_t)s_cursor_y;
       while (rel_pos >= s_lines_used) push_newline_at_tail();
       idx = (s_head + rel_pos) % BUFFER_LINES;
 

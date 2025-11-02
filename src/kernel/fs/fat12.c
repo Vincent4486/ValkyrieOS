@@ -1,6 +1,7 @@
 #include "fat12.h"
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>
+#include <fs/disk.h>
 #include <memory/memdefs.h>
 #include <memory/memory.h>
 #include <std/ctype.h>
@@ -8,7 +9,6 @@
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
-#include <fs/disk.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
@@ -81,7 +81,8 @@ bool FAT_ReadBootSector(DISK *disk)
    if (g_Data->BS.BootSectorBytes[510] == 0x55 &&
        g_Data->BS.BootSectorBytes[511] == 0xAA)
    {
-      printf("FAT: boot sector already present in memory (skipping disk read)\n");
+      printf(
+          "FAT: boot sector already present in memory (skipping disk read)\n");
    }
    else
    {
@@ -107,11 +108,11 @@ bool FAT_ReadBootSector(DISK *disk)
    printf("\n");
 
    // also print the interpreted BPB fields we care about (for readability)
-   printf("FAT: interpreted BPB: BytesPerSector=%u SectorsPerCluster=%u ReservedSectors=%u FatCount=%u DirEntryCount=%u SectorsPerFat=%u\n",
+   printf("FAT: interpreted BPB: BytesPerSector=%u SectorsPerCluster=%u "
+          "ReservedSectors=%u FatCount=%u DirEntryCount=%u SectorsPerFat=%u\n",
           g_Data->BS.BootSector.BytesPerSector,
           g_Data->BS.BootSector.SectorsPerCluster,
-          g_Data->BS.BootSector.ReservedSectors,
-          g_Data->BS.BootSector.FatCount,
+          g_Data->BS.BootSector.ReservedSectors, g_Data->BS.BootSector.FatCount,
           g_Data->BS.BootSector.DirEntryCount,
           g_Data->BS.BootSector.SectorsPerFat);
 
@@ -121,7 +122,7 @@ bool FAT_ReadBootSector(DISK *disk)
 bool FAT_ReadFat(DISK *disk)
 {
    bool ok = DISK_ReadSectors(disk, g_Data->BS.BootSector.ReservedSectors,
-                           g_Data->BS.BootSector.SectorsPerFat, g_Fat);
+                              g_Data->BS.BootSector.SectorsPerFat, g_Fat);
    if (!ok)
    {
       // If the disk read failed, check whether stage2 already placed the FAT
@@ -164,7 +165,8 @@ bool FAT_Initialize(DISK *disk)
        g_Data->BS.BootSector.SectorsPerCluster == 0 ||
        g_Data->BS.BootSector.SectorsPerFat == 0)
    {
-      printf("FAT: invalid boot sector values: BytesPerSector=%u SectorsPerCluster=%u SectorsPerFat=%u\n",
+      printf("FAT: invalid boot sector values: BytesPerSector=%u "
+             "SectorsPerCluster=%u SectorsPerFat=%u\n",
              g_Data->BS.BootSector.BytesPerSector,
              g_Data->BS.BootSector.SectorsPerCluster,
              g_Data->BS.BootSector.SectorsPerFat);
@@ -208,8 +210,9 @@ bool FAT_Initialize(DISK *disk)
 
    // Check if stage2 already loaded the root directory
    uint8_t first = g_Data->RootDirectory.Buffer[0];
-   bool preloaded = ((first >= 0x20 && first < 0x7F) || first == 0x00 || first == 0xE5);
-   
+   bool preloaded =
+       ((first >= 0x20 && first < 0x7F) || first == 0x00 || first == 0xE5);
+
    if (preloaded)
    {
       printf("FAT: using preloaded root directory from stage2\n");
@@ -223,7 +226,6 @@ bool FAT_Initialize(DISK *disk)
          return false;
       }
    }
-
 
    // calculate data section
    uint32_t rootDirSectors =
@@ -452,9 +454,9 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
 
       // find directory entry in current directory
       FAT_DirectoryEntry entry;
-      
+
       printf("FAT: Looking for '%s' in current directory\n", name);
-      
+
       if (FAT_FindFile(disk, current, name, &entry))
       {
          FAT_Close(current);

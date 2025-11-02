@@ -1,4 +1,3 @@
-Language: C
 BasedOnStyle: LLVM
 IndentWidth: 3
 TabWidth: 3

@@ -1,7 +1,6 @@
 #include "disk.h"
+#include <drivers/fdc/fdc.h>
 #include <std/stdio.h>
-#include <drivers/fdc/fdc.h>
-#include <drivers/fdc/fdc.h>
 
 bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
 {
@@ -10,25 +9,25 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
 
    disk->id = driveNumber;
 
-      /* Only support floppy drives in the kernel disk layer for now. If the
-       * drive number indicates a floppy (BIOS convention: < 0x80) initialize
-       * the FDC and return success. For all other drives return false so the
-       * caller knows the disk subsystem is not available.
-       */
-      if (driveNumber < 0x80)
-      {
-         disk->id = driveNumber;
-         fdc_reset();
-         cylinders = 80;
-         heads = 2;
-         sectors = 18;
-         disk->cylinders = cylinders;
-         disk->heads = heads;
-         disk->sectors = sectors;
-         return true;
-      }
+   /* Only support floppy drives in the kernel disk layer for now. If the
+    * drive number indicates a floppy (BIOS convention: < 0x80) initialize
+    * the FDC and return success. For all other drives return false so the
+    * caller knows the disk subsystem is not available.
+    */
+   if (driveNumber < 0x80)
+   {
+      disk->id = driveNumber;
+      fdc_reset();
+      cylinders = 80;
+      heads = 2;
+      sectors = 18;
+      disk->cylinders = cylinders;
+      disk->heads = heads;
+      disk->sectors = sectors;
+      return true;
+   }
 
-      return false;
+   return false;
 }
 
 void DISK_LBA2CHS(DISK *disk, uint32_t lba, uint16_t *cylinderOut,
@@ -48,7 +47,8 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
 {
    if (sectors == 0)
    {
-      printf("DISK: ReadSectors called with sectors=0 (lba=%lu)\n", (unsigned long)lba);
+      printf("DISK: ReadSectors called with sectors=0 (lba=%lu)\n",
+             (unsigned long)lba);
       return false;
    }
    /* If this is a floppy drive (BIOS IDs < 0x80), use the kernel FDC driver

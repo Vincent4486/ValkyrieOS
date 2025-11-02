@@ -2,9 +2,9 @@
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
 #include <std/stdio.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #define FDC_BASE 0x3F0
 #define FDC_DOR (FDC_BASE + 2)
@@ -12,7 +12,7 @@
 #define FDC_FIFO (FDC_BASE + 5)
 #define FDC_CCR (FDC_BASE + 7)
 
-#define FDC_CMD_READ_DATA 0x46    // Read with MFM encoding (not 0xE6)
+#define FDC_CMD_READ_DATA 0x46 // Read with MFM encoding (not 0xE6)
 #define FDC_CMD_RECALIBRATE 0x07
 #define FDC_CMD_SENSE_INT 0x08
 #define FDC_CMD_SPECIFY 0x03
@@ -28,15 +28,16 @@
 #define FLOPPY_SECTOR_SIZE 512
 
 // DMA controller ports for channel 2 (FDC)
-#define DMA_CHANNEL_2_ADDR      0x04
-#define DMA_CHANNEL_2_COUNT     0x05
-#define DMA_CHANNEL_2_PAGE      0x81
-#define DMA_SINGLE_MASK         0x0A
-#define DMA_MODE                0x0B
-#define DMA_FLIP_FLOP_RESET     0x0C
+#define DMA_CHANNEL_2_ADDR 0x04
+#define DMA_CHANNEL_2_COUNT 0x05
+#define DMA_CHANNEL_2_PAGE 0x81
+#define DMA_SINGLE_MASK 0x0A
+#define DMA_MODE 0x0B
+#define DMA_FLIP_FLOP_RESET 0x0C
 
-// DMA buffer at standard location (must be below 16MB and not cross 64K boundary)
-#define FDC_DMA_BUFFER          0x1000
+// DMA buffer at standard location (must be below 16MB and not cross 64K
+// boundary)
+#define FDC_DMA_BUFFER 0x1000
 
 // Global IRQ synchronization flag
 static volatile bool g_fdc_irq_received = false;
@@ -51,48 +52,51 @@ static void fdc_dma_init(bool is_read)
     *   - Bit 5: Address increment (0 = increment, 1 = decrement)
     *   - Bits 6-7: Mode (01 = single mode, 10 = block mode)
     */
-   
+
    // Clear any data from previous DMA buffer (for testing)
    uint8_t *dma_buffer = (uint8_t *)FDC_DMA_BUFFER;
    for (int i = 0; i < FLOPPY_SECTOR_SIZE; i++)
    {
       dma_buffer[i] = 0xAA; // Fill with test pattern
    }
-   
+
    // Mask DMA channel 2
-   i686_outb(DMA_SINGLE_MASK, 0x06); // 0x06 = 0b0110 = mask set (bit 2) | channel 2
-   
+   i686_outb(DMA_SINGLE_MASK,
+             0x06); // 0x06 = 0b0110 = mask set (bit 2) | channel 2
+
    // Reset flip-flop
    i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
-   
+
    // Set DMA mode for channel 2
    // For FDC read (disk->memory): mode = 0x46
-   //   0100 0110 = single transfer, address increment, autoinit disabled, write mode, channel 2
-   // For FDC write (memory->disk): mode = 0x4A  
-   //   0100 1010 = single transfer, address increment, autoinit disabled, read mode, channel 2
+   //   0100 0110 = single transfer, address increment, autoinit disabled, write
+   //   mode, channel 2
+   // For FDC write (memory->disk): mode = 0x4A
+   //   0100 1010 = single transfer, address increment, autoinit disabled, read
+   //   mode, channel 2
    uint8_t mode = is_read ? 0x46 : 0x4A;
    i686_outb(DMA_MODE, mode);
-   
+
    // Set address (must be physical address, low 16 bits)
    uint32_t addr = FDC_DMA_BUFFER;
    i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
    i686_outb(DMA_CHANNEL_2_ADDR, addr & 0xFF);
    i686_outb(DMA_CHANNEL_2_ADDR, (addr >> 8) & 0xFF);
-   
+
    // Set page register (bits 16-23 of address)
    i686_outb(DMA_CHANNEL_2_PAGE, (addr >> 16) & 0xFF);
-   
+
    // Set count (number of bytes - 1)
    uint16_t count = FLOPPY_SECTOR_SIZE - 1;
    i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
    i686_outb(DMA_CHANNEL_2_COUNT, count & 0xFF);
    i686_outb(DMA_CHANNEL_2_COUNT, (count >> 8) & 0xFF);
-   
+
    // Unmask DMA channel 2 to allow transfers
    i686_outb(DMA_SINGLE_MASK, 0x02); // 0x02 = 0b0010 = mask clear | channel 2
-   
-   printf("[FDC] DMA init: addr=0x1000 count=%u mode=%u read=%d\n", 
-          count + 1, (unsigned)mode, is_read ? 1 : 0);
+
+   printf("[FDC] DMA init: addr=0x1000 count=%u mode=%u read=%d\n", count + 1,
+          (unsigned)mode, is_read ? 1 : 0);
 }
 
 static void fdc_motor_on(void) { i686_outb(FDC_DOR, FDC_MOTOR_ON); }
@@ -100,10 +104,7 @@ static void fdc_motor_on(void) { i686_outb(FDC_DOR, FDC_MOTOR_ON); }
 static void fdc_motor_off(void) { i686_outb(FDC_DOR, FDC_MOTOR_OFF); }
 
 // FDC IRQ handler - sets flag when interrupt is received
-static void fdc_irq_handler(Registers *regs)
-{
-   g_fdc_irq_received = true;
-}
+static void fdc_irq_handler(Registers *regs) { g_fdc_irq_received = true; }
 
 // Wait for FDC IRQ with timeout
 static bool fdc_wait_irq(void)
@@ -114,17 +115,16 @@ static bool fdc_wait_irq(void)
       timeout--;
       i686_iowait();
    }
-   
+
    if (!g_fdc_irq_received)
    {
       printf("[FDC] IRQ timeout\n");
       return false;
    }
-   
+
    g_fdc_irq_received = false;
    return true;
 }
-
 
 static void fdc_send_byte(uint8_t byte)
 {
@@ -134,7 +134,7 @@ static void fdc_send_byte(uint8_t byte)
     */
    unsigned timeout = 0x10000;
    uint8_t msr;
-   
+
    while (timeout--)
    {
       msr = i686_inb(FDC_MSR);
@@ -145,7 +145,7 @@ static void fdc_send_byte(uint8_t byte)
       }
       i686_iowait();
    }
-   
+
    printf("[FDC] send_byte timeout (MSR=0x%02x)\n", msr);
 }
 
@@ -154,7 +154,7 @@ static uint8_t fdc_read_byte(void)
    /* Wait for controller to have data for us. Need RQM=1 and DIO=1. */
    unsigned timeout = 0x10000;
    uint8_t msr;
-   
+
    while (timeout--)
    {
       msr = i686_inb(FDC_MSR);
@@ -164,31 +164,30 @@ static uint8_t fdc_read_byte(void)
       }
       i686_iowait();
    }
-   
+
    printf("[FDC] read_byte timeout (MSR=0x%02x)\n", msr);
    return 0;
 }
-
 
 void fdc_reset(void)
 {
    // Register IRQ handler for FDC
    i686_IRQ_RegisterHandler(FDC_IRQ, fdc_irq_handler);
-   
+
    // Unmask IRQ 6 to allow FDC interrupts
    i686_IRQ_Unmask(FDC_IRQ);
-   
+
    // Reset controller
    i686_outb(FDC_DOR, 0x00);
    i686_iowait();
    i686_outb(FDC_DOR, FDC_MOTOR_ON);
-   
+
    // Wait for IRQ after reset
    if (!fdc_wait_irq())
    {
       printf("[FDC] Reset IRQ timeout\n");
    }
-   
+
    // Sense interrupt status 4 times (for 4 drives)
    for (int i = 0; i < 4; i++)
    {
@@ -196,40 +195,37 @@ void fdc_reset(void)
       fdc_read_byte(); // st0
       fdc_read_byte(); // cyl
    }
-   
+
    // Set data rate (500 Kbps for 1.44MB floppy)
    i686_outb(FDC_CCR, 0x00);
-   
+
    // Configure controller (SPECIFY command)
    fdc_send_byte(FDC_CMD_SPECIFY);
    fdc_send_byte(0xDF); // SRT=3ms, HUT=240ms
    fdc_send_byte(0x02); // HLT=16ms, ND=0 (use DMA)
 }
 
-
-
 static bool fdc_seek(uint8_t head, uint8_t track)
 {
    g_fdc_irq_received = false;
-   
+
    fdc_send_byte(FDC_CMD_SEEK);
    fdc_send_byte((head << 2) | 0); // head | drive 0
    fdc_send_byte(track);
-   
-   if (!fdc_wait_irq())
-      return false;
-   
+
+   if (!fdc_wait_irq()) return false;
+
    // Sense interrupt status
    fdc_send_byte(FDC_CMD_SENSE_INT);
    uint8_t st0 = fdc_read_byte();
    uint8_t cyl = fdc_read_byte();
-   
+
    if (cyl != track)
    {
       printf("[FDC] Seek failed: expected track %u, got %u\n", track, cyl);
       return false;
    }
-   
+
    return true;
 }
 
@@ -241,24 +237,23 @@ static void lba_to_chs(uint32_t lba, uint8_t *head, uint8_t *track,
    *sector = (lba % FLOPPY_SECTORS_PER_TRACK) + 1;
 }
 
-
 int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
 {
    if (count == 0)
    {
       return 0;
    }
-   
+
    fdc_motor_on();
-   
+
    // Small delay for motor spin-up
    for (volatile int i = 0; i < 100000; i++);
-   
+
    for (size_t i = 0; i < count; i++)
    {
       uint8_t head, track, sector;
       lba_to_chs(lba + i, &head, &track, &sector);
-      
+
       // Seek to track
       if (!fdc_seek(head, track))
       {
@@ -266,31 +261,32 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
          fdc_motor_off();
          return 1;
       }
-      
+
       // Initialize DMA for read operation (transfer from floppy to memory)
       fdc_dma_init(true);
-      
+
       g_fdc_irq_received = false;
-      
+
       // Issue READ DATA command
       fdc_send_byte(FDC_CMD_READ_DATA);
       fdc_send_byte((head << 2) | 0); // head | drive 0
       fdc_send_byte(track);
       fdc_send_byte(head);
       fdc_send_byte(sector);
-      fdc_send_byte(2);  // 512 bytes per sector
+      fdc_send_byte(2);      // 512 bytes per sector
       fdc_send_byte(sector); // Read only this sector
-      fdc_send_byte(0x1B);  // GPL (gap3 length)
-      fdc_send_byte(0xFF);  // DTL (data length, 0xFF for specified sector size)
-      
+      fdc_send_byte(0x1B);   // GPL (gap3 length)
+      fdc_send_byte(0xFF); // DTL (data length, 0xFF for specified sector size)
+
       // Wait for IRQ indicating data transfer complete
       if (!fdc_wait_irq())
       {
-         printf("[FDC] Read IRQ timeout for LBA %lu\n", (unsigned long)(lba + i));
+         printf("[FDC] Read IRQ timeout for LBA %lu\n",
+                (unsigned long)(lba + i));
          fdc_motor_off();
          return 1;
       }
-      
+
       // Read result bytes (7 bytes for READ DATA)
       uint8_t st0 = fdc_read_byte();
       uint8_t st1 = fdc_read_byte();
@@ -299,22 +295,23 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
       uint8_t rhead = fdc_read_byte();
       uint8_t rsector = fdc_read_byte();
       uint8_t bps = fdc_read_byte();
-      
+
       // Check for errors in status
       if ((st0 & 0xC0) != 0)
       {
-         printf("[FDC] Read error: ST0=0x%02x ST1=0x%02x ST2=0x%02x\n", st0, st1, st2);
+         printf("[FDC] Read error: ST0=0x%02x ST1=0x%02x ST2=0x%02x\n", st0,
+                st1, st2);
          fdc_motor_off();
          return 1;
       }
-      
+
       // Debug: Show successful read
-      printf("[FDC] Read LBA %lu OK (C/H/S=%u/%u/%u)\n", 
+      printf("[FDC] Read LBA %lu OK (C/H/S=%u/%u/%u)\n",
              (unsigned long)(lba + i), track, head, sector);
-      
+
       // Get DMA buffer pointer
       uint8_t *dma_buffer = (uint8_t *)FDC_DMA_BUFFER;
-      
+
       // Debug: Show first few bytes of data in DMA buffer
       printf("[FDC] DMA[0-15]: ");
       for (int j = 0; j < 16; j++)
@@ -326,18 +323,17 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
             printf("%02u ", byte);
       }
       printf("\n");
-      
+
       // Copy data from DMA buffer to destination
       for (int j = 0; j < FLOPPY_SECTOR_SIZE; j++)
       {
          buffer[i * FLOPPY_SECTOR_SIZE + j] = dma_buffer[j];
       }
    }
-   
+
    fdc_motor_off();
    return 0;
 }
-
 
 int fdc_write_lba(uint32_t lba, const uint8_t *buffer, size_t count)
 {

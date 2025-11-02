@@ -12,37 +12,37 @@
 
 LibRecord *dylib_find(const char *name)
 {
-    LibRecord *reg = LIB_REGISTRY_ADDR;
-    for (int i = 0; i < LIB_REGISTRY_MAX; i++)
-    {
-        if (reg[i].name[0] != '\0')
-        {
-            if (str_eq(reg[i].name, name)) return &reg[i];
-        }
-    }
-    return NULL;
+   LibRecord *reg = LIB_REGISTRY_ADDR;
+   for (int i = 0; i < LIB_REGISTRY_MAX; i++)
+   {
+      if (reg[i].name[0] != '\0')
+      {
+         if (str_eq(reg[i].name, name)) return &reg[i];
+      }
+   }
+   return NULL;
 }
 
 int dylib_call_if_exists(const char *name)
 {
-    LibRecord *r = dylib_find(name);
-    if (!r || !r->entry) return -1;
+   LibRecord *r = dylib_find(name);
+   if (!r || !r->entry) return -1;
 
-    typedef void (*entry_t)(void);
-    entry_t fn = (entry_t)r->entry;
-    fn();
-    return 0;
+   typedef void (*entry_t)(void);
+   entry_t fn = (entry_t)r->entry;
+   fn();
+   return 0;
 }
 
 void dylib_list(void)
 {
-    printf("Loaded dynamic library modules:\n");
-    LibRecord *reg = LIB_REGISTRY_ADDR;
-    for (int i = 0; i < LIB_REGISTRY_MAX; i++)
-    {
-        if (reg[i].name[0] != '\0')
-        {
-            printf(" - %s @ %p\n", reg[i].name, reg[i].entry);
-        }
-    }
+   printf("Loaded dynamic library modules:\n");
+   LibRecord *reg = LIB_REGISTRY_ADDR;
+   for (int i = 0; i < LIB_REGISTRY_MAX; i++)
+   {
+      if (reg[i].name[0] != '\0')
+      {
+         printf(" - %s @ %p\n", reg[i].name, reg[i].entry);
+      }
+   }
 }
