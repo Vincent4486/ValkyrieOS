@@ -39,7 +39,7 @@ VARS.Add("toolchain",
 
 DEPS = {
     'binutils': '2.37',
-    'gcc': '11.2.0'
+    'gcc': '15.2.0'
 }
 
 
