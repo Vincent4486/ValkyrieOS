@@ -246,7 +246,7 @@ output_fmt = 'img'
 # if env['imageType'] == 'qcow3':
 #     output_fmt = 'qcow3'
 
-output = f'image.{output_fmt}'
+output = f'{env["outputFile"]}.{output_fmt}'
 
 image = env.Command(output, inputs,
                     action=Action(build_image, 'Creating disk image...'), 

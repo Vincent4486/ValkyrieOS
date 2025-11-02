@@ -36,6 +36,9 @@ VARS.Add("imageSize",
 VARS.Add("toolchain", 
          help="Path to toolchain directory.",
          default="../toolchain")
+VARS.Add("outputFile", 
+         help="The name of final image.",
+         default="valkyrie_os")
 
 DEPS = {
     'binutils': '2.37',
