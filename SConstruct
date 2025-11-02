@@ -150,7 +150,8 @@ PhonyTargets(HOST_ENVIRONMENT,
              run=['./scripts/base/qemu.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              debug=['./scripts/base/gdb.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']])
+             toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']],
+             fformat=['./scripts/base/format.sh'])
 
 Depends('run', image)
 Depends('debug', image)
