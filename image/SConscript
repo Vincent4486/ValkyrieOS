@@ -242,7 +242,7 @@ root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
 inputs = [stage1, stage2, kernel] + root_content
 
-output_fmt = {env["outputFormat"]}
+output_fmt = env["outputFormat"]
 # if env['imageType'] == 'qcow3':
 #     output_fmt = 'qcow3'
 
