@@ -153,9 +153,7 @@ def mount_fs(image: str, mount_dir: str):
 
 def unmount_fs(mount_dir: str):
     print("Waiting for disk to be clear...")
-    for i in 10:
-        print("Time left: " + i)
-        time.sleep(1)
+    time.sleep(5)	
     sh.fusermount(u=mount_dir)
 
 
