@@ -119,8 +119,8 @@ def build_floppy(image, stage1, stage2, kernel, files, env):
 
     print(f"> copying files...")
     print('    ... copying', kernel)
-    sh.mmd('-i', image, "::boot")
-    sh.mcopy('-i', image, kernel, "::boot/")
+    sh.mmd('-i', image, "::sys")
+    sh.mcopy('-i', image, kernel, "::sys/")
 
     # copy rest of files
     src_root = env['BASEDIR']
@@ -152,7 +152,10 @@ def mount_fs(image: str, mount_dir: str):
     sh.guestmount(mount_dir, add=image, mount='/dev/sda1')
 
 def unmount_fs(mount_dir: str):
-    time.sleep(3)
+    print("Waiting for disk to be clear...")
+    for i in 10:
+        print("Time left: " + i)
+        time.sleep(1)
     sh.fusermount(u=mount_dir)
 
 
@@ -194,7 +197,7 @@ def build_disk(image, stage1, stage2, kernel, files, env):
 
         # copy kernel
         print(f"> copying kernel...")
-        bootdir = os.path.join(tempdir, 'boot')
+        bootdir = os.path.join(tempdir, 'sys')
         os.makedirs(bootdir)
         copy2(kernel, bootdir)
 
