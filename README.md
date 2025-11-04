@@ -30,6 +30,8 @@ python3           # base python for scons
 python3-scons     # scons for build
 python3-sh        # shell library 
 python3-pyparted  # pyparted library
+libguestfs  	   # for guestmount
+dosfstools        # mkfs.fat for creating disk
 ```
 
 Linux is the only host operating system supported for building the Valkyrie OS, since building requires disk tools like ```parted``` to work.

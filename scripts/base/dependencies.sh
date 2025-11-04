@@ -3,69 +3,71 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 DEPS_DEBIAN=(
-    build-essential
-    bison 
-    flex 
-    libgmp3-dev 
-    libmpc-dev 
-    libmpfr-dev 
-    texinfo 
-    nasm 
-    mtools 
-    qemu-system-x86 
-    python3-pip 
+    bison
+    flex
+    libmpfr-dev
+    libgmp-dev
+    libmpc-dev
+    gcc
+    nasm
+    mtools
+    python3
     python3-scons
+    python3-sh
+    python3-pyparted
+    libguestfs-tools
+    dosfstools
 )
 
 DEPS_FEDORA=(
-    gcc 
-    gcc-c++ 
-    make 
-    bison 
-    flex 
-    gmp-devel 
-    libmpc-devel 
-    mpfr-devel 
-    texinfo 
-    nasm 
-    mtools 
-    qemu-system-x86 
-    python3-pip 
+    bison
+    flex
+    mpfr-devel
+    gmp-devel
+    libmpc-devel
+    gcc
+    nasm
+    mtools
+    python3
     python3-scons
+    python3-sh
+    python3-pyparted
+    libguestfs-tools
+    dosfstools
 )
 
 DEPS_ARCH=(
-    gcc
-    make
     bison
     flex
-    libgmp-static
-    libmpc
     mpfr
-    texinfo
+    gmp
+    mpc
+    gcc
     nasm
     mtools
-    qemu-system-x86
-    python3-pip
+    python3
     python3-scons
+    python3-sh
+    python3-pyparted
+    libguestfs
+    dosfstools
 )
 
-DEPS_SUSE=()
-
-DEPS_MACOS=(
-    gcc
-    make
+DEPS_SUSE=(
     bison
     flex
-    gmp
-    libmpc
-    mpfr
-    texinfo
+    mpfr-devel
+    gmp-devel
+    libmpc-devel
+    gcc
     nasm
     mtools
-    qemu
     python3
-    scons
+    python3-scons
+    python3-sh
+    python3-pyparted
+    libguestfs
+    dosfstools
 )
 
 OS=
@@ -74,14 +76,8 @@ PACKAGE_INSTALL=
 DEPS=
 
 # Detect distro
-if [ "$(uname)" = "Darwin" ]; then
-    OS='macos'
-    PACKAGE_INSTALL='brew install'
-    DEPS="${DEPS_MACOS[@]}"
-elif [ -x "$(command -v apk)" ]; then
+if [ -x "$(command -v apk)" ]; then
     OS='alpine'
-    PACKAGE_UPDATE='apk update'
-    PACKAGE_INSTALL='apk add --no-cache'
     echo "Alpine not supported."
     exit 1
 elif [ -x "$(command -v apt-get)" ]; then
@@ -100,14 +96,15 @@ elif [ -x "$(command -v yum)" ]; then
 elif [ -x "$(command -v zypper)" ]; then
     OS='suse'
     PACKAGE_INSTALL='zypper install'
-    DEPS="$DEPS_SUSE"
+    DEPS="${DEPS_SUSE[@]}"
 elif [ -x "$(command -v pacman)" ]; then
-    OS='suse'
-    PACKAGE_UPDATE='pacman -Syy'
+    OS='arch'
+    PACKAGE_UPDATE='pacman -Syu'
     PACKAGE_INSTALL='pacman -S'
     DEPS="${DEPS_ARCH[@]}"
 else
     echo "Unknown operating system!"; 
+    exit 1
 fi
 
 # Install dependencies
@@ -125,5 +122,8 @@ case "$choice" in
         ;;
 esac
 
-$PACKAGE_UPDATE
+if [ ! -z "$PACKAGE_UPDATE" ]; then
+    $PACKAGE_UPDATE
+fi
+
 $PACKAGE_INSTALL ${DEPS[@]}
