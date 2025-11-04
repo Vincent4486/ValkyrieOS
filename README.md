@@ -30,7 +30,7 @@ python3           # base python for scons
 python3-scons     # scons for build
 python3-sh        # shell library 
 python3-pyparted  # pyparted library
-libguestfs  	  # for guestmount
+libguestfs  	   # for guestmount
 dosfstools        # mkfs.fat for creating disk
 ```
 
