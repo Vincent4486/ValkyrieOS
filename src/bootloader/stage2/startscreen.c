@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "startscreen.h"
 #include <stdbool.h>
 #include <stdint.h>

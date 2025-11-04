@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 # This script is for formating all C and CXX code within this project
 
 C_FILES=`find . -type f -name "*.c"`

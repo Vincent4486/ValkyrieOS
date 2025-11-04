@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #pragma once
 
 // 0x00000000 - 0x000003FF - interrupt vector table

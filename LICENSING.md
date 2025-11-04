@@ -7,6 +7,7 @@ This project uses multiple licenses for different parts of the codebase.
 All source code files including:
 - Source files (`src/`)
 - Build scripts (`scripts/`)
+- Build image files (`image/`)
 - Build system files (`SConstruct`, `SConscript`)
 
 are licensed under the **GNU Affero General Public License v3.0 or later**. See `LICENSE` for the full text.

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
 ENTRY(start)
 /* Produce ELF output (default) instead of raw binary so the bootloader can
    load an ELF image. The kernel is linked to physical address 0x00A00000

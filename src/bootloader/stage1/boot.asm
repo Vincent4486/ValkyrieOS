@@ -1,3 +1,5 @@
+; SPDX-License-Identifier: AGPL-3.0-or-later
+
 bits 16
 
 
@@ -15,7 +17,7 @@ section .fsjump
 
 section .fsheaders
 
-    bdb_oem:                    db "abcdefgh"           ; 8 bytes
+    bdb_oem:                    db "MSWIN4.1"           ; 8 bytes
     bdb_bytes_per_sector:       dw 512
     bdb_sectors_per_cluster:    db 1
     bdb_reserved_sectors:       dw 1

@@ -1,5 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "jvm.h"
 
 #include <std/stdio.h>
 
-extern "C" void java(const char *classPath) { printf("hello\n"); }
+void java(const char *classPath) { 
+    printf("hello\n"); 
+    printf("Class path: %s", classPath);
+}

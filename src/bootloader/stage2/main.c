@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "disk.h"
 #include "elf.h"
 #include "fat.h"

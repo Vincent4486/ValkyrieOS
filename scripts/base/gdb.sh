@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 QEMU_ARGS="-S -gdb stdio -m 32"
 
 if [ "$#" -le 1 ]; then

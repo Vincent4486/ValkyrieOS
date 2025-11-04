@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Simple dynamic-linking helper for kernel side to find and call modules
 #pragma once
 

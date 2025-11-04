@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 if [ "$#" -le 1 ]; then
     echo "Usage: ./bochs.sh <image_type> <image>"
     exit 1
