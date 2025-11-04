@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "memory/dylink.h"
 #include <arch/i686/irq.h>
 #include <display/buffer.h>

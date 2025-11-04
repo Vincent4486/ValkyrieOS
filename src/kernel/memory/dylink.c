@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /* Simple dynamic link helpers for the kernel. The bootloader (stage2)
  * populates a LibRecord table at LIB_REGISTRY_ADDR. These helpers let the
  * kernel find and call modules by name without hardcoding addresses.

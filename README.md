@@ -15,29 +15,32 @@ Before building Valkyrie OS, ensure you have the following installed:
 
 #### Always needed:
 ```
+# dependencies for building GCC
 bison
 flex
 mpfr
 gmp
 mpc
-nasm
-mtools
 gcc
-qemu
-python3
-python3-scons
-python3-sh
-python3-pyparted
+
+# other dependencies
+nasm              # compiling assembly code
+mtools            # for floppy support
+python3           # base python for scons
+python3-scons     # scons for build
+python3-sh        # shell library 
+python3-pyparted  # pyparted library
 ```
 
 Linux is the only host operating system supported for building the Valkyrie OS, since building requires disk tools like ```parted``` to work.
 
 #### Optional
 ```
-perl
-clang-format
-LaTeX
-make
+perl           # autorun and other tools
+clang-format   # formating code
+LaTeX          # documentation
+make           # build for docs
+qemu           # enumalator for running OS
 ```
 These tools are for extra utilities such as autorun for development and build documentation.
 

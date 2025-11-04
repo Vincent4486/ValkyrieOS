@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-laterb
+
 #include "fat12.h"
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>

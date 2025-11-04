@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 DEPS_DEBIAN=(
     build-essential
     bison 

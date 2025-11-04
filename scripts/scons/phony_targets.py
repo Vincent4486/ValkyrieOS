@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from SCons.Defaults import DefaultEnvironment
 
 def PhonyTargets(env=None, **kw):

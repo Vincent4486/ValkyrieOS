@@ -1,3 +1,5 @@
+; SPDX-License-Identifier: AGPL-3.0-or-later
+
 [bits 32]
 
 ; void __attribute__((cdecl)) i686_IDT_Load(IDTDescriptor* idtDescriptor);

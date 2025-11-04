@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "memory.h"
 
 void *memcpy(void *dst, const void *src, uint16_t num)

@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: AGPL-3.0-or-later
 
 global i686_outb
 i686_outb:
