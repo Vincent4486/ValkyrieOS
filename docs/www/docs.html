@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Valkyrie OS</title>
+        <title>Documentation - Valkyrie OS</title>
         <link rel="stylesheet" href="stylesheet/stylesheet.css" type="text/css">
         <script src="js/searchweb.js"></script>
     </head>
@@ -50,43 +50,50 @@
             
             <!-- Main Content Area -->
             <div class="website-content">
-                <h2>Overview of Valkyrie OS</h2>
+                <h2>Documentation</h2>
                 <p>
-                    The Valkyrie Operating System is an operating system designed 
-                    for the x86 32-bit architecture. OS versions in the future are planned to support x64. 
-                    The operating system is where all executable files are Java 
-                    Archives <code>JAR</code> or Java Bytecode or <code>.class</code> files.  
-                    The Valkyrie Operating System started in October 2025, originally as a 512-byte 
-                    micro operating system. Since then, extensive features have been developed and integrated, 
-                    making it a fully-functional OS with bootloader, kernel, and JVM support. All code is 
-                    licenced under the <a href="https://www.gnu.org/licenses/agpl-3.0.en.html">GNU Affero 
-                    General Public License</a>.
-                </p>
-                
-                <h3>Key Features</h3>
-                <ul>
-                    <li><strong>Java-Centric Design:</strong> Run JAR files and Java bytecode directly on the OS</li>
-                    <li><strong>x86 Architecture:</strong> Full support for 32-bit x86 systems with future x64 support planned</li>
-                    <li><strong>Custom Bootloader:</strong> Two-stage bootloader for flexible boot configurations</li>
-                    <li><strong>Kernel-Based:</strong> Full multitasking kernel with hardware abstraction layer</li>
-                    <li><strong>Integrated JVM:</strong> Execute Java programs natively on bare metal</li>
-                    <li><strong>File System Support:</strong> FAT12, FAT16, FAT32, and ext2 file systems</li>
-                </ul>
-                
-                <h3>System Components</h3>
-                <p>
-                    <strong>Stage 1 Bootloader:</strong> Initializes hardware and loads Stage 2 from disk<br>
-                    <strong>Stage 2 Bootloader:</strong> Sets up memory, GDT, IDT, and loads the kernel<br>
-                    <strong>Kernel:</strong> Manages processes, memory, I/O, and provides system calls<br>
-                    <strong>Java Virtual Machine:</strong> Executes Java bytecode and JAR applications<br>
+                    Complete documentation for Valkyrie OS development, architecture, and usage.
                 </p>
                 
                 <h3>Getting Started</h3>
                 <p>
-                    To build Valkyrie OS, you'll need a cross-compiler toolchain. Full build instructions 
-                    are available in the <a href="downloads.html">Downloads</a> section and 
-                    <a href="docs.html">Documentation</a> pages. The source code is available on 
-                    <a href="https://github.com/Vincent4486/ValkyrieOS" target="_blank">GitHub</a>.
+                    To get started with Valkyrie OS development, you'll need to install the required 
+                    dependencies and build the cross-toolchain. Refer to the README for detailed 
+                    installation instructions.
+                </p>
+                
+                <h3>Architecture</h3>
+                <p>
+                    <strong>Bootloader (Stage 1):</strong> Loads Stage 2 from disk<br>
+                    <strong>Bootloader (Stage 2):</strong> Initializes hardware and loads the kernel<br>
+                    <strong>Kernel:</strong> Manages system resources, drivers, and JVM execution<br>
+                    <strong>JVM:</strong> Executes Java bytecode programs
+                </p>
+                
+                <h3>Building</h3>
+                <p>
+                    Use SCons to build the project:
+                    <pre><code>./scripts/base/dependencies.sh  # Install dependencies
+./scripts/base/toolchain.sh toolchain  # Build cross-toolchain
+scons  # Build the OS</code></pre>
+                </p>
+                
+                <h3>Running</h3>
+                <p>
+                    Run the OS in QEMU:
+                    <pre><code>scons run</code></pre>
+                    Or debug with GDB:
+                    <pre><code>scons debug</code></pre>
+                </p>
+                
+                <h3>Documentation Files</h3>
+                <p>
+                    Download the complete technical documentation PDF from GitHub:
+                </p>
+                <p>
+                    <a href="https://github.com/Vincent4486/ValkyrieOS/blob/main/docs/tex/TheValkyrieOperatingSystem.pdf" target="_blank" download>
+                        <strong>📄 Download Technical Documentation (PDF)</strong>
+                    </a>
                 </p>
             </div>
         </div>
