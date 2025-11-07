@@ -5,7 +5,6 @@
 #include <display/buffer.h>
 #include <fs/fat12.h>
 #include <hal/hal.h>
-#include <jvm/jvm.h>
 #include <memory/memdefs.h>
 #include <memory/memory.h>
 #include <std/stdio.h>

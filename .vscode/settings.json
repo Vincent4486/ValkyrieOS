@@ -26,7 +26,10 @@
     "stdio.h": "c",
     "gdt.h": "c",
     "io.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "memdefs.h": "c",
+    "memory.h": "c",
+    "irq.h": "c"
   },
   "makefile.launchConfigurations": [
     {
