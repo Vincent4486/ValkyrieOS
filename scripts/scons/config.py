@@ -4,6 +4,6 @@
 #arch = 'i686'
 #imageType = 'disk'
 #imageFS = 'fat32'
-imageSize='10m'
+imageSize='50m'
 toolchain='../os_toolchain'
 outputFile='valkyrie_os'
