@@ -46,9 +46,9 @@ DEPS_ARCH=(
     nasm
     mtools
     python3
-    python3-scons
-    python3-sh
-    python3-pyparted
+    scons
+    python-sh
+    python-pyparted
     libguestfs
     dosfstools
 )
