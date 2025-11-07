@@ -4,13 +4,13 @@
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>
 #include <fs/disk.h>
-#include <sys/memdefs.h>
-#include <sys/memory.h>
 #include <std/ctype.h>
 #include <std/minmax.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256

@@ -4,11 +4,10 @@
 
 #include <std/stdio.h>
 
-void printUsage(){
-    
-}
+void printUsage() {}
 
-void java(const char *classPath) { 
-    printf("hello\n"); 
-    printf("Class path: %s", classPath);
+void java(const char *classPath)
+{
+   printf("hello\n");
+   printf("Class path: %s", classPath);
 }

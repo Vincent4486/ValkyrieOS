@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <sys/dylib.h>
 #include <arch/i686/irq.h>
 #include <display/buffer.h>
 #include <fs/fat12.h>
 #include <hal/hal.h>
-#include <sys/memdefs.h>
-#include <sys/memory.h>
 #include <std/stdio.h>
 #include <stdint.h>
+#include <sys/dylib.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
