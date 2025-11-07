@@ -4,8 +4,8 @@
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>
 #include <fs/disk.h>
-#include <memory/memdefs.h>
-#include <memory/memory.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 #include <std/ctype.h>
 #include <std/minmax.h>
 #include <std/stdio.h>

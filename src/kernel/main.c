@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "memory/dylink.h"
+#include <sys/dylib.h>
 #include <arch/i686/irq.h>
 #include <display/buffer.h>
 #include <fs/fat12.h>
 #include <hal/hal.h>
-#include <memory/memdefs.h>
-#include <memory/memory.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 #include <std/stdio.h>
 #include <stdint.h>
 
@@ -36,7 +36,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    printf("Kernel running...\n");
 
    /* Print loaded modules registered by stage2 so we can see what's available.
-    * Use the dylink helper which reads the shared registry populated by stage2.
+    * Use the dylib helper which reads the shared registry populated by stage2.
     */
    dylib_list();
 

@@ -5,7 +5,7 @@
  * kernel find and call modules by name without hardcoding addresses.
  */
 
-#include "dylink.h"
+#include "dylib.h"
 #include <std/stdio.h>
 #include <stdint.h>
 

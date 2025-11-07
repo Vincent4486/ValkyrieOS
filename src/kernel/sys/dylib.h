@@ -3,7 +3,7 @@
 // Simple dynamic-linking helper for kernel side to find and call modules
 #pragma once
 
-#include "memory/memdefs.h"
+#include <sys/memdefs.h>
 
 // Find a loaded library record by name (basename without extension). Returns
 // pointer into the shared registry or NULL if not found.
