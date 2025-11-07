@@ -46,6 +46,12 @@ section .entry
     global start
 
     start:
+        mov ax, PARTITION_ENTRY_SEGMENT
+        mov es, ax
+        mov di, PARTITION_ENTRY_OFFSET
+        mov cx, 16
+        rep movsb
+
         ; setup data segments
         mov ax, 0           ; can't set ds/es directly
         mov ds, ax
@@ -120,6 +126,8 @@ section .entry
         
         ; jump to our kernel
         mov dl, [ebr_drive_number]          ; boot device in dl
+        mov si, PARTITION_ENTRY_OFFSET
+        mov di, PARTITION_ENTRY_SEGMEMT
 
         mov ax, STAGE2_LOAD_SEGMENT         ; set segment registers
         mov ds, ax
@@ -326,10 +334,13 @@ section .data
         .count:             dw 0
         .offset:            dw 0
         .segment:           dw 0
-        .lba:               dq 0
+        .lba:               dq 0      
 
     STAGE2_LOAD_SEGMENT     equ 0x0
     STAGE2_LOAD_OFFSET      equ 0x500
+
+    PARTITION_ENTRY_SEGMENT equ 0x2000
+    PARTITION_ENTRY_OFFSET  equ 0x0
 
 section .data
     global stage2_location
