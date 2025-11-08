@@ -3,7 +3,7 @@
 #include "fat12.h"
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>
-#include <fs/disk.h>
+#include <fs/partition.h>
 #include <std/ctype.h>
 #include <std/minmax.h>
 #include <std/stdio.h>
@@ -75,7 +75,7 @@ static FAT_Data *g_Data;
 static uint8_t *g_Fat = NULL;
 static uint32_t g_DataSectionLba;
 
-bool FAT_ReadBootSector(DISK *disk)
+bool FAT_ReadBootSector(Partition *disk)
 {
    // If stage2 already placed the boot sector and FAT data at MEMORY_FAT_ADDR,
    // we can skip a physical disk read. Detect that by checking the 0x55AA
@@ -88,9 +88,9 @@ bool FAT_ReadBootSector(DISK *disk)
    }
    else
    {
-      if (!DISK_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes))
+      if (!Partition_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes))
       {
-         printf("FAT: DISK_ReadSectors(0,1) failed for boot sector\n");
+         printf("FAT: Partition_ReadSectors(0,1) failed for boot sector\n");
          return false;
       }
    }
@@ -121,9 +121,9 @@ bool FAT_ReadBootSector(DISK *disk)
    return true;
 }
 
-bool FAT_ReadFat(DISK *disk)
+bool FAT_ReadFat(Partition *disk)
 {
-   bool ok = DISK_ReadSectors(disk, g_Data->BS.BootSector.ReservedSectors,
+   bool ok = Partition_ReadSectors(disk, g_Data->BS.BootSector.ReservedSectors,
                               g_Data->BS.BootSector.SectorsPerFat, g_Fat);
    if (!ok)
    {
@@ -151,7 +151,7 @@ bool FAT_ReadFat(DISK *disk)
    return true;
 }
 
-bool FAT_Initialize(DISK *disk)
+bool FAT_Initialize(Partition *disk)
 {
    g_Data = (FAT_Data *)MEMORY_FAT_ADDR;
 
@@ -222,7 +222,7 @@ bool FAT_Initialize(DISK *disk)
    else
    {
       // Try to read from disk
-      if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
+      if (!Partition_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
       {
          printf("FAT: read root directory failed\r\n");
          return false;
@@ -248,7 +248,7 @@ uint32_t FAT_ClusterToLba(uint32_t cluster)
           (cluster - 2) * g_Data->BS.BootSector.SectorsPerCluster;
 }
 
-FAT_File *FAT_OpenEntry(DISK *disk, FAT_DirectoryEntry *entry)
+FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry)
 {
    // find empty handle
    int handle = -1;
@@ -275,7 +275,7 @@ FAT_File *FAT_OpenEntry(DISK *disk, FAT_DirectoryEntry *entry)
    fd->CurrentCluster = fd->FirstCluster;
    fd->CurrentSectorInCluster = 0;
 
-   if (!DISK_ReadSectors(disk, FAT_ClusterToLba(fd->CurrentCluster), 1,
+   if (!Partition_ReadSectors(disk, FAT_ClusterToLba(fd->CurrentCluster), 1,
                          fd->Buffer))
    {
       printf("FAT: open entry failed - read error cluster=%u lba=%u\n",
@@ -299,7 +299,7 @@ uint32_t FAT_NextCluster(uint32_t currentCluster)
       return (*(uint16_t *)(g_Fat + fatIndex)) >> 4;
 }
 
-uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
+uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
 {
    // get file data
    FAT_FileData *fd = (file->Handle == ROOT_DIRECTORY_HANDLE)
@@ -333,7 +333,7 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
             ++fd->CurrentCluster;
 
             // read next sector
-            if (!DISK_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
+            if (!Partition_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
             {
                printf("FAT: read error!\r\n");
                break;
@@ -357,7 +357,7 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
             }
 
             // read next sector
-            if (!DISK_ReadSectors(disk,
+            if (!Partition_ReadSectors(disk,
                                   FAT_ClusterToLba(fd->CurrentCluster) +
                                       fd->CurrentSectorInCluster,
                                   1, fd->Buffer))
@@ -372,7 +372,7 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
    return u8DataOut - (uint8_t *)dataOut;
 }
 
-bool FAT_ReadEntry(DISK *disk, FAT_File *file, FAT_DirectoryEntry *dirEntry)
+bool FAT_ReadEntry(Partition *disk, FAT_File *file, FAT_DirectoryEntry *dirEntry)
 {
    return FAT_Read(disk, file, sizeof(FAT_DirectoryEntry), dirEntry) ==
           sizeof(FAT_DirectoryEntry);
@@ -391,7 +391,7 @@ void FAT_Close(FAT_File *file)
    }
 }
 
-bool FAT_FindFile(DISK *disk, FAT_File *file, const char *name,
+bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
                   FAT_DirectoryEntry *entryOut)
 {
    char fatName[12];
@@ -425,7 +425,7 @@ bool FAT_FindFile(DISK *disk, FAT_File *file, const char *name,
    return false;
 }
 
-FAT_File *FAT_Open(DISK *disk, const char *path)
+FAT_File *FAT_Open(Partition *disk, const char *path)
 {
    char name[MAX_PATH_SIZE];
 
@@ -485,7 +485,7 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
    return current;
 }
 
-bool FAT_Seek(DISK *disk, FAT_File *file, uint32_t position)
+bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
 {
    FAT_FileData *fd = (file->Handle == ROOT_DIRECTORY_HANDLE)
                           ? &g_Data->RootDirectory
@@ -508,7 +508,7 @@ bool FAT_Seek(DISK *disk, FAT_File *file, uint32_t position)
       fd->CurrentCluster = fd->FirstCluster + sectorIndex;
       fd->CurrentSectorInCluster = 0;
 
-      if (!DISK_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
+      if (!Partition_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
       {
          printf("FAT: seek read error (root)\r\n");
          return false;
@@ -535,7 +535,7 @@ bool FAT_Seek(DISK *disk, FAT_File *file, uint32_t position)
       fd->CurrentCluster = c;
       fd->CurrentSectorInCluster = sectorInCluster;
 
-      if (!DISK_ReadSectors(disk,
+      if (!Partition_ReadSectors(disk,
                             FAT_ClusterToLba(fd->CurrentCluster) +
                                 fd->CurrentSectorInCluster,
                             1, fd->Buffer))
