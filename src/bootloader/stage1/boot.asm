@@ -4,7 +4,10 @@ bits 16
 
 
 %define ENDL 0x0D, 0x0A
-
+%define fat12    1
+%define fat16    2
+%define fat32    3
+%define ext2     4
 
 ;
 ; FAT12 header
@@ -17,6 +20,7 @@ section .fsjump
 
 section .fsheaders
 
+%if (FILESYSTEM==fat12) || (FILESYSTEM==fat16) || (FILESYSTEM==fat32)
     bdb_oem:                    db "MSWIN4.1"           ; 8 bytes
     bdb_bytes_per_sector:       dw 512
     bdb_sectors_per_cluster:    db 1
@@ -31,14 +35,17 @@ section .fsheaders
     bdb_hidden_sectors:         dd 0
     bdb_large_sector_count:     dd 0
 
-    ; extended boot record
-    ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, useless
-                                db 0                    ; reserved
-    ebr_signature:              db 29h
-    ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
-    ebr_volume_label:           db 'VALKYRIE OS'        ; 11 bytes, padded with spaces
-    ebr_system_id:              db 'FAT12   '           ; 8 bytes
+    %if (FILESYSTEM==fat12) || (FILESYSTEM==fat16)
+        ; extended boot record
+        ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, useless
+                                    db 0                    ; reserved
+        ebr_signature:              db 29h
+        ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
+        ebr_volume_label:           db 'VALKYRIE OS'        ; 11 bytes, padded with spaces
+        ebr_system_id:              db 'FAT12   '           ; 8 bytes
+    %endif
 
+%endif
 ;
 ; Code goes here
 ;
