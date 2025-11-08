@@ -24,6 +24,8 @@ typedef struct {
 static int dylib_mem_initialized = 0;
 static uint32_t dylib_mem_next_free = DYLIB_MEMORY_ADDR;
 static ExtendedLibData extended_data[LIB_REGISTRY_MAX];
+
+int dylib_mem_init(void)
 {
    if (dylib_mem_initialized)
       return 0;
@@ -32,6 +34,14 @@ static ExtendedLibData extended_data[LIB_REGISTRY_MAX];
    uint8_t *mem = (uint8_t *)DYLIB_MEMORY_ADDR;
    for (uint32_t i = 0; i < DYLIB_MEMORY_SIZE; i++)
       mem[i] = 0;
+   
+   // Clear extended data
+   for (int i = 0; i < LIB_REGISTRY_MAX; i++)
+   {
+      extended_data[i].dep_count = 0;
+      extended_data[i].symbol_count = 0;
+      extended_data[i].loaded = 0;
+   }
    
    dylib_mem_next_free = DYLIB_MEMORY_ADDR;
    dylib_mem_initialized = 1;
@@ -66,6 +76,20 @@ uint32_t dylib_mem_alloc(const char *lib_name, uint32_t size)
    return alloc_addr;
 }
 
+// Helper: find index of library by name
+static int dylib_find_index(const char *name)
+{
+   LibRecord *reg = LIB_REGISTRY_ADDR;
+   for (int i = 0; i < LIB_REGISTRY_MAX; i++)
+   {
+      if (reg[i].name[0] != '\0')
+      {
+         if (str_eq(reg[i].name, name)) return i;
+      }
+   }
+   return -1;
+}
+
 LibRecord *dylib_find(const char *name)
 {
    LibRecord *reg = LIB_REGISTRY_ADDR;
@@ -81,15 +105,17 @@ LibRecord *dylib_find(const char *name)
 
 int dylib_check_dependencies(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
-   if (!lib) return 0;
+   int idx = dylib_find_index(name);
+   if (idx < 0) return 0;
+   
+   ExtendedLibData *ext = &extended_data[idx];
    
    // Check all dependencies
-   for (int i = 0; i < lib->dep_count; i++)
+   for (int i = 0; i < ext->dep_count; i++)
    {
-      if (!lib->deps[i].resolved)
+      if (!ext->deps[i].resolved)
       {
-         printf("  [UNRESOLVED] %s requires %s\n", name, lib->deps[i].name);
+         printf("  [UNRESOLVED] %s requires %s\n", name, ext->deps[i].name);
          return 0;
       }
    }
@@ -98,24 +124,26 @@ int dylib_check_dependencies(const char *name)
 
 int dylib_resolve_dependencies(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
-   if (!lib) return -1;
+   int idx = dylib_find_index(name);
+   if (idx < 0) return -1;
+   
+   ExtendedLibData *ext = &extended_data[idx];
    
    printf("[*] Resolving dependencies for %s...\n", name);
    
    // Resolve each dependency
-   for (int i = 0; i < lib->dep_count; i++)
+   for (int i = 0; i < ext->dep_count; i++)
    {
-      LibRecord *dep = dylib_find(lib->deps[i].name);
+      LibRecord *dep = dylib_find(ext->deps[i].name);
       if (dep)
       {
-         lib->deps[i].resolved = 1;
-         printf("  [OK] Found dependency: %s\n", lib->deps[i].name);
+         ext->deps[i].resolved = 1;
+         printf("  [OK] Found dependency: %s\n", ext->deps[i].name);
       }
       else
       {
-         lib->deps[i].resolved = 0;
-         printf("  [ERROR] Missing dependency: %s\n", lib->deps[i].name);
+         ext->deps[i].resolved = 0;
+         printf("  [ERROR] Missing dependency: %s\n", ext->deps[i].name);
          return -1;
       }
    }
@@ -148,15 +176,17 @@ void dylib_list(void)
    {
       if (reg[i].name[0] == '\0') break;
       
+      ExtendedLibData *ext = &extended_data[i];
+      
       printf("[%d] %s @ 0x%x\n", i, reg[i].name, (unsigned int)reg[i].entry);
       
-      if (reg[i].dep_count > 0)
+      if (ext->dep_count > 0)
       {
-         printf("    Dependencies (%d):\n", reg[i].dep_count);
-         for (int j = 0; j < reg[i].dep_count; j++)
+         printf("    Dependencies (%d):\n", ext->dep_count);
+         for (int j = 0; j < ext->dep_count; j++)
          {
-            char status = reg[i].deps[j].resolved ? '+' : '-';
-            printf("      [%c] %s\n", status, reg[i].deps[j].name);
+            char status = ext->deps[j].resolved ? '+' : '-';
+            printf("      [%c] %s\n", status, ext->deps[j].name);
          }
       }
    }
@@ -165,43 +195,47 @@ void dylib_list(void)
 
 void dylib_list_deps(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
-   if (!lib)
+   int idx = dylib_find_index(name);
+   if (idx < 0)
    {
       printf("[ERROR] Library not found: %s\n", name);
       return;
    }
    
+   ExtendedLibData *ext = &extended_data[idx];
+   
    printf("\nDependencies for %s:\n", name);
-   if (lib->dep_count == 0)
+   if (ext->dep_count == 0)
    {
       printf("  (none)\n");
       return;
    }
    
-   for (int i = 0; i < lib->dep_count; i++)
+   for (int i = 0; i < ext->dep_count; i++)
    {
-      const char *status = lib->deps[i].resolved ? "RESOLVED" : "UNRESOLVED";
-      printf("  %s: %s\n", lib->deps[i].name, status);
+      const char *status = ext->deps[i].resolved ? "RESOLVED" : "UNRESOLVED";
+      printf("  %s: %s\n", ext->deps[i].name, status);
    }
    printf("\n");
 }
 
 uint32_t dylib_find_symbol(const char *libname, const char *symname)
 {
-   LibRecord *lib = dylib_find(libname);
-   if (!lib)
+   int idx = dylib_find_index(libname);
+   if (idx < 0)
    {
       printf("[ERROR] Library not found: %s\n", libname);
       return 0;
    }
    
+   ExtendedLibData *ext = &extended_data[idx];
+   
    // Search for symbol in library
-   for (int i = 0; i < lib->symbol_count; i++)
+   for (int i = 0; i < ext->symbol_count; i++)
    {
-      if (str_eq(lib->symbols[i].name, symname))
+      if (str_eq(ext->symbols[i].name, symname))
       {
-         return lib->symbols[i].address;
+         return ext->symbols[i].address;
       }
    }
    
@@ -239,47 +273,49 @@ int dylib_call_symbol(const char *libname, const char *symname)
 
 void dylib_list_symbols(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
-   if (!lib)
+   int idx = dylib_find_index(name);
+   if (idx < 0)
    {
       printf("[ERROR] Library not found: %s\n", name);
       return;
    }
    
+   ExtendedLibData *ext = &extended_data[idx];
+   
    printf("\nExported symbols from %s:\n", name);
-   if (lib->symbol_count == 0)
+   if (ext->symbol_count == 0)
    {
       printf("  (none)\n");
       return;
    }
    
-   for (int i = 0; i < lib->symbol_count; i++)
+   for (int i = 0; i < ext->symbol_count; i++)
    {
-      printf("  [%d] %s @ 0x%x\n", i, lib->symbols[i].name, lib->symbols[i].address);
+      printf("  [%d] %s @ 0x%x\n", i, ext->symbols[i].name, ext->symbols[i].address);
    }
    printf("\n");
 }
 
 int dylib_mem_free(const char *lib_name)
 {
-   LibRecord *lib = dylib_find(lib_name);
-   if (!lib)
+   int idx = dylib_find_index(lib_name);
+   if (idx < 0)
    {
       printf("[ERROR] Library not found: %s\n", lib_name);
       return -1;
    }
    
-   if (!lib->loaded)
+   LibRecord *lib = &LIB_REGISTRY_ADDR[idx];
+   ExtendedLibData *ext = &extended_data[idx];
+   
+   if (!ext->loaded)
    {
       printf("[WARNING] Library %s is not loaded\n", lib_name);
       return -1;
    }
    
-   // Clear the library's memory region
-   uint8_t *mem = (uint8_t *)lib->base_addr;
-   for (uint32_t i = 0; i < lib->size; i++)
-      mem[i] = 0;
-   
+   // Note: We don't actually free the memory in the pool since it's a linear allocator
+   // Just mark as unloaded
    printf("[DYLIB] Freed 0x%x bytes for %s\n", lib->size, lib_name);
    
    return 0;
@@ -290,14 +326,17 @@ int dylib_load(const char *name, const void *image, uint32_t size)
    if (!dylib_mem_initialized)
       dylib_mem_init();
    
-   LibRecord *lib = dylib_find(name);
-   if (!lib)
+   int idx = dylib_find_index(name);
+   if (idx < 0)
    {
       printf("[ERROR] Library record not found: %s\n", name);
       return -1;
    }
    
-   if (lib->loaded)
+   LibRecord *lib = &LIB_REGISTRY_ADDR[idx];
+   ExtendedLibData *ext = &extended_data[idx];
+   
+   if (ext->loaded)
    {
       printf("[WARNING] Library %s is already loaded\n", name);
       return -1;
@@ -318,9 +357,9 @@ int dylib_load(const char *name, const void *image, uint32_t size)
       dest[i] = src[i];
    
    // Update library record
-   lib->base_addr = load_addr;
+   lib->base = (void *)load_addr;
    lib->size = size;
-   lib->loaded = 1;
+   ext->loaded = 1;
    
    printf("[DYLIB] Loaded %s (%d bytes) at 0x%x\n", name, size, load_addr);
    
@@ -338,14 +377,17 @@ int dylib_load_from_disk(Partition *partition, const char *name, const char *fil
       return -1;
    }
    
-   LibRecord *lib = dylib_find(name);
-   if (!lib)
+   int idx = dylib_find_index(name);
+   if (idx < 0)
    {
       printf("[ERROR] Library record not found: %s\n", name);
       return -1;
    }
    
-   if (lib->loaded)
+   LibRecord *lib = &LIB_REGISTRY_ADDR[idx];
+   ExtendedLibData *ext = &extended_data[idx];
+   
+   if (ext->loaded)
    {
       printf("[WARNING] Library %s is already loaded\n", name);
       return -1;
@@ -393,9 +435,9 @@ int dylib_load_from_disk(Partition *partition, const char *name, const char *fil
    FAT_Close(file);
    
    // Update library record
-   lib->base_addr = load_addr;
+   lib->base = (void *)load_addr;
    lib->size = file_size;
-   lib->loaded = 1;
+   ext->loaded = 1;
    
    printf("[DYLIB] Loaded %s (%d bytes) from disk at 0x%x\n", name, file_size, load_addr);
    
@@ -404,14 +446,17 @@ int dylib_load_from_disk(Partition *partition, const char *name, const char *fil
 
 int dylib_remove(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
-   if (!lib)
+   int idx = dylib_find_index(name);
+   if (idx < 0)
    {
       printf("[ERROR] Library not found: %s\n", name);
       return -1;
    }
    
-   if (!lib->loaded)
+   LibRecord *lib = &LIB_REGISTRY_ADDR[idx];
+   ExtendedLibData *ext = &extended_data[idx];
+   
+   if (!ext->loaded)
    {
       printf("[WARNING] Library %s is not loaded\n", name);
       return -1;
@@ -422,14 +467,14 @@ int dylib_remove(const char *name)
       return -1;
    
    // Mark as unloaded
-   lib->loaded = 0;
-   lib->base_addr = 0;
+   ext->loaded = 0;
+   lib->base = NULL;
    lib->size = 0;
    
    // Clear dependency resolution
-   for (int i = 0; i < lib->dep_count; i++)
+   for (int i = 0; i < ext->dep_count; i++)
    {
-      lib->deps[i].resolved = 0;
+      ext->deps[i].resolved = 0;
    }
    
    printf("[DYLIB] Removed %s from memory\n", name);
@@ -459,12 +504,14 @@ void dylib_mem_stats(void)
    // List loaded libraries
    printf("\nLoaded Libraries:\n");
    LibRecord *reg = (LibRecord *)LIB_REGISTRY_ADDR;
-   for (int i = 0; i < DYLIB_MAX_LIBS; i++)
+   for (int i = 0; i < LIB_REGISTRY_MAX; i++)
    {
       if (reg[i].name[0] == '\0') break;
-      if (reg[i].loaded)
+      
+      ExtendedLibData *ext = &extended_data[i];
+      if (ext->loaded)
       {
-         printf("  %s: 0x%x bytes at 0x%x\n", reg[i].name, reg[i].size, reg[i].base_addr);
+         printf("  %s: 0x%x bytes at 0x%x\n", reg[i].name, reg[i].size, (uint32_t)reg[i].base);
       }
    }
    printf("\n");
