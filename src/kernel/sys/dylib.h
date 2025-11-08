@@ -7,18 +7,6 @@
 #include <stdint.h>
 #include <fs/partition.h>
 
-// Dylib memory configuration (10 MiB reserved)
-#define DYLIB_MEMORY_ADDR  0x1000000  // Base address for dylib memory pool
-#define DYLIB_MEMORY_SIZE  0xA00000   // 10 MiB reserved for dylibs
-#define DYLIB_MAX_LIBS     64         // Maximum number of loaded libraries
-
-// Memory block header for tracking allocations
-typedef struct {
-    char lib_name[64];   // Library name that owns this block
-    uint32_t size;       // Size of allocation
-    int allocated;       // 1 if allocated, 0 if free
-} MemBlockHeader;
-
 // Maximum dependencies per library
 #define DYLIB_MAX_DEPS 16
 
@@ -36,19 +24,6 @@ typedef struct {
     char name[64];  // Name of the dependency
     int resolved;   // 1 if dependency is loaded, 0 if missing
 } DependencyRecord;
-
-// Library record with dependencies and symbols
-typedef struct {
-    char name[64];
-    uint32_t entry;
-    uint32_t base_addr;  // Base address in memory
-    uint32_t size;       // Size of loaded library
-    int loaded;          // 1 if loaded in memory, 0 if not
-    DependencyRecord deps[DYLIB_MAX_DEPS];
-    int dep_count;
-    SymbolRecord symbols[DYLIB_MAX_SYMBOLS];
-    int symbol_count;
-} LibRecord;
 
 // Find a loaded library record by name (basename without extension). Returns
 // pointer into the shared registry or NULL if not found.

@@ -27,6 +27,10 @@
 
 #define MEMORY_KERNEL_ADDR ((void *)0x00A00000)
 
+// Dylib memory configuration (10 MiB reserved)
+#define DYLIB_MEMORY_ADDR  0x1000000  // Base address for dylib memory pool
+#define DYLIB_MEMORY_SIZE  0xA00000   // 10 MiB reserved for dylibs
+
 // Library registry placed in low memory (inside FAT area). Stage2 populates
 // this with loaded modules so the kernel can find them.
 #define LIB_NAME_MAX 32

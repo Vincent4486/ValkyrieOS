@@ -11,11 +11,19 @@
 #include <std/string.h>
 #include <fs/fat12.h>
 
+// Extended library data (kept separately from the base LibRecord registry)
+typedef struct {
+    DependencyRecord deps[DYLIB_MAX_DEPS];
+    int dep_count;
+    SymbolRecord symbols[DYLIB_MAX_SYMBOLS];
+    int symbol_count;
+    int loaded;  // 1 if loaded in memory, 0 if not
+} ExtendedLibData;
+
 // Memory allocator state
 static int dylib_mem_initialized = 0;
 static uint32_t dylib_mem_next_free = DYLIB_MEMORY_ADDR;
-
-int dylib_mem_init(void)
+static ExtendedLibData extended_data[LIB_REGISTRY_MAX];
 {
    if (dylib_mem_initialized)
       return 0;
