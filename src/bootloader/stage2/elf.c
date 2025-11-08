@@ -48,7 +48,7 @@ typedef struct
 #define ELFDATA2LSB 1
 #define EM_386 3
 
-bool ELF_Load(DISK *disk, FAT_File *file, void **entryOut)
+bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
 {
    // read ELF header
    if (!FAT_Seek(disk, file, 0))

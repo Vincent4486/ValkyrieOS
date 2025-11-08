@@ -20,9 +20,10 @@ esac
 
 
 cat > .gdb_script.gdb << EOF
+    target remote | qemu-system-i386 $QEMU_ARGS
+    set disassembly-flavor intel
     b *0x7c00
     layout asm
-    target remote | qemu-system-i386 $QEMU_ARGS
 EOF
 
 gdb -x .gdb_script.gdb

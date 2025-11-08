@@ -8,6 +8,7 @@
 #include "startscreen.h"
 #include "stdio.h"
 #include "x86.h"
+#include "mbr.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -17,9 +18,11 @@ uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;
 
 typedef void (*KernelStart)(uint16_t bootDrive);
 
-void __attribute__((cdecl)) start(uint16_t bootDrive)
+void __attribute__((cdecl)) start(uint16_t bootDrive, void* partition)
 {
    clrscr();
+
+   printf("partition: %x\r\n", partition);
 
    bool drawScreen = false;
    draw_start_screen(drawScreen);
@@ -33,14 +36,17 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
       goto end;
    }
 
-   if (!FAT_Initialize(&disk))
+   Partition part;
+   MBR_DetectPartition(&part, &disk, partition);
+
+   if (!FAT_Initialize(&part))
    {
       printf("FAT init error\r\n");
       goto end;
    }
 
    // load ELF kernel
-   FAT_File *fd = FAT_Open(&disk, "/sys/kernel.elf");
+   FAT_File *fd = FAT_Open(&part, "/sys/kernel.elf");
    if (!fd)
    {
       printf("FAT: failed to open /sys/kernel.elf\r\n");
@@ -48,7 +54,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
    }
 
    void *entry = NULL;
-   if (!ELF_Load(&disk, fd, &entry))
+   if (!ELF_Load(&part, fd, &entry))
    {
       printf("ELF: load failed\r\n");
       FAT_Close(fd);

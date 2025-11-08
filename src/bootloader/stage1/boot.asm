@@ -127,7 +127,7 @@ section .entry
         ; jump to our kernel
         mov dl, [ebr_drive_number]          ; boot device in dl
         mov si, PARTITION_ENTRY_OFFSET
-        mov di, PARTITION_ENTRY_SEGMEMT
+        mov di, PARTITION_ENTRY_SEGMENT
 
         mov ax, STAGE2_LOAD_SEGMENT         ; set segment registers
         mov ds, ax
