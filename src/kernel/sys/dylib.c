@@ -6,7 +6,7 @@
  */
 
 #include "dylib.h"
-#include <fs/fat12.h>
+#include <fs/fat.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>

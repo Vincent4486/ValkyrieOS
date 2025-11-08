@@ -4,7 +4,7 @@
 #pragma once
 
 #include <fs/disk.h>
-#include <fs/fat12.h>
+#include <fs/fat.h>
 #include <fs/partition.h>
 #include <stdbool.h>
 #include <stdint.h>

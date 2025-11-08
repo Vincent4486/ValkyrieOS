@@ -2,7 +2,7 @@
 
 #include <arch/i686/irq.h>
 #include <display/buffer.h>
-#include <fs/fat12.h>
+#include <fs/fat.h>
 #include <fs/partition.h>
 #include <hal/hal.h>
 #include <std/stdio.h>
