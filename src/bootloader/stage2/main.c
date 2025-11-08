@@ -22,11 +22,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 {
    clrscr();
 
-   printf("partition: %x\r\n", partition);
-
    bool drawScreen = false;
    draw_start_screen(drawScreen);
-
    delay_ms(1000);
 
    DISK disk;
@@ -65,6 +62,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 
    // jump to kernel entry (pass the boot drive number so kernel can access
    // disk)
+   printf("Jumping to kernel...");
    KernelStart kernelStart = (KernelStart)entry;
    kernelStart(bootDrive);
 

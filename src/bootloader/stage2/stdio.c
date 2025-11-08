@@ -75,6 +75,7 @@ void scrollback(int lines)
 
 void putc(char c)
 {
+   x86_outb(0xe9, c);
    switch (c)
    {
    case '\n':

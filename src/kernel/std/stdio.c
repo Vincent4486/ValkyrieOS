@@ -63,7 +63,10 @@ void scrollback(int lines)
    g_ScreenY -= lines;
 }
 
-void putc(char c) { buffer_putc(c); }
+void putc(char c) { 
+   i686_outb(0xe9, c);
+   buffer_putc(c); 
+}
 
 void puts(const char *str) { buffer_puts(str); }
 
