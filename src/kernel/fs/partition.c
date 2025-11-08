@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "mbr.h"
+#include "partition.h"
 #include <sys/memory.h>
 #include <std/stdio.h>
 
