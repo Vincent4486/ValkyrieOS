@@ -18,4 +18,4 @@ void *kzalloc(size_t size);
 uintptr_t mem_heap_start(void);
 uintptr_t mem_heap_end(void);
 
-void* SegmentOffsetToLinear(void* addr);
+void *SegmentOffsetToLinear(void *addr);

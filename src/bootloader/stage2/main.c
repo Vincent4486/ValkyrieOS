@@ -3,12 +3,12 @@
 #include "disk.h"
 #include "elf.h"
 #include "fat.h"
+#include "mbr.h"
 #include "memdefs.h"
 #include "memory.h"
 #include "startscreen.h"
 #include "stdio.h"
 #include "x86.h"
-#include "mbr.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -18,7 +18,7 @@ uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;
 
 typedef void (*KernelStart)(uint16_t bootDrive);
 
-void __attribute__((cdecl)) start(uint16_t bootDrive, void* partition)
+void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 {
    clrscr();
 

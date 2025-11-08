@@ -3,9 +3,9 @@
 // Simple dynamic-linking helper for kernel side to find and call modules
 #pragma once
 
-#include <sys/memdefs.h>
-#include <stdint.h>
 #include <fs/partition.h>
+#include <stdint.h>
+#include <sys/memdefs.h>
 
 // Maximum dependencies per library
 #define DYLIB_MAX_DEPS 16
@@ -14,15 +14,17 @@
 #define DYLIB_MAX_SYMBOLS 256
 
 // Symbol record - exported function from a library
-typedef struct {
-    char name[64];      // Symbol/function name
-    uint32_t address;   // Memory address of the function
+typedef struct
+{
+   char name[64];    // Symbol/function name
+   uint32_t address; // Memory address of the function
 } SymbolRecord;
 
 // Dependency record - tracks which libraries a module depends on
-typedef struct {
-    char name[64];  // Name of the dependency
-    int resolved;   // 1 if dependency is loaded, 0 if missing
+typedef struct
+{
+   char name[64]; // Name of the dependency
+   int resolved;  // 1 if dependency is loaded, 0 if missing
 } DependencyRecord;
 
 // Find a loaded library record by name (basename without extension). Returns
@@ -74,7 +76,8 @@ int dylib_mem_free(const char *lib_name);
 //   partition: Initialized Partition structure for reading
 //   name: Library name to load
 //   filepath: Path to library file on disk (e.g., "/sys/graphics.so")
-int dylib_load_from_disk(Partition *partition, const char *name, const char *filepath);
+int dylib_load_from_disk(Partition *partition, const char *name,
+                         const char *filepath);
 
 // Load a library from memory image. Returns 0 on success, -1 on failure.
 int dylib_load(const char *name, const void *image, uint32_t size);

@@ -5,9 +5,9 @@
 
 #include <fs/disk.h>
 #include <fs/fat12.h>
+#include <fs/partition.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <fs/partition.h>
 
 // Load an ELF32 file from an opened FAT_File into memory. On success returns
 // true and sets *entryOut to the ELF entry point (as a pointer). The loader

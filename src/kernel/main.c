@@ -51,7 +51,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    /* Initialize partition structure for FAT access */
    Partition partition;
    partition.disk = &disk;
-   partition.partitionOffset = 0;  // Using whole disk for now
+   partition.partitionOffset = 0; // Using whole disk for now
    partition.partitionSize = 0;
 
    /* Quick FAT test: initialize FAT on the partition and list the root
