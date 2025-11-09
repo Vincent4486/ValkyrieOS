@@ -30,7 +30,8 @@
     "memdefs.h": "c",
     "memory.h": "c",
     "irq.h": "c",
-    "stdbool.h": "c"
+    "stdbool.h": "c",
+    "fat.h": "c"
   },
   "makefile.launchConfigurations": [
     {
