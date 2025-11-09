@@ -40,14 +40,14 @@ def create_filesystem(target: str, filesystem, reserved_sectors=0, offset=0):
         mkfs_fat = sh.Command('mkfs.fat')
         mkfs_fat(target,
                  F=filesystem[3:],            # fat size
-                 n='NBOS',                    # label
+                 n='VALKYRIE',                    # label
                  R=reserved_sectors,      # reserved sectors
                  offset=offset
         )
     elif filesystem == 'ext2':
         mkfs_ext2 = sh.Command('mkfs.ext2')
         mkfs_ext2(target,
-                  L='NBOS',                   # label
+                  L='VALKYRIE',                   # label
                   E=f'offset={offset * SECTOR_SIZE}'
         )
     else:
@@ -151,19 +151,49 @@ def create_partition_table(target: str, align_start: int):
 
 
 def mount_fs(image: str, mount_dir: str):
-    sh.guestmount(mount_dir, add=image, mount='/dev/sda1')
+    # Use losetup + mount instead of guestmount (avoids kernel read permission issues)
+    import sh
+    print("    > associating image with a loop device...")
+    device = sh.sudo.losetup('-fP', '--show', image).strip()
+    partition = f'{device}p1'
+    
+    # Store the device path BEFORE mounting (in the parent directory on the host FS)
+    device_file = mount_dir + '.device'
+    with open(device_file, 'w') as f:
+        f.write(device)
+    
+    print(f"    > mounting {partition} to {mount_dir}...")
+    sh.sudo.mount(partition, mount_dir)
 
 def unmount_fs(mount_dir: str):
+    import sh
+    import time
     print("Waiting for disk to be clear...")
-    time.sleep(5)	
-    sh.fusermount(u=mount_dir)
+    time.sleep(2)
+    
+    # Read the device path from the host FS (not inside the mount)
+    device_file = mount_dir + '.device'
+    
+    # Unmount the directory first. Requires root.
+    sh.sudo.umount(mount_dir)
+    
+    # Read the loop device path we saved.
+    with open(device_file, 'r') as f:
+        device = f.read().strip()
+        
+    # Detach the loop device. Requires root.
+    print(f"    > detaching loop device {device}...")
+    sh.sudo.losetup('-d', device)
+    
+    # Clean up the device file
+    os.remove(device_file)
 
 
 def build_disk(image, stage1, stage2, kernel, files, env):
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     file_system = env['imageFS']
     partition_offset = 2048
-
+ 
     stage1_size = os.stat(stage1).st_size
     stage2_size = os.stat(stage2).st_size
     stage2_sectors = (stage2_size + SECTOR_SIZE - 1) // SECTOR_SIZE
@@ -186,11 +216,11 @@ def build_disk(image, stage1, stage2, kernel, files, env):
     print(f"> installing stage2...")
     install_stage2(image, stage2, offset=1, limit=partition_offset)
 
-    tempdir_name = 'tmp_mount_{0}'.format(int(time.time()))
-    tempdir = os.path.join(os.path.dirname(image), tempdir_name)
+    # Create temp directory in the build folder (same directory as the image)
+    tempdir = os.path.join(os.path.dirname(image), 'tmp_mount')
     try:
         # mount
-        os.mkdir(tempdir)
+        os.makedirs(tempdir, exist_ok=True)
 
         print(f"> mounting image to {tempdir}...")
         mount_fs(image, tempdir)
@@ -198,7 +228,7 @@ def build_disk(image, stage1, stage2, kernel, files, env):
         # copy kernel
         print(f"> copying kernel...")
         bootdir = os.path.join(tempdir, 'sys')
-        os.makedirs(bootdir)
+        os.makedirs(bootdir, exist_ok=True)
         copy2(kernel, bootdir)
 
         # copy rest of files
@@ -211,7 +241,7 @@ def build_disk(image, stage1, stage2, kernel, files, env):
 
             if os.path.isdir(file_src):
                 print('    ... creating directory', file_rel)
-                os.makedirs(file_dst)
+                os.makedirs(file_dst, exist_ok=True)
             else:
                 print('    ... copying', file_rel)
                 copy2(file_src, file_dst)
@@ -220,9 +250,18 @@ def build_disk(image, stage1, stage2, kernel, files, env):
         print("> cleaning up...")
         try:
             unmount_fs(tempdir)
-        except:
-            pass
-        os.rmdir(tempdir)
+            # Change ownership of temp directory back to the user before deleting
+            sh.sudo.chown('-R', f'{os.getuid()}:{os.getgid()}', tempdir)
+            # Remove the entire directory tree
+            import shutil
+            shutil.rmtree(tempdir)
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+            raise
+    
+    # Change ownership of the final image file to the current user
+    print(f"> changing ownership of {image} to vincent...")
+    sh.sudo.chown('vincent:vincent', image)
 
 
 def build_image(target, source, env):

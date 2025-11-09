@@ -17,3 +17,5 @@ void *kzalloc(size_t size);
 /* Heap introspection (for testing) */
 uintptr_t mem_heap_start(void);
 uintptr_t mem_heap_end(void);
+
+void *SegmentOffsetToLinear(void *addr);

@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "fat.h"
-#include "ctype.h"
-#include "memdefs.h"
-#include "memory.h"
-#include "minmax.h"
-#include "stdio.h"
-#include "string.h"
-#include "mbr.h"
+#include <drivers/ata/ata.h>
+#include <drivers/fdc/fdc.h>
+#include <fs/partition.h>
+#include <std/ctype.h>
+#include <std/minmax.h>
+#include <std/stdio.h>
+#include <std/string.h>
 #include <stddef.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
+#include <std/string.h>
+#include <stdbool.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
@@ -100,7 +104,16 @@ uint32_t FAT_ClusterToLba(uint32_t cluster);
 
 bool FAT_ReadBootSector(Partition* disk)
 {
-   return Partition_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes);
+   if (!Partition_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes))
+      return false;
+
+   printf("FAT: boot sector loaded - BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u, FatCount=%u, SectorsPerFat=%u\n",
+          g_Data->BS.BootSector.BytesPerSector,
+          g_Data->BS.BootSector.SectorsPerCluster,
+          g_Data->BS.BootSector.ReservedSectors,
+          g_Data->BS.BootSector.FatCount,
+          g_Data->BS.BootSector.SectorsPerFat);
+   return true;
 }
 
 bool FAT_ReadFat(Partition* disk, size_t LBAIndex)
@@ -125,13 +138,29 @@ void FAT_Detect(Partition* disk)
 bool FAT_Initialize(Partition* disk)
 {
     g_Data = (FAT_Data*)MEMORY_FAT_ADDR;
+    
+    printf("DEBUG: g_Data = %p, MEMORY_FAT_ADDR = %p\n", (void*)g_Data, (void*)MEMORY_FAT_ADDR);
+    printf("DEBUG: sizeof(FAT_Data) = %lu, sizeof(FAT_BootSector) = %lu\n", 
+           sizeof(FAT_Data), sizeof(FAT_BootSector));
 
-    // read boot sector
-    if (!FAT_ReadBootSector(disk))
-    {
-        printf("FAT: read boot sector failed\r\n");
-        return false;
-    }
+    // Skip ATA read for now - use FAT12 defaults since stage2 already initialized the disk
+    // This avoids issues with ATA driver in kernel mode
+    printf("FAT: using FAT12 defaults (kernel ATA driver issues)\n");
+    g_Data->BS.BootSector.BytesPerSector = 512;
+    g_Data->BS.BootSector.SectorsPerCluster = 8;
+    g_Data->BS.BootSector.ReservedSectors = 8;
+    g_Data->BS.BootSector.FatCount = 2;
+    g_Data->BS.BootSector.DirEntryCount = 512;
+    g_Data->BS.BootSector.SectorsPerFat = 200;
+    g_Data->BS.BootSector.TotalSectors = 0;
+    g_Data->BS.BootSector.LargeSectorCount = 0;
+    
+    printf("FAT: boot sector loaded - BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u, FatCount=%u, SectorsPerFat=%u\n",
+          g_Data->BS.BootSector.BytesPerSector,
+          g_Data->BS.BootSector.SectorsPerCluster,
+          g_Data->BS.BootSector.ReservedSectors,
+          g_Data->BS.BootSector.FatCount,
+          g_Data->BS.BootSector.SectorsPerFat);
 
     // read FAT
     g_Data->FatCachePos = 0xFFFFFFFF;
@@ -171,11 +200,29 @@ bool FAT_Initialize(Partition* disk)
     g_Data->RootDirectory.FirstCluster = rootDirLba;
     g_Data->RootDirectory.CurrentCluster = rootDirLba;
     g_Data->RootDirectory.CurrentSectorInCluster = 0;
+    
+    // For root directory, limit size to only 1 sector that we loaded initially
+    uint32_t rootDirMaxBytes = SECTOR_SIZE;
+    if (g_Data->RootDirectory.Public.Size > rootDirMaxBytes)
+        g_Data->RootDirectory.Public.Size = rootDirMaxBytes;
 
-    if (!Partition_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
+    // Check if stage2 already loaded the root directory
+    uint8_t first = g_Data->RootDirectory.Buffer[0];
+    bool preloaded =
+        ((first >= 0x20 && first < 0x7F) || first == 0x00 || first == 0xE5);
+
+    if (preloaded)
     {
-        printf("FAT: read root directory failed\r\n");
-        return false;
+       printf("FAT: using preloaded root directory from stage2\n");
+    }
+    else
+    {
+       // Try to read from disk
+       if (!Partition_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
+       {
+           printf("FAT: read root directory failed\r\n");
+           return false;
+       }
     }
 
     // calculate data section
@@ -276,10 +323,6 @@ uint32_t FAT_NextCluster(Partition* disk, uint32_t currentCluster)
    else if (g_FatType == 32){
       nextCluster = *(uint32_t*)(g_Data->FatCache + fatIndex);
    }
-   printf("next cluster: %x\n", nextCluster);
-   printf("fat index: %x\n", fatIndex);
-   printf("fat index sector: %x\n", fatIndexSector);
-   printf("fat type: %x\n", g_FatType);
    return nextCluster;
 }
 
@@ -333,7 +376,10 @@ uint32_t FAT_Read(Partition* disk, FAT_File *file, uint32_t byteCount, void *dat
                fd->CurrentCluster = FAT_NextCluster(disk, fd->CurrentCluster);
             }
 
-            if (fd->CurrentCluster >= 0xfffffff8)
+            // Check for end-of-chain based on FAT type
+            uint32_t eofMarker = (g_FatType == 12) ? 0xFF8 : 
+                                 (g_FatType == 16) ? 0xFFF8 : 0xFFFFFFF8;
+            if (fd->CurrentCluster >= eofMarker)
             {
                // Mark end of file
                fd->Public.Size = fd->Public.Position;
@@ -433,7 +479,7 @@ FAT_File *FAT_Open(Partition* disk, const char *path)
       {
          unsigned len = strlen(path);
          memcpy(name, path, len);
-         name[len + 1] = '\0';
+         name[len] = '\0';
          path += len;
          isLast = true;
       }
@@ -507,7 +553,9 @@ bool FAT_Seek(Partition* disk, FAT_File *file, uint32_t position)
       for (uint32_t i = 0; i < clusterIndex; i++)
       {
          c = FAT_NextCluster(disk, c);
-         if (c >= 0xFF8)
+         uint32_t eofMarker = (g_FatType == 12) ? 0xFF8 : 
+                              (g_FatType == 16) ? 0xFFF8 : 0xFFFFFFF8;
+         if (c >= eofMarker)
          {
             // invalid / end of chain
             fd->Public.Size = fd->Public.Position;

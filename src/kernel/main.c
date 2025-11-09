@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "memory/dylink.h"
 #include <arch/i686/irq.h>
 #include <display/buffer.h>
-#include <fs/fat12.h>
+#include <fs/fat.h>
+#include <fs/partition.h>
 #include <hal/hal.h>
-#include <jvm/jvm.h>
-#include <memory/memdefs.h>
-#include <memory/memory.h>
 #include <std/stdio.h>
 #include <stdint.h>
+#include <sys/dylib.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -37,7 +37,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    printf("Kernel running...\n");
 
    /* Print loaded modules registered by stage2 so we can see what's available.
-    * Use the dylink helper which reads the shared registry populated by stage2.
+    * Use the dylib helper which reads the shared registry populated by stage2.
     */
    dylib_list();
 
@@ -48,22 +48,28 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
       goto end;
    }
 
-   /* Quick FAT test: initialize FAT on the detected disk and list the root
+   /* Initialize partition structure for FAT access */
+   Partition partition;
+   partition.disk = &disk;
+   partition.partitionOffset = 0; // Using whole disk for now
+   partition.partitionSize = 0;
+
+   /* Quick FAT test: initialize FAT on the partition and list the root
     * directory entries. This helps verify the FDC driver + FAT code are
     * working together.
     */
-   if (FAT_Initialize(&disk))
+   if (FAT_Initialize(&partition))
    {
       printf("FAT initialized\n");
 
       // Try to list root directory first
-      FAT_File *root = FAT_Open(&disk, "/");
+      FAT_File *root = FAT_Open(&partition, "/");
       if (root)
       {
          printf("Root directory entries:\n");
          FAT_DirectoryEntry entry;
          int count = 0;
-         while (FAT_ReadEntry(&disk, root, &entry) && count < 10)
+         while (FAT_ReadEntry(&partition, root, &entry) && count < 10)
          {
             if (entry.Name[0] == 0) break;       // End of directory
             if (entry.Name[0] == 0xE5) continue; // Deleted entry
@@ -93,7 +99,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
       // Test: Read entire test.txt file from subdirectory
       printf("\n=== Testing FAT12 File Reading ===\n");
-      FAT_File *tf = FAT_Open(&disk, "/test/test.txt");
+      FAT_File *tf = FAT_Open(&partition, "/test/test.txt");
       if (tf)
       {
          printf("Successfully opened /test/test.txt\n");
@@ -106,7 +112,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
          uint32_t read;
          int chunk_count = 0;
 
-         while ((read = FAT_Read(&disk, tf, sizeof(buf), buf)) > 0)
+         while ((read = FAT_Read(&partition, tf, sizeof(buf), buf)) > 0)
          {
             chunk_count++;
             total_read += read;
@@ -157,7 +163,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
          printf("FAT: /test/test.txt not found\n");
 
          // Try other variations
-         tf = FAT_Open(&disk, "/test.txt");
+         tf = FAT_Open(&partition, "/test.txt");
          if (tf)
          {
             printf("/test.txt (root) found!\n");

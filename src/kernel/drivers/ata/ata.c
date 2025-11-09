@@ -103,11 +103,11 @@ int ata_read28(uint32_t lba, uint8_t *buffer, size_t count)
       if (ata_wait_drq()) return 4;
       for (size_t i = 0; i < ATA_SECTOR_SIZE; i += 2)
       {
-         uint16_t data = i686_inb(ATA_PRIMARY_IO);
-         data |= (i686_inb(ATA_PRIMARY_IO) << 8);
-         buffer[sector * ATA_SECTOR_SIZE + i] = (uint8_t)(data & 0xFF);
-         buffer[sector * ATA_SECTOR_SIZE + i + 1] =
-             (uint8_t)((data >> 8) & 0xFF);
+         // Read low byte then high byte from data port
+         uint8_t low = i686_inb(ATA_PRIMARY_IO + ATA_REG_DATA);
+         uint8_t high = i686_inb(ATA_PRIMARY_IO + ATA_REG_DATA);
+         buffer[sector * ATA_SECTOR_SIZE + i] = low;
+         buffer[sector * ATA_SECTOR_SIZE + i + 1] = high;
       }
       lba++;
    }

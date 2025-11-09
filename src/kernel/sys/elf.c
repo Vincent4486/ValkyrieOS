@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "elf.h"
-#include "memdefs.h"
-#include "memory.h"
-#include "stdio.h"
-#include "string.h"
+#include <std/stdio.h>
+#include <std/string.h>
+#include <sys/memdefs.h>
+#include <sys/memory.h>
 
 // ELF structures for 32-bit little-endian
 typedef struct

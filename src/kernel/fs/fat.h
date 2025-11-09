@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-#include "disk.h"
+#include "partition.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -41,15 +41,16 @@ enum FAT_Attributes
                        FAT_ATTRIBUTE_SYSTEM | FAT_ATTRIBUTE_VOLUME_ID
 };
 
-bool FAT_Initialize(DISK *disk);
-FAT_File *FAT_Open(DISK *disk, const char *path);
-uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount,
+bool FAT_Initialize(Partition *disk);
+FAT_File *FAT_Open(Partition *disk, const char *path);
+uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                   void *dataOut);
-bool FAT_ReadEntry(DISK *disk, FAT_File *file, FAT_DirectoryEntry *dirEntry);
+bool FAT_ReadEntry(Partition *disk, FAT_File *file,
+                   FAT_DirectoryEntry *dirEntry);
 void FAT_Close(FAT_File *file);
 
 // Seek to a specific byte position in an opened FAT file. Returns true on
 // success. After seeking, the internal sector buffer will contain the sector
 // covering the requested position so subsequent FAT_Read calls read from the
 // requested offset.
-bool FAT_Seek(DISK *disk, FAT_File *file, uint32_t position);
+bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position);
