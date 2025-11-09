@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "disk.h"
-#include <drivers/ata/ata.h>
-#include <drivers/fdc/fdc.h>
+#include <drivers/ata.h>
+#include <drivers/fdc.h>
 #include <std/stdio.h>
 
 // Disk type constants

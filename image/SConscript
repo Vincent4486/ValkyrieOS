@@ -260,8 +260,10 @@ def build_disk(image, stage1, stage2, kernel, files, env):
             raise
     
     # Change ownership of the final image file to the current user
-    print(f"> changing ownership of {image} to vincent...")
-    sh.sudo.chown('vincent:vincent', image)
+    print(f"> changing ownership of {image} to {os.getuid()}...")
+    sh.sudo.chown(f'{os.getuid()}:{os.getuid()}', image)
+    print(f"> changing all build files to owned by {os.getuid()}")
+    sh.sudo.chown('-R', f'{os.getuid()}:{os.getuid()}', 'build/')
 
 
 def build_image(target, source, env):
