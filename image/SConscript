@@ -228,8 +228,8 @@ def build_disk(image, stage1, stage2, kernel, files, env):
         # copy kernel
         print(f"> copying kernel...")
         bootdir = os.path.join(tempdir, 'sys')
-        os.makedirs(bootdir, exist_ok=True)
-        copy2(kernel, bootdir)
+        sh.sudo.mkdir('-p', bootdir)
+        sh.sudo.cp(kernel, bootdir)
 
         # copy rest of files
         src_root = env['BASEDIR']
@@ -241,10 +241,10 @@ def build_disk(image, stage1, stage2, kernel, files, env):
 
             if os.path.isdir(file_src):
                 print('    ... creating directory', file_rel)
-                os.makedirs(file_dst, exist_ok=True)
+                sh.sudo.mkdir('-p', file_dst)
             else:
                 print('    ... copying', file_rel)
-                copy2(file_src, file_dst)
+                sh.sudo.cp(file_src, file_dst)
 
     finally:
         print("> cleaning up...")

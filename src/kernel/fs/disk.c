@@ -86,10 +86,9 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
    }
    else if (disk->type == DISK_TYPE_ATA)
    {
-      /* Hard disk (ATA): use the kernel ATA driver. The ata_read28 function
-       * supports LBA28 mode for reading sectors.
+      /* Hard disk (ATA): use the kernel ATA driver with primary master channel/drive.
        */
-      int rc = ata_read28(lba, (uint8_t *)dataOut, sectors);
+      int rc = ata_read(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, lba, (uint8_t *)dataOut, sectors);
       if (rc != 0)
       {
          printf("DISK: ATA read failed (lba=%lu, sectors=%u, error=%d)\n",

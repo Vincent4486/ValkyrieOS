@@ -7,6 +7,13 @@
 ;   [esp+12] = driver_data pointer
 ;   [esp+16] = lba
 ; returns: eax = 0 on success, -1 on failure
+; Driver-data offsets (must match ata_driver_t in ata.c)
+dd_prtlen      equ 0    ; uint32_t partition_length
+dd_stLBA       equ 4    ; uint32_t start_lba
+dd_dcr         equ 8    ; uint16_t dcr_port (alt status / device control)
+dd_tf          equ 10   ; uint16_t tf_port (task file base)
+dd_sbits       equ 12   ; uint8_t  slave_bits (master/slave flags)
+
 global read_ata_st
 read_ata_st:
 	push ebp

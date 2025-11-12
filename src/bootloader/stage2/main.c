@@ -62,7 +62,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 
    // jump to kernel entry (pass the boot drive number so kernel can access
    // disk)
-   printf("Jumping to kernel...");
+   printf("Jumping to kernel...\n");
    KernelStart kernelStart = (KernelStart)entry;
    kernelStart(bootDrive);
 

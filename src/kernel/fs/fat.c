@@ -143,6 +143,15 @@ bool FAT_Initialize(Partition* disk)
     printf("DEBUG: sizeof(FAT_Data) = %lu, sizeof(FAT_BootSector) = %lu\n", 
            sizeof(FAT_Data), sizeof(FAT_BootSector));
 
+    /* Initialize ATA driver if disk is ATA */
+    if (disk->disk && disk->disk->type == 1)  // DISK_TYPE_ATA
+    {
+        // For now, using simple defaults: primary master, partition at LBA 2048
+        // In a full implementation, would read MBR to get actual partition info
+        printf("FAT: Initializing ATA driver (primary master)\n");
+        ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 2048, 0x100000);
+    }
+
     // Skip ATA read for now - use FAT12 defaults since stage2 already initialized the disk
     // This avoids issues with ATA driver in kernel mode
     printf("FAT: using FAT12 defaults (kernel ATA driver issues)\n");
@@ -493,7 +502,7 @@ FAT_File *FAT_Open(Partition* disk, const char *path)
          FAT_Close(current);
 
          // check if directory
-         if (!isLast && entry.Attributes & FAT_ATTRIBUTE_DIRECTORY == 0)
+         if (!isLast && (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY) == 0)
          {
             printf("FAT: %s not a directory\r\n", name);
             return NULL;
