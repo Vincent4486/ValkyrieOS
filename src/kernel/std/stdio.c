@@ -68,7 +68,10 @@ void putc(char c) {
    buffer_putc(c); 
 }
 
-void puts(const char *str) { buffer_puts(str); }
+void puts(const char *str) {
+   for (int i = 0; str[i]; i++)
+      putc(str[i]);
+}
 
 const char g_HexChars[] = "0123456789abcdef";
 
