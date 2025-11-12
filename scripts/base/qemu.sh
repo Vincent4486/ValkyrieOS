@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-QEMU_ARGS='-debugcon stdio -m 32'
+QEMU_ARGS='-debugcon stdio -m 32 -machine pc'
 
 if [ "$#" -le 1 ]; then
     echo "Usage: ./run.sh <image_type> <image>"
@@ -12,10 +12,10 @@ fi
 case "$1" in
     "floppy")   QEMU_ARGS="${QEMU_ARGS} -fda $2"
     ;;
-    "disk")     QEMU_ARGS="${QEMU_ARGS} -hda $2"
+    "disk")     QEMU_ARGS="${QEMU_ARGS} -drive file=$2,format=raw,if=ide,index=0,media=disk"
     ;;
     *)          echo "Unknown image type $1."
                 exit 2
 esac
 
-qemu-system-i386 $QEMU_ARGS
+qemu-system-x86_64 $QEMU_ARGS

@@ -102,6 +102,10 @@ int ata_read(int channel, int drive, uint32_t lba, uint8_t *buffer, uint32_t cou
     else
         return -1;  // Invalid channel/drive
     
+    // Validate parameters
+    if (!buffer || count == 0)
+        return -1;
+    
     // Call assembly read function
     return read_ata_st(count, buffer, (void *)drv, lba);
 }

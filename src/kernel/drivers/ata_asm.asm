@@ -1,5 +1,7 @@
 ; SPDX-License-Identifier: AGPL-3.0-or-later
 
+[bits 32]
+
 ; do a singletasking PIO ATA read
 ; cdecl calling convention (32-bit x86):
 ;   [esp+4]  = sector_count
@@ -29,9 +31,7 @@ read_ata_st:
 	mov edi, [ebp+12]        ; buffer
 	mov esi, [ebp+16]        ; driver_data
 	mov ebp, [ebp+20]        ; lba
-	push edx
-	push ecx
-	push eax
+	
 	test ebx, ebx			; # of sectors < 0 is a "reset" request from software
 	js short .reset
 	cmp ebx, 0x3fffff		; read will be bigger than 2GB? (error)
@@ -175,10 +175,12 @@ pio28_read:
 	sub ebp, [esi + dd_stLBA]	; convert absolute lba back to relative
 ; "test" sets the zero flag for a "success" return -- also clears the carry flag
 	test al, 0x21		; test the last status ERR bits
-	je short .done
+	je short .done_success
 .fail:
-	stc
-.done:
+	mov eax, -1			; set return value to -1 on failure
+	ret
+.done_success:
+	xor eax, eax		; set return value to 0 on success
 	ret
 
 
@@ -315,7 +317,11 @@ srst_ata_st:
 	in al, dx
 	and al, 0xc0			; check BSY and RDY
 	cmp al, 0x40			; want BSY clear and RDY set
-	jne short .rdylp
+	je short .rdy_ok
+	cmp al, 0x00			; If completely unresponsive, just continue
+	je short .rdy_ok
+	jmp short .rdylp
+.rdy_ok:
 	pop edx
 	pop eax
 	pop ebp
