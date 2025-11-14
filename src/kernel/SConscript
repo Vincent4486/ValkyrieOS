@@ -11,9 +11,14 @@ TARGET_ENVIRONMENT: Environment
 
 env = TARGET_ENVIRONMENT.Clone()
 env.Append(
+    # Enable position-independent code for dynamic linking support
+    # This allows kernel to have PLT/GOT entries for library function calls
+    CCFLAGS = ['-fPIC'],
     LINKFLAGS = [
         '-Wl,-T', env.File('linker.ld').srcnode().path,
-        '-Wl,-Map=' + env.File('kernel.map').path
+        '-Wl,-Map=' + env.File('kernel.map').path,
+        # Allow undefined symbols (will be resolved at runtime via PLT/GOT patching)
+        '-Wl,--unresolved-symbols=ignore-all'
     ],
     CPATH = [ env.Dir('.').srcnode() ],
     CPPPATH = [ env.Dir('.').srcnode() ],

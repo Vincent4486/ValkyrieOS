@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Simple dynamic-linking helper for kernel side to find and call modules
+// Dynamic-linking helper for kernel side to find, load, and relocate ELF modules.
+// Supports true dynamic linking with PLT/GOT relocation like Linux ld.so.
 #pragma once
 
 #include <fs/partition.h>
@@ -12,6 +13,9 @@
 
 // Maximum symbols per library
 #define DYLIB_MAX_SYMBOLS 256
+
+// Maximum global symbols across all loaded libraries and kernel
+#define DYLIB_MAX_GLOBAL_SYMBOLS 1024
 
 // Symbol record - exported function from a library
 typedef struct
@@ -26,6 +30,16 @@ typedef struct
    char name[64]; // Name of the dependency
    int resolved;  // 1 if dependency is loaded, 0 if missing
 } DependencyRecord;
+
+// Global symbol table entry - maps symbol name to absolute address
+// Populated when libraries are loaded; used by relocations
+typedef struct
+{
+   char name[64];      // Symbol name (e.g., "add", "malloc")
+   uint32_t address;   // Absolute memory address where symbol is located
+   char lib_name[64];  // Which library/module exports this symbol
+   int is_kernel;      // 1 if from kernel, 0 if from library
+} GlobalSymbolEntry;
 
 // Find a loaded library record by name (basename without extension). Returns
 // pointer into the shared registry or NULL if not found.
@@ -59,6 +73,30 @@ int dylib_call_symbol(const char *libname, const char *symname);
 
 // List all symbols exported by a library
 void dylib_list_symbols(const char *name);
+
+// Global symbol table management functions
+
+// Add a symbol to the global registry. Symbols are extracted from .dynsym
+// when libraries are loaded and registered here for relocation resolution.
+int dylib_add_global_symbol(const char *name, uint32_t address,
+                            const char *lib_name, int is_kernel);
+
+// Look up a symbol in the global registry by name.
+// Returns the absolute address or 0 if not found.
+// Used by relocation processor to resolve symbol references.
+uint32_t dylib_lookup_global_symbol(const char *name);
+
+// Print the global symbol table (for debugging)
+void dylib_print_global_symtab(void);
+
+// Clear the global symbol table (on reload/shutdown)
+void dylib_clear_global_symtab(void);
+
+// Apply kernel relocations - patches kernel's PLT/GOT entries to point to
+// library functions. Must be called after loading libraries and populating
+// the global symbol table.
+// Returns 0 on success, -1 on unresolved symbols.
+int dylib_apply_kernel_relocations(void);
 
 // Memory management functions
 

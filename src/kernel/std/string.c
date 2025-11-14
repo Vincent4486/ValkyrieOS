@@ -64,3 +64,57 @@ int str_eq(const char *a, const char *b)
    }
    return *a == *b;
 }
+
+char *strncpy(char *dst, const char *src, unsigned n)
+{
+   char *origDst = dst;
+
+   if (dst == NULL) return NULL;
+
+   if (src == NULL)
+   {
+      while (n > 0)
+      {
+         *dst = '\0';
+         ++dst;
+         --n;
+      }
+      return origDst;
+   }
+
+   while (n > 0 && *src)
+   {
+      *dst = *src;
+      ++src;
+      ++dst;
+      --n;
+   }
+
+   // Pad remaining with null bytes
+   while (n > 0)
+   {
+      *dst = '\0';
+      ++dst;
+      --n;
+   }
+
+   return origDst;
+}
+
+int strcmp(const char *a, const char *b)
+{
+   if (a == NULL && b == NULL) return 0;
+   if (a == NULL) return -1;
+   if (b == NULL) return 1;
+
+   while (*a && *b)
+   {
+      if (*a < *b) return -1;
+      if (*a > *b) return 1;
+      ++a;
+      ++b;
+   }
+
+   if (*a == *b) return 0;
+   return (*a < *b) ? -1 : 1;
+}

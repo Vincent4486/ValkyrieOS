@@ -120,6 +120,7 @@ TARGET_ENVIRONMENT.Append(
     CCFLAGS = [
         '-ffreestanding',
         '-nostdlib'
+        # Note: -fPIC added per-target (e.g., kernel SConscript) for dynamic linking support
     ],
     CXXFLAGS = [
         '-fno-exceptions',
@@ -127,6 +128,7 @@ TARGET_ENVIRONMENT.Append(
     ],
     LINKFLAGS = [
         '-nostdlib'
+        # Note: --unresolved-symbols=ignore-all added in kernel SConscript for dynamic linking
     ],
     LIBS = ['gcc'],
     LIBPATH = [ str(toolchainGccLibs) ],
