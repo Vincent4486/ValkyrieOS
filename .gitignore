@@ -14,5 +14,5 @@ toolchain/
 *.*#
 tmp/
 .sconsign.dblite
-scripts/scons/__pycache__/
+scripts/scons/__pycache__/*
 .venv/
