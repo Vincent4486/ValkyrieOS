@@ -2,6 +2,7 @@
 
 #include "ata.h"
 #include <stdint.h>
+#include <std/stdio.h>
 
 // Driver data structure matching assembly expectations
 typedef struct {
@@ -53,8 +54,8 @@ static ata_driver_t secondary_slave = {
  * Initialize ATA driver for a specific drive
  * @param channel - IDE channel (0 = primary, 1 = secondary)
  * @param drive - Drive on channel (0 = master, 1 = slave)
- * @param partition_start - Absolute LBA where partition starts
- * @param partition_size - Total sectors in partition
+ * @param partition_start - Absolute LBA where partition starts (for info only, not used)
+ * @param partition_size - Total sectors in partition (for validation)
  */
 void ata_init(int channel, int drive, uint32_t partition_start, uint32_t partition_size)
 {
@@ -71,7 +72,10 @@ void ata_init(int channel, int drive, uint32_t partition_start, uint32_t partiti
     else
         return;  // Invalid channel/drive
     
-    drv->start_lba = partition_start;
+    /* Note: start_lba is set to 0 because the kernel layer already handles
+     * partition offset conversion in Partition_ReadSectors. We receive absolute
+     * LBAs here, not partition-relative LBAs. */
+    drv->start_lba = 0;
     drv->partition_length = partition_size;
     
     // Perform software reset
@@ -106,8 +110,23 @@ int ata_read(int channel, int drive, uint32_t lba, uint8_t *buffer, uint32_t cou
     if (!buffer || count == 0)
         return -1;
     
+    // Debug output
+    printf("ATA: ata_read(ch=%d, drv=%d, lba=0x%x, count=%u, buf=%x)\n", channel, drive, lba, count, (unsigned int)buffer);
+    printf("ATA: driver partition_length=0x%x, start_lba=0x%x\n", drv->partition_length, drv->start_lba);
+    printf("ATA: driver tf_port=0x%x, dcr_port=0x%x, slave_bits=0x%x\n", drv->tf_port, drv->dcr_port, drv->slave_bits);
+    
     // Call assembly read function
-    return read_ata_st(count, buffer, (void *)drv, lba);
+    int result = read_ata_st(count, buffer, (void *)drv, lba);
+    printf("ATA: read_ata_st returned %d (0x%x)\n", result, (unsigned int)result);
+    
+    // Check if buffer was modified
+    if (result == 0) {
+        printf("ATA: First 16 bytes read: ");
+        for (int i = 0; i < 16; i++) printf("%x ", buffer[i]);
+        printf("\n");
+    }
+    
+    return result;
 }
 
 /**

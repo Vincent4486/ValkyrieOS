@@ -43,22 +43,12 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
    }
 
    // load ELF kernel
-   FAT_File *fd = FAT_Open(&part, "/sys/kernel.elf");
-   if (!fd)
-   {
-      printf("FAT: failed to open /sys/kernel.elf\r\n");
-      goto end;
-   }
-
    void *entry = NULL;
-   if (!ELF_Load(&part, fd, &entry))
+   if (!ELF_Load(&part, "/sys/kernel.elf", &entry))
    {
       printf("ELF: load failed\r\n");
-      FAT_Close(fd);
       goto end;
    }
-
-   FAT_Close(fd);
 
    // jump to kernel entry (pass the boot drive number so kernel can access
    // disk)

@@ -30,7 +30,7 @@ read_ata_st:
 	mov ebx, [ebp+8]         ; sector_count
 	mov edi, [ebp+12]        ; buffer
 	mov esi, [ebp+16]        ; driver_data
-	mov ebp, [ebp+20]        ; lba
+	mov ebp, [ebp+20]        ; lba - NOW it's safe because we saved old ebp on stack
 	
 	test ebx, ebx			; # of sectors < 0 is a "reset" request from software
 	js short .reset
