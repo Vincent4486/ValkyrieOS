@@ -2,6 +2,9 @@
 
 /* Minimal scrollback text buffer implementation for VGA text mode.
  * Exports the functions declared in text/buffer.h.
+ * 
+ * Buffer is stored at fixed memory location 0x00900000 (80 KiB)
+ * to prevent overwriting by kernel heap/data.
  */
 #include "buffer.h"
 #include <std/stdio.h>
@@ -9,12 +12,14 @@
 #include <stdint.h>
 
 #define BUFFER_LINES 1024
+#define BUFFER_BASE_ADDR 0x00900000
 
 /* declare setcursor (defined in stdio.c) to avoid implicit declaration */
 extern void setcursor(int x, int y);
 
 uint8_t s_color = 0x7;
-static char s_buffer[BUFFER_LINES][SCREEN_WIDTH];
+/* Use fixed memory location for buffer instead of stack/BSS */
+static char (*s_buffer)[SCREEN_WIDTH] = (char (*)[SCREEN_WIDTH])BUFFER_BASE_ADDR;
 static uint32_t s_head = 0;       /* index of first valid line */
 static uint32_t s_lines_used = 0; /* number of logical lines in buffer */
 int s_cursor_x = 0;

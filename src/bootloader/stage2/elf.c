@@ -48,21 +48,24 @@ typedef struct
 #define ELFDATA2LSB 1
 #define EM_386 3
 
-bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
+bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
 {
    // read ELF header
-   if (!FAT_Seek(disk, file, 0))
+   FAT_File *hdr_file = FAT_Open(disk, filepath);
+   if (!hdr_file)
    {
-      printf("ELF: seek header failed\r\n");
+      printf("ELF: failed to open file for header\r\n");
       return false;
    }
 
    Elf32_Ehdr ehdr;
-   if (FAT_Read(disk, file, sizeof(ehdr), &ehdr) != sizeof(ehdr))
+   if (FAT_Read(disk, hdr_file, sizeof(ehdr), &ehdr) != sizeof(ehdr))
    {
       printf("ELF: read header failed\r\n");
+      FAT_Close(hdr_file);
       return false;
    }
+   FAT_Close(hdr_file);
 
    // validate magic and class
    if (ehdr.e_ident[EI_MAG0] != ELFMAG0 || ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
@@ -97,17 +100,38 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    for (uint16_t i = 0; i < ehdr.e_phnum; i++)
    {
       uint32_t phoff = ehdr.e_phoff + i * ehdr.e_phentsize;
-      if (!FAT_Seek(disk, file, phoff))
+
+      // Open file fresh to skip to program header offset
+      FAT_File *phdr_file = FAT_Open(disk, filepath);
+      if (!phdr_file)
       {
-         printf("ELF: seek phdr %u failed\r\n", i);
+         printf("ELF: failed to open file for phdr %u\r\n", i);
          return false;
       }
 
-      if (FAT_Read(disk, file, sizeof(phdr), &phdr) != sizeof(phdr))
+      // Skip to the program header by reading and discarding data
+      uint32_t skip = phoff;
+      uint8_t skip_buf[512];
+      while (skip > 0)
+      {
+         uint32_t to_skip = skip > sizeof(skip_buf) ? sizeof(skip_buf) : skip;
+         uint32_t got = FAT_Read(disk, phdr_file, to_skip, skip_buf);
+         if (got == 0)
+         {
+            printf("ELF: failed to skip to phdr %u\r\n", i);
+            FAT_Close(phdr_file);
+            return false;
+         }
+         skip -= got;
+      }
+
+      if (FAT_Read(disk, phdr_file, sizeof(phdr), &phdr) != sizeof(phdr))
       {
          printf("ELF: read phdr %u failed\r\n", i);
+         FAT_Close(phdr_file);
          return false;
       }
+      FAT_Close(phdr_file);
 
       const uint32_t PT_LOAD = 1;
       if (phdr.p_type != PT_LOAD) continue;
@@ -115,33 +139,46 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
       // determine destination address (prefer physical p_paddr if provided)
       uint8_t *dest = (uint8_t *)(phdr.p_paddr ? phdr.p_paddr : phdr.p_vaddr);
 
+      // Open file again to read segment data
+      FAT_File *seg_file = FAT_Open(disk, filepath);
+      if (!seg_file)
+      {
+         printf("ELF: failed to open file for segment data\r\n");
+         return false;
+      }
+
+      // Skip to segment offset
+      skip = phdr.p_offset;
+      while (skip > 0)
+      {
+         uint32_t to_skip = skip > sizeof(skip_buf) ? sizeof(skip_buf) : skip;
+         uint32_t got = FAT_Read(disk, seg_file, to_skip, skip_buf);
+         if (got == 0)
+         {
+            printf("ELF: failed to skip to segment data\r\n");
+            FAT_Close(seg_file);
+            return false;
+         }
+         skip -= got;
+      }
+
       // read file data for this segment
       uint32_t remaining = phdr.p_filesz;
-      uint32_t fileOffset = phdr.p_offset;
-      const uint32_t CHUNK =
-          512; // FAT sector size, read in sector-sized chunks
+      const uint32_t CHUNK = 512; // FAT sector size
 
-      if (remaining > 0)
+      while (remaining > 0)
       {
-         if (!FAT_Seek(disk, file, fileOffset))
+         uint32_t toRead = remaining > CHUNK ? CHUNK : remaining;
+         uint32_t got = FAT_Read(disk, seg_file, toRead, dest);
+         if (got == 0)
          {
-            printf("ELF: seek segment data failed\r\n");
+            printf("ELF: short read for segment\r\n");
+            FAT_Close(seg_file);
             return false;
          }
 
-         while (remaining > 0)
-         {
-            uint32_t toRead = remaining > CHUNK ? CHUNK : remaining;
-            uint32_t got = FAT_Read(disk, file, toRead, dest);
-            if (got == 0)
-            {
-               printf("ELF: short read for segment\r\n");
-               return false;
-            }
-
-            dest += got;
-            remaining -= got;
-         }
+         dest += got;
+         remaining -= got;
       }
 
       // zero the rest for bss
@@ -150,6 +187,8 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
          uint32_t zeros = phdr.p_memsz - phdr.p_filesz;
          memset(dest, 0, zeros);
       }
+
+      FAT_Close(seg_file);
    }
 
    // return entry point

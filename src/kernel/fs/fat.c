@@ -113,6 +113,23 @@ bool FAT_ReadBootSector(Partition* disk)
           g_Data->BS.BootSector.ReservedSectors,
           g_Data->BS.BootSector.FatCount,
           g_Data->BS.BootSector.SectorsPerFat);
+   
+   // Dump first 64 bytes of boot sector for debugging
+   printf("FAT: Raw boot sector (first 64 bytes):\n");
+   for (int i = 0; i < 64; i += 16) {
+       printf("  ");
+       for (int j = 0; j < 16 && i+j < 512; j++) {
+           uint8_t b = g_Data->BS.BootSectorBytes[i+j];
+           if (b < 16) putc('0');
+           printf("%x ", b);
+       }
+       printf("\n");
+   }
+   
+   // Check boot signature at offset 510-511 (should be 0x55AA for valid boot sector)
+   uint16_t sig = (g_Data->BS.BootSectorBytes[511] << 8) | g_Data->BS.BootSectorBytes[510];
+   printf("FAT: Boot signature at offset 510-511: %x (should be aa55 for little-endian)\n", sig);
+   
    return true;
 }
 
@@ -143,19 +160,17 @@ bool FAT_Initialize(Partition* disk)
     printf("DEBUG: sizeof(FAT_Data) = %lu, sizeof(FAT_BootSector) = %lu\n", 
            sizeof(FAT_Data), sizeof(FAT_BootSector));
 
-    /* Initialize ATA driver if disk is ATA */
-    if (disk->disk && disk->disk->type == 1)  // DISK_TYPE_ATA
-    {
-        // Initialize with start_lba=0 since Partition layer handles offset
-        printf("FAT: Initializing ATA driver (primary master)\n");
-        ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
-    }
-
+    /* ATA driver should already be initialized by kernel main before FAT_Initialize is called */
+    
     // Try to read boot sector from disk to validate image
     printf("FAT: Attempting to read boot sector from disk...\n");
     if (FAT_ReadBootSector(disk))
     {
         printf("FAT: Boot sector read successfully from disk!\n");
+        printf("FAT: First 32 bytes of boot sector: ");
+        uint8_t *bs = (uint8_t *)&g_Data->BS.BootSector;
+        for (int i = 0; i < 32; i++) printf("%02x ", bs[i]);
+        printf("\n");
         printf("FAT: BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u\n",
                g_Data->BS.BootSector.BytesPerSector,
                g_Data->BS.BootSector.SectorsPerCluster,
@@ -190,9 +205,18 @@ bool FAT_Initialize(Partition* disk)
 
     bool isFat32 = false;
     g_SectorsPerFat = g_Data->BS.BootSector.SectorsPerFat;
+    printf("FAT: DEBUG TotalSectors=%u, SectorsPerFat=%u\n", g_TotalSectors, g_SectorsPerFat);
+    printf("FAT: DEBUG BootSector bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           g_Data->BS.BootSector.BytesPerSector & 0xFF, (g_Data->BS.BootSector.BytesPerSector >> 8) & 0xFF,
+           g_Data->BS.BootSector.SectorsPerCluster,
+           g_Data->BS.BootSector.ReservedSectors & 0xFF, (g_Data->BS.BootSector.ReservedSectors >> 8) & 0xFF,
+           g_Data->BS.BootSector.FatCount,
+           g_Data->BS.BootSector.DirEntryCount & 0xFF, (g_Data->BS.BootSector.DirEntryCount >> 8) & 0xFF);
+    
     if (g_SectorsPerFat == 0) {         // fat32
         isFat32 = true;
         g_SectorsPerFat = g_Data->BS.BootSector.ExtendedBootRecord.EBR32.RootDirectoryCluster;
+        printf("FAT: Detected FAT32, RootDirectoryCluster=%u\n", g_SectorsPerFat);
     }
     
     // open root directory file
@@ -258,8 +282,11 @@ bool FAT_Initialize(Partition* disk)
 
 uint32_t FAT_ClusterToLba(uint32_t cluster)
 {
-   return g_DataSectionLba +
+   uint32_t lba = g_DataSectionLba +
           (cluster - 2) * g_Data->BS.BootSector.SectorsPerCluster;
+   // Uncomment for debugging:
+   // printf("FAT_ClusterToLba: cluster=%u, g_DataSectionLba=%u, result=%u\n", cluster, g_DataSectionLba, lba);
+   return lba;
 }
 
 FAT_File *FAT_OpenEntry(Partition* disk, FAT_DirectoryEntry *entry)

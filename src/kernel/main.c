@@ -2,6 +2,8 @@
 
 #include <arch/i686/irq.h>
 #include <display/buffer.h>
+#include <drivers/ata.h>
+#include <fs/disk.h>
 #include <fs/fat.h>
 #include <fs/partition.h>
 #include <hal/hal.h>
@@ -59,8 +61,40 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    /* Initialize partition structure for FAT access */
    Partition partition;
    partition.disk = &disk;
-   partition.partitionOffset = 0; // Using whole disk for now
-   partition.partitionSize = 0;
+   
+   /* For hard disks, initialize ATA driver and detect partition from MBR */
+   if (disk.id >= 0x80)  // Hard disk
+   {
+      printf("DEBUG: Hard disk detected, initializing ATA...\n");
+      /* Initialize ATA with a default safe partition range for reading MBR */
+      ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
+      
+      printf("DEBUG: Reading MBR...\n");
+      uint8_t mbr_data[512];
+      if (DISK_ReadSectors(&disk, 0, 1, mbr_data))
+      {
+         printf("DEBUG: MBR read successfully\n");
+         MBR_DetectPartition(&partition, &disk, (void *)((uint8_t *)mbr_data + 446));
+         printf("DEBUG: Partition offset: 0x%x, size: 0x%x sectors\n", 
+                partition.partitionOffset, partition.partitionSize);
+         /* Re-initialize ATA with actual partition values */
+         ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 
+                  partition.partitionOffset, partition.partitionSize);
+      }
+      else
+      {
+         printf("DEBUG: Failed to read MBR, using defaults\n");
+         partition.partitionOffset = 0;
+         partition.partitionSize = 0x100000;
+      }
+   }
+   else  // Floppy: use whole disk
+   {
+      printf("DEBUG: Floppy disk detected\n");
+      MBR_DetectPartition(&partition, &disk, NULL);
+      printf("DEBUG: Floppy - offset: 0x%x, size: 0x%x sectors\n", 
+             partition.partitionOffset, partition.partitionSize);
+   }
 
    /* Quick FAT test: initialize FAT on the partition and list the root
     * directory entries. This helps verify the FDC driver + FAT code are

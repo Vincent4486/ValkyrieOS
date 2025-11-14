@@ -2,12 +2,26 @@
 
 ENTRY(start)
 /* Produce ELF output (default) instead of raw binary so the bootloader can
-   load an ELF image. The kernel is linked to physical address 0x00A00000
-   (10 MiB) so stage2 may place libraries below this region.
+   load an ELF image. 
+   
+   Memory layout:
+   - 0x00100000 - 0x00900000: Dynamic libraries (dylib) - 8 MiB
+   - 0x00900000 - 0x00914000: Display buffer (80 KiB)
+   - 0x00A00000 onwards: Kernel code and data (10 MiB)
    
    With dynamic linking, allow undefined symbols (will be resolved at runtime
    via PLT/GOT patching after libraries are loaded).
 */
+
+/* Reserve dylib space for dynamic libraries */
+DYLIB_START = 0x00100000;
+DYLIB_SIZE = 0x800000;  /* 8 MiB */
+
+/* Reserve display buffer space at fixed location */
+BUFFER_START = 0x00900000;
+BUFFER_SIZE = 0x14000;  /* 80 KiB */
+
+/* Kernel starts at 10 MiB */
 phys = 0x00A00000;
 
 /* Allow undefined symbols - they will be resolved at runtime by dylib loader */
