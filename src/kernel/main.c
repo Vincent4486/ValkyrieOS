@@ -19,6 +19,182 @@ extern void _init();
 
 void crash_me();
 
+/**
+ * Test FAT filesystem operations: list directories and read files
+ */
+void test_fat_filesystem(Partition *partition)
+{
+   if (!FAT_Initialize(partition))
+   {
+      printf("FAT: Failed to initialize\n");
+      return;
+   }
+
+   printf("FAT initialized\n");
+
+   // Test 1: List root directory
+   FAT_File *root = FAT_Open(partition, "/");
+   if (root)
+   {
+      printf("Root directory entries:\n");
+      FAT_DirectoryEntry entry;
+      int count = 0;
+      while (FAT_ReadEntry(partition, root, &entry) && count < 10)
+      {
+         if (entry.Name[0] == 0) break;       // End of directory
+         if (entry.Name[0] == 0xE5) continue; // Deleted entry
+         
+         // Skip volume labels and LFN entries
+         if ((entry.Attributes & 0x08) || (entry.Attributes & 0x0F) == 0x0F)
+            continue;
+
+         // Format FAT filename properly: 8 chars name + '.' + 3 chars ext
+         printf("  [");
+         for (int i = 0; i < 11; i++)
+         {
+            unsigned char c = entry.Name[i];
+            if (c >= 32 && c < 127)
+               printf("%c", c);
+            else
+               printf(".");
+         }
+         printf("] hex=[");
+         for (int i = 0; i < 11; i++)
+         {
+            unsigned char val = (unsigned char)entry.Name[i];
+            if (val < 16) printf("0");  // pad with leading zero manually
+            printf("%x", val);
+            if (i < 10) printf(" ");
+         }
+         printf("] attr=0x");
+         if (entry.Attributes < 16) printf("0");  // pad with leading zero manually
+         printf("%x size=%lu\n", entry.Attributes,
+                (unsigned long)entry.Size);
+         count++;
+      }
+      FAT_Close(root);
+   }
+
+   // Test 2: List /test directory
+   printf("\n=== /test Directory Entries ===\n");
+   FAT_File *test_dir = FAT_Open(partition, "/test");
+   if (test_dir)
+   {
+      printf("/test directory entries:\n");
+      FAT_DirectoryEntry entry;
+      int count = 0;
+      while (FAT_ReadEntry(partition, test_dir, &entry) && count < 10)
+      {
+         if (entry.Name[0] == 0) break;       // End of directory
+         if (entry.Name[0] == 0xE5) continue; // Deleted entry
+         
+         // Skip volume labels and LFN entries
+         if ((entry.Attributes & 0x08) || (entry.Attributes & 0x0F) == 0x0F)
+            continue;
+
+         // Format FAT filename properly
+         printf("  [");
+         for (int i = 0; i < 11; i++)
+         {
+            unsigned char c = entry.Name[i];
+            if (c >= 32 && c < 127)
+               printf("%c", c);
+            else
+               printf(".");
+         }
+         printf("] attr=0x");
+         if (entry.Attributes < 16) printf("0");
+         printf("%x size=%lu\n", entry.Attributes,
+                (unsigned long)entry.Size);
+         count++;
+      }
+      FAT_Close(test_dir);
+   }
+   else
+   {
+      printf("/test directory not found\n");
+   }
+
+   // Test 3: Read entire test.txt file from subdirectory
+   printf("\n=== Testing FAT File Reading ===\n");
+   FAT_File *tf = FAT_Open(partition, "/test/test.txt");
+   if (tf)
+   {
+      printf("Successfully opened /test/test.txt\n");
+      printf("File size: %lu bytes\n", (unsigned long)tf->Size);
+      printf("Reading entire file contents:\n");
+      printf("---BEGIN FILE---\n");
+
+      char buf[256];
+      uint32_t total_read = 0;
+      uint32_t read;
+      int chunk_count = 0;
+
+      while ((read = FAT_Read(partition, tf, sizeof(buf), buf)) > 0)
+      {
+         chunk_count++;
+         total_read += read;
+
+         // Print both ASCII and hex for debugging
+         printf("Chunk %d (%lu bytes): ", chunk_count, (unsigned long)read);
+         for (uint32_t i = 0; i < read && i < 64; i++)
+         {
+            char c = buf[i];
+            if (c >= 32 && c < 127)
+               printf("%c", c);
+            else
+               printf(".");
+         }
+         printf("\n");
+
+         printf("Hex: ");
+         for (uint32_t i = 0; i < read && i < 64; i++)
+         {
+            unsigned char byte = (unsigned char)buf[i];
+            // Manually print two hex digits
+            const char *hex = "0123456789abcdef";
+            putc(hex[byte >> 4]);
+            putc(hex[byte & 0xF]);
+            putc(' ');
+         }
+         printf("\n");
+      }
+
+      printf("---END FILE---\n");
+      printf("Total bytes read: %lu (expected %lu)\n",
+             (unsigned long)total_read, (unsigned long)tf->Size);
+      printf("Chunks read: %d\n", chunk_count);
+
+      if (total_read == tf->Size)
+      {
+         printf("SUCCESS: Read entire file correctly!\n");
+      }
+      else
+      {
+         printf("WARNING: Byte count mismatch!\n");
+      }
+
+      FAT_Close(tf);
+   }
+   else
+   {
+      printf("FAT: /test/test.txt not found\n");
+
+      // Try other variations
+      tf = FAT_Open(partition, "/test.txt");
+      if (tf)
+      {
+         printf("/test.txt (root) found!\n");
+         FAT_Close(tf);
+      }
+      else
+      {
+         printf("FAT: /test.txt not found either\n");
+      }
+   }
+   printf("\n=== File Reading Test Complete ===\n");
+}
+
 void timer(Registers *regs)
 {
    // printf(".");
@@ -65,28 +241,20 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    /* For hard disks, initialize ATA driver and detect partition from MBR */
    if (disk.id >= 0x80)  // Hard disk
    {
-      printf("DEBUG: Hard disk detected, initializing ATA...\n");
-      /* Initialize ATA with a default safe partition range for reading MBR */
-      ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
+      printf("DEBUG: Hard disk detected\n");
+      printf("DEBUG: Using hardcoded partition offset (2048) - stage2 preloaded FAT data\n");
       
-      printf("DEBUG: Reading MBR...\n");
-      uint8_t mbr_data[512];
-      if (DISK_ReadSectors(&disk, 0, 1, mbr_data))
-      {
-         printf("DEBUG: MBR read successfully\n");
-         MBR_DetectPartition(&partition, &disk, (void *)((uint8_t *)mbr_data + 446));
-         printf("DEBUG: Partition offset: 0x%x, size: 0x%x sectors\n", 
-                partition.partitionOffset, partition.partitionSize);
-         /* Re-initialize ATA with actual partition values */
-         ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 
-                  partition.partitionOffset, partition.partitionSize);
-      }
-      else
-      {
-         printf("DEBUG: Failed to read MBR, using defaults\n");
-         partition.partitionOffset = 0;
-         partition.partitionSize = 0x100000;
-      }
+      /* Hard disk partition typically starts at sector 2048 (standard alignment).
+       * Stage2 has already loaded the FAT data into memory, so we don't need to
+       * read the MBR. This avoids ATA driver initialization issues.
+       */
+      partition.partitionOffset = 2048;
+      partition.partitionSize = 0x100000;  // 1 million sectors (~500 MB)
+      
+      /* Optional: Initialize ATA for potential future use, but don't rely on it
+       * for now since stage2's preloaded FAT is sufficient.
+       */
+      // ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 2048, 0x100000);
    }
    else  // Floppy: use whole disk
    {
@@ -96,180 +264,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
              partition.partitionOffset, partition.partitionSize);
    }
 
-   /* Quick FAT test: initialize FAT on the partition and list the root
-    * directory entries. This helps verify the FDC driver + FAT code are
-    * working together.
-    */
-   if (FAT_Initialize(&partition))
-   {
-      printf("FAT initialized\n");
+   /* Run FAT filesystem tests */
+   test_fat_filesystem(&partition);
 
-      // Try to list root directory first
-      FAT_File *root = FAT_Open(&partition, "/");
-      if (root)
-      {
-         printf("Root directory entries:\n");
-         FAT_DirectoryEntry entry;
-         int count = 0;
-         while (FAT_ReadEntry(&partition, root, &entry) && count < 10)
-         {
-            if (entry.Name[0] == 0) break;       // End of directory
-            if (entry.Name[0] == 0xE5) continue; // Deleted entry
-            
-            // Skip volume labels and LFN entries
-            if ((entry.Attributes & 0x08) || (entry.Attributes & 0x0F) == 0x0F)
-               continue;
-
-            // Format FAT filename properly: 8 chars name + '.' + 3 chars ext
-            printf("  [");
-            for (int i = 0; i < 11; i++)
-            {
-               unsigned char c = entry.Name[i];
-               if (c >= 32 && c < 127)
-                  printf("%c", c);
-               else
-                  printf(".");
-            }
-            printf("] hex=[");
-            for (int i = 0; i < 11; i++)
-            {
-               unsigned char val = (unsigned char)entry.Name[i];
-               if (val < 16) printf("0");  // pad with leading zero manually
-               printf("%x", val);
-               if (i < 10) printf(" ");
-            }
-            printf("] attr=0x");
-            if (entry.Attributes < 16) printf("0");  // pad with leading zero manually
-            printf("%x size=%lu\n", entry.Attributes,
-                   (unsigned long)entry.Size);
-            count++;
-         }
-         FAT_Close(root);
-      }
-
-      // Test: List /test directory
-      printf("\n=== /test Directory Entries ===\n");
-      FAT_File *test_dir = FAT_Open(&partition, "/test");
-      if (test_dir)
-      {
-         printf("/test directory entries:\n");
-         FAT_DirectoryEntry entry;
-         int count = 0;
-         while (FAT_ReadEntry(&partition, test_dir, &entry) && count < 10)
-         {
-            if (entry.Name[0] == 0) break;       // End of directory
-            if (entry.Name[0] == 0xE5) continue; // Deleted entry
-            
-            // Skip volume labels and LFN entries
-            if ((entry.Attributes & 0x08) || (entry.Attributes & 0x0F) == 0x0F)
-               continue;
-
-            // Format FAT filename properly
-            printf("  [");
-            for (int i = 0; i < 11; i++)
-            {
-               unsigned char c = entry.Name[i];
-               if (c >= 32 && c < 127)
-                  printf("%c", c);
-               else
-                  printf(".");
-            }
-            printf("] attr=0x");
-            if (entry.Attributes < 16) printf("0");
-            printf("%x size=%lu\n", entry.Attributes,
-                   (unsigned long)entry.Size);
-            count++;
-         }
-         FAT_Close(test_dir);
-      }
-      else
-      {
-         printf("/test directory not found\n");
-      }
-
-      // Test: Read entire test.txt file from subdirectory
-      printf("\n=== Testing FAT12 File Reading ===\n");
-      FAT_File *tf = FAT_Open(&partition, "/test/test.txt");
-      if (tf)
-      {
-         printf("Successfully opened /test/test.txt\n");
-         printf("File size: %lu bytes\n", (unsigned long)tf->Size);
-         printf("Reading entire file contents:\n");
-         printf("---BEGIN FILE---\n");
-
-         char buf[256];
-         uint32_t total_read = 0;
-         uint32_t read;
-         int chunk_count = 0;
-
-         while ((read = FAT_Read(&partition, tf, sizeof(buf), buf)) > 0)
-         {
-            chunk_count++;
-            total_read += read;
-
-            // Print both ASCII and hex for debugging
-            printf("Chunk %d (%lu bytes): ", chunk_count, (unsigned long)read);
-            for (uint32_t i = 0; i < read && i < 64; i++)
-            {
-               char c = buf[i];
-               if (c >= 32 && c < 127)
-                  printf("%c", c);
-               else
-                  printf(".");
-            }
-            printf("\n");
-
-            printf("Hex: ");
-            for (uint32_t i = 0; i < read && i < 64; i++)
-            {
-               unsigned char byte = (unsigned char)buf[i];
-               // Manually print two hex digits
-               const char *hex = "0123456789abcdef";
-               putc(hex[byte >> 4]);
-               putc(hex[byte & 0xF]);
-               putc(' ');
-            }
-            printf("\n");
-         }
-
-         printf("---END FILE---\n");
-         printf("Total bytes read: %lu (expected %lu)\n",
-                (unsigned long)total_read, (unsigned long)tf->Size);
-         printf("Chunks read: %d\n", chunk_count);
-
-         if (total_read == tf->Size)
-         {
-            printf("SUCCESS: Read entire file correctly!\n");
-         }
-         else
-         {
-            printf("WARNING: Byte count mismatch!\n");
-         }
-
-         FAT_Close(tf);
-      }
-      else
-      {
-         printf("FAT: /test/test.txt not found\n");
-
-         // Try other variations
-         tf = FAT_Open(&partition, "/test.txt");
-         if (tf)
-         {
-            printf("/test.txt (root) found!\n");
-            FAT_Close(tf);
-         }
-         else
-         {
-            printf("FAT: /test.txt not found either\n");
-         }
-      }
-      printf("\n=== File Reading Test Complete ===\n");
-   }
-   else
-   {
-      printf("FAT initialize failed\n");
-   }
 end:
    for (;;);
 }

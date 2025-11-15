@@ -1,160 +1,246 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "ata.h"
+#include <arch/i686/io.h>
 #include <stdint.h>
 #include <std/stdio.h>
 
-// Driver data structure matching assembly expectations
+// ATA register offsets from base port
+#define ATA_REG_DATA       0x00
+#define ATA_REG_ERROR      0x01
+#define ATA_REG_FEATURES   0x01
+#define ATA_REG_NSECTOR    0x02
+#define ATA_REG_LBA_LOW    0x03
+#define ATA_REG_LBA_MID    0x04
+#define ATA_REG_LBA_HIGH   0x05
+#define ATA_REG_DEVICE     0x06
+#define ATA_REG_STATUS     0x07
+#define ATA_REG_COMMAND    0x07
+
+// ATA status bits
+#define ATA_STATUS_BSY     0x80  // Busy
+#define ATA_STATUS_DRDY    0x40  // Device ready
+#define ATA_STATUS_DRQ     0x08  // Data request
+#define ATA_STATUS_ERR     0x01  // Error
+
+// ATA commands
+#define ATA_CMD_READ_PIO   0x20
+
+// Driver data structure
 typedef struct {
-    uint32_t partition_length;   // offset 0 (dd_prtlen) - total sectors
-    uint32_t start_lba;          // offset 4 (dd_stLBA) - partition start
-    uint16_t dcr_port;           // offset 8 (dd_dcr) - alt status/DCR port
-    uint16_t tf_port;            // offset 10 (dd_tf) - task file base port
-    uint8_t  slave_bits;         // offset 12 (dd_sbits) - master/slave flags
+    uint32_t partition_length;   // Total sectors
+    uint32_t start_lba;          // Partition start (should be 0 for absolute LBA)
+    uint16_t dcr_port;           // Alt status/DCR port
+    uint16_t tf_port;            // Task file base port
+    uint8_t  slave_bits;         // Master/slave bits (0xA0 or 0xB0)
 } ata_driver_t;
 
-// Assembly function declarations
-extern int read_ata_st(uint32_t sector_count, void *buffer, void *driver_data, uint32_t lba);
-extern void srst_ata_st(uint16_t dcr_port);
-
-// Global driver instances for primary and secondary IDE
+// Global driver instances
 static ata_driver_t primary_master = {
-    .partition_length = 0x100000,    // 1 million sectors (default)
-    .start_lba = 2048,               // Typical partition start
-    .dcr_port = 0x3F6,               // Primary IDE alt status
-    .tf_port = 0x1F0,                // Primary IDE task file
-    .slave_bits = 0xA0               // Master drive
+    .partition_length = 0x100000,
+    .start_lba = 0,
+    .dcr_port = 0x3F6,
+    .tf_port = 0x1F0,
+    .slave_bits = 0xA0
 };
 
 static ata_driver_t primary_slave = {
     .partition_length = 0x100000,
-    .start_lba = 2048,
+    .start_lba = 0,
     .dcr_port = 0x3F6,
     .tf_port = 0x1F0,
-    .slave_bits = 0xB0               // Slave drive
+    .slave_bits = 0xB0
 };
 
 static ata_driver_t secondary_master = {
     .partition_length = 0x100000,
-    .start_lba = 2048,
-    .dcr_port = 0x376,               // Secondary IDE alt status
-    .tf_port = 0x170,                // Secondary IDE task file
-    .slave_bits = 0xA0               // Master drive
+    .start_lba = 0,
+    .dcr_port = 0x376,
+    .tf_port = 0x170,
+    .slave_bits = 0xA0
 };
 
 static ata_driver_t secondary_slave = {
     .partition_length = 0x100000,
-    .start_lba = 2048,
+    .start_lba = 0,
     .dcr_port = 0x376,
     .tf_port = 0x170,
-    .slave_bits = 0xB0               // Slave drive
+    .slave_bits = 0xB0
 };
 
 /**
+ * Get driver for channel and drive
+ */
+static ata_driver_t* ata_get_driver(int channel, int drive)
+{
+    if (channel == 0 && drive == 0) return &primary_master;
+    if (channel == 0 && drive == 1) return &primary_slave;
+    if (channel == 1 && drive == 0) return &secondary_master;
+    if (channel == 1 && drive == 1) return &secondary_slave;
+    return NULL;
+}
+
+/**
+ * Wait for drive to be ready (not busy)
+ */
+static int ata_wait_busy(uint16_t tf_port)
+{
+    int timeout = 0x1000000;  // Increased timeout
+    while (timeout--) {
+        uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+        if (!(status & ATA_STATUS_BSY))
+            return 0;
+    }
+    printf("ATA: wait_busy timeout, status last read=0x%x\n", i686_inb(tf_port + ATA_REG_STATUS));
+    return -1;  // Timeout
+}
+
+/**
+ * Wait for data ready
+ */
+static int ata_wait_drq(uint16_t tf_port)
+{
+    int timeout = 0x1000000;  // Increased timeout
+    while (timeout--) {
+        uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+        if (status & ATA_STATUS_DRQ)
+            return 0;
+        if (status & ATA_STATUS_ERR)
+            return -1;  // Error occurred
+    }
+    printf("ATA: wait_drq timeout, status last read=0x%x\n", i686_inb(tf_port + ATA_REG_STATUS));
+    return -1;  // Timeout
+}
+
+/**
+ * Perform software reset on ATA channel
+ */
+static void ata_soft_reset(uint16_t dcr_port)
+{
+    // Set SRST bit (software reset)
+    i686_outb(dcr_port, 0x04);
+    
+    // Wait a bit
+    for (volatile int i = 0; i < 100000; i++);
+    
+    // Clear SRST bit
+    i686_outb(dcr_port, 0x00);
+    
+    // Wait for reset to complete
+    for (volatile int i = 0; i < 100000; i++);
+}
+
+/**
  * Initialize ATA driver for a specific drive
- * @param channel - IDE channel (0 = primary, 1 = secondary)
- * @param drive - Drive on channel (0 = master, 1 = slave)
- * @param partition_start - Absolute LBA where partition starts (for info only, not used)
- * @param partition_size - Total sectors in partition (for validation)
  */
 void ata_init(int channel, int drive, uint32_t partition_start, uint32_t partition_size)
 {
-    ata_driver_t *drv = NULL;
+    ata_driver_t *drv = ata_get_driver(channel, drive);
+    if (!drv) return;
     
-    if (channel == 0 && drive == 0)
-        drv = &primary_master;
-    else if (channel == 0 && drive == 1)
-        drv = &primary_slave;
-    else if (channel == 1 && drive == 0)
-        drv = &secondary_master;
-    else if (channel == 1 && drive == 1)
-        drv = &secondary_slave;
-    else
-        return;  // Invalid channel/drive
-    
-    /* Note: start_lba is set to 0 because the kernel layer already handles
-     * partition offset conversion in Partition_ReadSectors. We receive absolute
-     * LBAs here, not partition-relative LBAs. */
-    drv->start_lba = 0;
+    drv->start_lba = 0;  // We use absolute LBA
     drv->partition_length = partition_size;
     
     // Perform software reset
-    srst_ata_st(drv->dcr_port);
+    ata_soft_reset(drv->dcr_port);
+    
+    printf("ATA: Initialized ch=%d drv=%d (tf=0x%x, dcr=0x%x)\n",
+           channel, drive, drv->tf_port, drv->dcr_port);
 }
 
 /**
- * Read sectors from ATA drive
- * @param channel - IDE channel (0 = primary, 1 = secondary)
- * @param drive - Drive on channel (0 = master, 1 = slave)
- * @param lba - Logical block address (relative to partition start)
- * @param buffer - Destination buffer
- * @param count - Number of sectors to read
- * @return 0 on success, -1 on failure
+ * Read sectors from ATA drive using PIO mode
  */
 int ata_read(int channel, int drive, uint32_t lba, uint8_t *buffer, uint32_t count)
 {
-    ata_driver_t *drv = NULL;
-    
-    if (channel == 0 && drive == 0)
-        drv = &primary_master;
-    else if (channel == 0 && drive == 1)
-        drv = &primary_slave;
-    else if (channel == 1 && drive == 0)
-        drv = &secondary_master;
-    else if (channel == 1 && drive == 1)
-        drv = &secondary_slave;
-    else
-        return -1;  // Invalid channel/drive
-    
-    // Validate parameters
-    if (!buffer || count == 0)
+    ata_driver_t *drv = ata_get_driver(channel, drive);
+    if (!drv || !buffer || count == 0)
         return -1;
     
-    // Debug output
-    printf("ATA: ata_read(ch=%d, drv=%d, lba=0x%x, count=%u, buf=%x)\n", channel, drive, lba, count, (unsigned int)buffer);
-    printf("ATA: driver partition_length=0x%x, start_lba=0x%x\n", drv->partition_length, drv->start_lba);
-    printf("ATA: driver tf_port=0x%x, dcr_port=0x%x, slave_bits=0x%x\n", drv->tf_port, drv->dcr_port, drv->slave_bits);
+    printf("ATA: read ch=%d drv=%d lba=0x%x count=%u\n", channel, drive, lba, count);
     
-    // Call assembly read function
-    int result = read_ata_st(count, buffer, (void *)drv, lba);
-    printf("ATA: read_ata_st returned %d (0x%x)\n", result, (unsigned int)result);
-    
-    // Check if buffer was modified
-    if (result == 0) {
-        printf("ATA: First 16 bytes read: ");
-        for (int i = 0; i < 16; i++) printf("%x ", buffer[i]);
-        printf("\n");
+    // Wait for drive to be ready
+    if (ata_wait_busy(drv->tf_port) != 0) {
+        printf("ATA: Drive busy timeout\n");
+        return -1;
     }
     
-    return result;
+    // Set drive/head register with master/slave bits and upper LBA bits
+    uint8_t device = drv->slave_bits | ((lba >> 24) & 0x0F);
+    i686_outb(drv->tf_port + ATA_REG_DEVICE, device);
+    
+    // Small delay to allow drive to respond to device selection
+    for (volatile int i = 0; i < 50000; i++);
+    
+    // Read status to ensure drive is ready
+    uint8_t status = i686_inb(drv->tf_port + ATA_REG_STATUS);
+    printf("ATA: Status after device select: 0x%x\n", status);
+    
+    // Set LBA low 24 bits and sector count
+    i686_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
+    i686_outb(drv->tf_port + ATA_REG_LBA_LOW,  (lba & 0xFF));
+    i686_outb(drv->tf_port + ATA_REG_LBA_MID,  ((lba >> 8) & 0xFF));
+    i686_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
+    
+    // Issue READ SECTORS command
+    i686_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_READ_PIO);
+    
+    // Small delay to allow drive to process command
+    for (volatile int i = 0; i < 50000; i++);
+    
+    status = i686_inb(drv->tf_port + ATA_REG_STATUS);
+    printf("ATA: Status after command: 0x%x\n", status);
+    
+    // Read sectors
+    for (uint32_t sec = 0; sec < count; sec++) {
+        // Wait for data ready
+        if (ata_wait_drq(drv->tf_port) != 0) {
+            printf("ATA: DRQ timeout on sector %lu\n", (unsigned long)sec);
+            return -1;
+        }
+        
+        // Read 512 bytes (256 words) from data port
+        uint8_t *dest = buffer + (sec * 512);
+        for (int i = 0; i < 256; i++) {
+            // Read 16-bit word from data port using two 8-bit reads
+            uint8_t low = i686_inb(drv->tf_port + ATA_REG_DATA);
+            uint8_t high = i686_inb(drv->tf_port + ATA_REG_DATA);
+            dest[i * 2] = low;
+            dest[i * 2 + 1] = high;
+        }
+        
+        // Check for errors
+        uint8_t status = i686_inb(drv->tf_port + ATA_REG_STATUS);
+        if (status & ATA_STATUS_ERR) {
+            uint8_t error = i686_inb(drv->tf_port + ATA_REG_ERROR);
+            printf("ATA: Read error at sector %lu, error=0x%x\n", (unsigned long)sec, error);
+            return -1;
+        }
+    }
+    
+    printf("ATA: Successfully read %u sectors\n", count);
+    return 0;
 }
 
 /**
- * Write sectors to ATA drive (stub - not yet implemented)
- * @param channel - IDE channel (0 = primary, 1 = secondary)
- * @param drive - Drive on channel (0 = master, 1 = slave)
- * @param lba - Logical block address (relative to partition start)
- * @param buffer - Source buffer
- * @param count - Number of sectors to write
- * @return 0 on success, -1 on failure
+ * Write sectors to ATA drive (stub)
  */
 int ata_write(int channel, int drive, uint32_t lba, const uint8_t *buffer, uint32_t count)
 {
-    // TODO: Implement ATA write in assembly
     (void)channel;
     (void)drive;
     (void)lba;
     (void)buffer;
     (void)count;
+    printf("ATA: Write not yet implemented\n");
     return -1;
 }
 
 /**
  * Perform software reset on ATA channel
- * @param channel - IDE channel (0 = primary, 1 = secondary)
  */
 void ata_reset(int channel)
 {
     uint16_t dcr_port = (channel == 0) ? 0x3F6 : 0x376;
-    srst_ata_st(dcr_port);
+    ata_soft_reset(dcr_port);
 }
