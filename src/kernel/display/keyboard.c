@@ -3,7 +3,7 @@
 #include "keyboard.h"
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
-#include <display/buffer.h>
+#include <display/buffer_text.h>
 #include <std/stdio.h> // for putc/printf
 
 /* Input line buffer for simple line editing */

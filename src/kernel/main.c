@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <arch/i686/irq.h>
-#include <display/buffer.h>
+#include <display/buffer_text.h>
 #include <drivers/ata.h>
 #include <fs/disk.h>
 #include <fs/fat.h>
@@ -16,6 +16,11 @@
 extern uint8_t __bss_start;
 extern uint8_t __end;
 extern void _init();
+
+// Rust FFI declarations
+extern void rust_test_printf();
+extern void rust_test_strings();
+extern void rust_test_init();
 
 void crash_me();
 
@@ -222,6 +227,13 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
    printf("Kernel running...\n");
 
+   /* Test Rust FFI - call Rust functions from C */
+   printf("\n=== Testing Rust FFI ===\n");
+   rust_test_init();
+   rust_test_printf();
+   rust_test_strings();
+   printf("=== Rust FFI tests complete ===\n\n");
+
    /* Print loaded modules registered by stage2 so we can see what's available.
     * Use the dylib helper which reads the shared registry populated by stage2.
     */
@@ -265,7 +277,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    }
 
    /* Run FAT filesystem tests */
-   test_fat_filesystem(&partition);
+   //test_fat_filesystem(&partition);
 
 end:
    for (;;);

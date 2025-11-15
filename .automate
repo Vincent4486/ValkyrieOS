@@ -2,8 +2,8 @@
 # This file configures disk images and configuration paths for the build system
 
 # Disk images
-FLOPPY_IMAGE=build/valkyrie_os.img
-DISK_IMAGE=build/valkyrie_os.raw
+FLOPPY_IMAGE=build/i686_debug/valkyrie_os.img
+DISK_IMAGE=build/i686_debug/valkyrie_os.img
 
 # Configuration files
 BOCHS_FLOPPY_CONFIG=scripts/config/bochs_fda.txt
@@ -13,13 +13,3 @@ GDB_DISK_CONFIG=scripts/config/gdb_hda.gdb
 
 # Build command
 BUILD_COMMAND=scons
-
-
-CONFIG_FILE=".automate"
-
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Error: Configuration file '$CONFIG_FILE' not found!"
-    exit 1
-fi
-
-exec perl scripts/autorun.pl --config "$CONFIG_FILE" "$@"

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /* Minimal scrollback text buffer implementation for VGA text mode.
- * Exports the functions declared in text/buffer.h.
+ * Exports the functions declared in text/buffer_text.h.
  * 
  * Buffer is stored at fixed memory location 0x00900000 (80 KiB)
  * to prevent overwriting by kernel heap/data.
  */
-#include "buffer.h"
+#include "buffer_text.h"
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>

@@ -25,7 +25,11 @@ VARS.AddVariables(
     EnumVariable("imageFS",
                  help="Type of image",
                  default="fat32",
-                 allowed_values=("fat12", "fat16", "fat32", "ext2"))    
+                 allowed_values=("fat12", "fat16", "fat32", "ext2")),
+    EnumVariable("rustSupport",
+                 help="Compile Rust code",
+                 default="true",
+                 allowed_values=("true", "false"))
     )
 VARS.Add("imageSize", 
          help="The size of the image, will be rounded up to the nearest multiple of 512. " +
@@ -59,6 +63,10 @@ HOST_ENVIRONMENT = Environment(variables=VARS,
     CFLAGS = ['-std=c99'],
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
+    RUSTFLAGS = [
+        '--edition', '2021',
+        '-C', 'opt-level=0' if 'debug' else '-C', 'opt-level=3',
+    ],
     STRIP = 'strip',
 )
 
@@ -103,6 +111,7 @@ TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
     LD = f'{platform_prefix}g++',
     RANLIB = f'{platform_prefix}ranlib',
     STRIP = f'{platform_prefix}strip',
+    RUSTC = '/home/vincent/.cargo/bin/rustc',
 
     # toolchain
     TOOLCHAIN_PREFIX = str(toolchainDir),
@@ -125,6 +134,13 @@ TARGET_ENVIRONMENT.Append(
     CXXFLAGS = [
         '-fno-exceptions',
         '-fno-rtti',
+    ],
+    RUSTFLAGS = [
+        '--target', 'i686-unknown-linux-gnu',
+        '-C', 'no-redzone=on',
+        '-C', 'relocation-model=static',
+        '-C', 'code-model=static',
+        '-Z', 'build-std=core,alloc',
     ],
     LINKFLAGS = [
         '-nostdlib'
