@@ -2,7 +2,7 @@
 
 #config = 'release'
 #arch = 'i686'
-#imageType = 'disk'
+imageType = 'disk'
 imageFS = 'fat32'
 imageSize='200m'
 toolchain='../os_toolchain'

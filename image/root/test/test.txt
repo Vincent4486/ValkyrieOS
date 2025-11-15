@@ -1,1 +1,99 @@
 Hello world from a file!!!
+
+This is a test file for the ValkyrieOS FAT12 filesystem driver.
+The kernel can now successfully:
+  - Read FAT12 boot sectors
+  - Navigate directory structures
+  - Find files in subdirectories
+  - Read file contents from disk
+
+Testing multi-sector file reads with repeated content patterns.
+
+Line 1: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 2: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 3: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 4: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 5: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 6: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 7: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 8: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 9: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+Line 10: AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE
+
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+0123456789 0123456789 0123456789 0123456789 0123456789
+
+MARKER_START_OF_SECTION_1
+This section contains data for cluster chain testing.
+The FAT driver should follow cluster chains correctly.
+Each cluster should link to the next one seamlessly.
+MARKER_END_OF_SECTION_1
+
+MARKER_START_OF_SECTION_2
+Testing cluster chain continuation...
+If you see this, the FAT driver successfully read across
+multiple clusters and followed the chain properly.
+MARKER_END_OF_SECTION_2
+
+MARKER_START_OF_SECTION_3
+More test data to fill up space.
+This helps verify that multi-cluster files work correctly.
+The driver should transparently handle sector boundaries.
+MARKER_END_OF_SECTION_3
+
+MARKER_START_OF_SECTION_4
+Repeating content patterns for verification:
+XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX
+YYYY YYYY YYYY YYYY YYYY YYYY YYYY YYYY YYYY YYYY
+ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ ZZZZ
+1111 1111 1111 1111 1111 1111 1111 1111 1111 1111
+2222 2222 2222 2222 2222 2222 2222 2222 2222 2222
+3333 3333 3333 3333 3333 3333 3333 3333 3333 3333
+4444 4444 4444 4444 4444 4444 4444 4444 4444 4444
+5555 5555 5555 5555 5555 5555 5555 5555 5555 5555
+6666 6666 6666 6666 6666 6666 6666 6666 6666 6666
+7777 7777 7777 7777 7777 7777 7777 7777 7777 7777
+8888 8888 8888 8888 8888 8888 8888 8888 8888 8888
+9999 9999 9999 9999 9999 9999 9999 9999 9999 9999
+MARKER_END_OF_SECTION_4
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco.
+Laboris nisi ut aliquip ex ea commodo consequat duis aute irure.
+Dolor in reprehenderit in voluptate velit esse cillum dolore.
+Eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident.
+Sunt in culpa qui officia deserunt mollit anim id est laborum.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco.
+
+ValkyrieOS Test File - Multi-Cluster Read Test
+================================================
+If this entire file is read correctly, the FAT driver is working!
+Cluster chain following: PASS
+File content verification: IN PROGRESS...
+Reading multi-sector files: IN PROGRESS...
+ValkyrieOS File System Test - SUCCESS!
+
+END OF 10KiB TEST FILE
+This marks the end of the test file content.

@@ -322,7 +322,7 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
          if (byte >= 32 && byte < 127)
             printf(" %c ", byte);
          else
-            printf("%02u ", byte);
+            printf("%x ", byte);
       }
       printf("\n");
 

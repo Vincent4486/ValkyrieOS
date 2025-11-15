@@ -12,7 +12,7 @@ GDB_FLOPPY_CONFIG=scripts/config/gdb_fda.gdb
 GDB_DISK_CONFIG=scripts/config/gdb_hda.gdb
 
 # Build command
-BUILD_COMMAND=make
+BUILD_COMMAND=scons
 
 
 CONFIG_FILE=".automate"

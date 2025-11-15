@@ -251,7 +251,6 @@ def build_disk(image, stage1, stage2, kernel, files, env):
         try:
             unmount_fs(tempdir)
             # Change ownership of temp directory back to the user before deleting
-            sh.sudo.chown('-R', f'{os.getuid()}:{os.getgid()}', tempdir)
             # Remove the entire directory tree
             import shutil
             shutil.rmtree(tempdir)
@@ -260,10 +259,11 @@ def build_disk(image, stage1, stage2, kernel, files, env):
             raise
     
     # Change ownership of the final image file to the current user
+    username=os.getlogin()
     print(f"> changing ownership of {image} to {os.getuid()}...")
-    sh.sudo.chown(f'{os.getuid()}:{os.getuid()}', image)
+    sh.sudo.chown(f'{username}:{username}', image)
     print(f"> changing all build files to owned by {os.getuid()}")
-    sh.sudo.chown('-R', f'{os.getuid()}:{os.getuid()}', 'build/')
+    sh.sudo.chown('-R', f'{username}:{username}', 'build/')
 
 
 def build_image(target, source, env):

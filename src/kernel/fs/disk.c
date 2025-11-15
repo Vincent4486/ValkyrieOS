@@ -31,7 +31,7 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       disk->cylinders = cylinders;
       disk->heads = heads;
       disk->sectors = sectors;
-      printf("DISK: Floppy disk detected (drive 0x%02x)\n", driveNumber);
+      printf("DISK: Floppy disk detected (drive 0x%x)\n", driveNumber);
       return true;
    }
    else

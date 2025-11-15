@@ -169,7 +169,7 @@ bool FAT_Initialize(Partition* disk)
         printf("FAT: Boot sector read successfully from disk!\n");
         printf("FAT: First 32 bytes of boot sector: ");
         uint8_t *bs = (uint8_t *)&g_Data->BS.BootSector;
-        for (int i = 0; i < 32; i++) printf("%02x ", bs[i]);
+        for (int i = 0; i < 32; i++) printf("%x ", bs[i]);
         printf("\n");
         printf("FAT: BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u\n",
                g_Data->BS.BootSector.BytesPerSector,
@@ -206,7 +206,7 @@ bool FAT_Initialize(Partition* disk)
     bool isFat32 = false;
     g_SectorsPerFat = g_Data->BS.BootSector.SectorsPerFat;
     printf("FAT: DEBUG TotalSectors=%u, SectorsPerFat=%u\n", g_TotalSectors, g_SectorsPerFat);
-    printf("FAT: DEBUG BootSector bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+    printf("FAT: DEBUG BootSector bytes: %x %x %x %x %x %x %x %x\n",
            g_Data->BS.BootSector.BytesPerSector & 0xFF, (g_Data->BS.BootSector.BytesPerSector >> 8) & 0xFF,
            g_Data->BS.BootSector.SectorsPerCluster,
            g_Data->BS.BootSector.ReservedSectors & 0xFF, (g_Data->BS.BootSector.ReservedSectors >> 8) & 0xFF,
@@ -231,8 +231,8 @@ bool FAT_Initialize(Partition* disk)
         rootDirLba = g_Data->BS.BootSector.ReservedSectors + g_SectorsPerFat * g_Data->BS.BootSector.FatCount;
         rootDirSize = sizeof(FAT_DirectoryEntry) * g_Data->BS.BootSector.DirEntryCount;
         uint32_t rootDirSectors = (rootDirSize + g_Data->BS.BootSector.BytesPerSector - 1) / g_Data->BS.BootSector.BytesPerSector;
-        // Note: We only preload 1 sector of root directory, so adjust data section accordingly
-        g_DataSectionLba = rootDirLba + 1;
+        // Data section starts AFTER the root directory (which spans multiple sectors)
+        g_DataSectionLba = rootDirLba + rootDirSectors;
     }
 
     g_Data->RootDirectory.Public.Handle = ROOT_DIRECTORY_HANDLE;
@@ -244,10 +244,9 @@ bool FAT_Initialize(Partition* disk)
     g_Data->RootDirectory.CurrentCluster = rootDirLba;
     g_Data->RootDirectory.CurrentSectorInCluster = 0;
     
-    // For root directory, limit size to only 1 sector that we loaded initially
-    uint32_t rootDirMaxBytes = SECTOR_SIZE;
-    if (g_Data->RootDirectory.Public.Size > rootDirMaxBytes)
-        g_Data->RootDirectory.Public.Size = rootDirMaxBytes;
+    // Note: Root directory size is set correctly from boot sector DirEntryCount
+    // The FAT_Read function will load additional sectors on demand
+    // Do NOT limit to 1 sector - allow full root directory size
 
     // Check if stage2 already loaded the root directory
     uint8_t first = g_Data->RootDirectory.Buffer[0];
@@ -481,6 +480,9 @@ bool FAT_FindFile(Partition* disk, FAT_File *file, const char *name,
    char fatName[12];
    FAT_DirectoryEntry entry;
 
+   // Reset directory position to start searching from the beginning
+   FAT_Seek(disk, file, 0);
+
    // convert from name to fat name
    memset(fatName, ' ', sizeof(fatName));
    fatName[11] = '\0';
@@ -499,6 +501,10 @@ bool FAT_FindFile(Partition* disk, FAT_File *file, const char *name,
 
    while (FAT_ReadEntry(disk, file, &entry))
    {
+      // Skip LFN entries (attribute 0x0F)
+      if ((entry.Attributes & 0x0F) == 0x0F)
+         continue;
+      
       if (memcmp(fatName, entry.Name, 11) == 0)
       {
          uint32_t cluster = entry.FirstClusterLow + ((uint32_t)entry.FirstClusterHigh << 16);
@@ -517,6 +523,10 @@ FAT_File *FAT_Open(Partition* disk, const char *path)
 
    // ignore leading slash
    if (path[0] == '/') path++;
+
+   // If path is empty or just "/", return root directory
+   if (path[0] == '\0')
+      return &g_Data->RootDirectory.Public;
 
    FAT_File *current = &g_Data->RootDirectory.Public;
    FAT_File *previous = NULL;
