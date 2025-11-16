@@ -1,100 +1,77 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
-import subprocess
+import glob
 
 from SCons.Environment import Environment
-from scripts.scons.utility import GlobRecursive, FindIndex, IsFileName
 
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
 
-env = TARGET_ENVIRONMENT.Clone()
-env.Append(
-    # Enable position-independent code for dynamic linking support
-    # This allows kernel to have PLT/GOT entries for library function calls
-    CCFLAGS = ['-fPIC'],
-    LINKFLAGS = [
-        '-Wl,-T', env.File('linker.ld').srcnode().path,
-        '-Wl,-Map=' + env.File('kernel.map').path,
-        # Allow undefined symbols (will be resolved at runtime via PLT/GOT patching)
-        '-Wl,--unresolved-symbols=ignore-all'
-    ],
-    CPATH = [ env.Dir('.').srcnode() ],
-    CPPPATH = [ env.Dir('.').srcnode() ],
-    ASFLAGS = [ '-I', env.Dir('.').srcnode(), '-f', 'elf' ]
-)
+# Build the core kernel executable from core/ directory
+SConscript('core/SConscript', variant_dir='core_build', duplicate=0)
 
-sources = GlobRecursive(env, '*.c') + \
-          GlobRecursive(env, '*.cpp') + \
-          GlobRecursive(env, '*.asm')
+# Build optional kernel modules/libraries from other top-level directories
+# Each directory under kernel/ (except core/) becomes a separate shared library
+import glob
+kernel_modules = []
 
-# Compile Rust files if rustSupport is enabled
-rust_sources = GlobRecursive(env, '*.rs')
-rust_objects = []
-if TARGET_ENVIRONMENT.get('rustSupport', True) and rust_sources:
-    def build_rust(target, source, env):
-        src = str(source[0])
-        out = str(target[0])
-        
-        # Remove .rlib extension and replace with .o
-        out_obj = out.replace('.rlib', '.o')
-        
-        # Determine optimization level
-        opt_level = '0' if TARGET_ENVIRONMENT['config'] == 'debug' else '3'
-        
-        # Build rustc command directly (no rustup wrapper)
-        cmd = [
-            '/home/vincent/.cargo/bin/rustc',
-            '--target', 'i686-unknown-linux-gnu',
-            '-C', 'no-redzone=on',
-            '-C', 'relocation-model=static',
-            '-C', 'code-model=kernel',
-            '-C', f'opt-level={opt_level}',
-            '--edition', '2021',
-            '--crate-type', 'lib',
-            '-o', out_obj,
-            src
-        ]
-        
-        # Create environment for rustc with required variables
-        rust_env = os.environ.copy()
-        rust_env['HOME'] = '/home/vincent'
-        rust_env['USER'] = 'vincent'
-        result = subprocess.run(cmd, cwd=str(env.Dir('.').srcnode()), env=rust_env)
-        if result.returncode != 0:
-            return result.returncode
-        
-        # Rename output to expected name
-        if os.path.exists(out_obj):
-            os.rename(out_obj, out)
-        return 0
+for module_dir in glob.glob('*/'):
+    # Skip core/ as it's handled separately above
+    if module_dir.startswith('core'):
+        continue
     
-    rust_builder = env.Builder(
-        action=build_rust,
-        suffix='.o',
-        src_suffix='.rs',
-        single_source=True
+    # Skip if not a directory with source files
+    if not os.path.isdir(module_dir):
+        continue
+    
+    # Check if directory has any source files
+    has_sources = (
+        len(glob.glob(f'{module_dir}/*.c')) > 0 or
+        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
+        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
     )
-    env.Append(BUILDERS={'RustObject': rust_builder})
     
-    for src in rust_sources:
-        obj = env.RustObject(src)
-        rust_objects.append(obj)
+    if has_sources:
+        module_name = module_dir.rstrip('/')
+        SConscript(
+            f'{module_name}/SConscript',
+            variant_dir=f'{module_name}_build',
+            duplicate=0
+        )
 
-objects = env.Object(sources) + rust_objects
-obj_crti = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crti.o')))
-obj_crtn = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crtn.o')))
+# Import core executable
+Import('core')
 
-objects = [
-    obj_crti,
-    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtbegin.o'),
-    *objects,
-    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtend.o'),
-    obj_crtn
-]
+# Collect all kernel components into an array
+kernel = [core]
 
-kernel = env.Program('kernel.elf', objects)
+# Import any module libraries that were built
+for module_dir in glob.glob('*/'):
+    if module_dir.startswith('core'):
+        continue
+    if not os.path.isdir(module_dir):
+        continue
+    
+    has_sources = (
+        len(glob.glob(f'{module_dir}/*.c')) > 0 or
+        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
+        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
+        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
+    )
+    
+    if has_sources:
+        module_name = module_dir.rstrip('/')
+        try:
+            Import(f'{module_name}_module')
+            kernel.append(locals()[f'{module_name}_module'])
+        except:
+            pass
 
 Export('kernel')

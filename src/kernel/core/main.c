@@ -17,11 +17,6 @@ extern uint8_t __bss_start;
 extern uint8_t __end;
 extern void _init();
 
-// Rust FFI declarations
-extern void rust_test_printf();
-extern void rust_test_strings();
-extern void rust_test_init();
-
 void crash_me();
 
 /**
@@ -227,13 +222,6 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 
    printf("Kernel running...\n");
 
-   /* Test Rust FFI - call Rust functions from C */
-   printf("\n=== Testing Rust FFI ===\n");
-   rust_test_init();
-   rust_test_printf();
-   rust_test_strings();
-   printf("=== Rust FFI tests complete ===\n\n");
-
    /* Print loaded modules registered by stage2 so we can see what's available.
     * Use the dylib helper which reads the shared registry populated by stage2.
     */
@@ -254,13 +242,12 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    if (disk.id >= 0x80)  // Hard disk
    {
       printf("DEBUG: Hard disk detected\n");
-      printf("DEBUG: Using hardcoded partition offset (2048) - stage2 preloaded FAT data\n");
+      printf("DEBUG: FAT partition starts at sector 16 (0x10)\n");
       
-      /* Hard disk partition typically starts at sector 2048 (standard alignment).
-       * Stage2 has already loaded the FAT data into memory, so we don't need to
-       * read the MBR. This avoids ATA driver initialization issues.
+      /* The FAT filesystem on the disk image starts at sector 16.
+       * This is where the boot sector and FAT data begin.
        */
-      partition.partitionOffset = 2048;
+      partition.partitionOffset = 16;
       partition.partitionSize = 0x100000;  // 1 million sectors (~500 MB)
       
       /* Optional: Initialize ATA for potential future use, but don't rely on it
@@ -271,13 +258,16 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
    else  // Floppy: use whole disk
    {
       printf("DEBUG: Floppy disk detected\n");
-      MBR_DetectPartition(&partition, &disk, NULL);
+      // MBR_DetectPartition(&partition, &disk, NULL);
+      // For now, just set floppy partition to the whole disk
+      partition.partitionOffset = 0;
+      partition.partitionSize = disk.sectors;
       printf("DEBUG: Floppy - offset: 0x%x, size: 0x%x sectors\n", 
              partition.partitionOffset, partition.partitionSize);
    }
 
    /* Run FAT filesystem tests */
-   //test_fat_filesystem(&partition);
+   test_fat_filesystem(&partition);
 
 end:
    for (;;);

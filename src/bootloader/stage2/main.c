@@ -44,7 +44,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 
    // load ELF kernel
    void *entry = NULL;
-   if (!ELF_Load(&part, "/sys/kernel.elf", &entry))
+   if (!ELF_Load(&part, "/sys/core.elf", &entry))
    {
       printf("ELF: load failed\r\n");
       goto end;

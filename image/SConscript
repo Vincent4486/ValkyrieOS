@@ -269,14 +269,17 @@ def build_disk(image, stage1, stage2, kernel, files, env):
 def build_image(target, source, env):
     stage1 = str(source[0])
     stage2 = str(source[1])
-    kernel = str(source[2])
-    files = source[3:]
+    # kernel is an array - first element is the main executable (core.elf)
+    # Additional elements are module libraries
+    kernel_exe = str(source[2])  # main kernel executable
+    kernel_modules = [str(src) for src in source[3:] if 'kernel' in str(src)]
+    files = [src for src in source[3:] if 'kernel' not in str(src)]
 
     image = str(target[0])
     if env['imageType'] == 'floppy':
-        build_floppy(image, stage1, stage2, kernel, files, env)
+        build_floppy(image, stage1, stage2, kernel_exe, files, env)
     elif env['imageType'] == 'disk':
-        build_disk(image, stage1, stage2, kernel, files, env)
+        build_disk(image, stage1, stage2, kernel_exe, files, env)
     else:
         raise ValueError('Unknown image type ' + env['imageType'])
 
@@ -284,7 +287,7 @@ def build_image(target, source, env):
 # Setup image target
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
-inputs = [stage1, stage2, kernel] + root_content
+inputs = [stage1, stage2] + kernel + root_content
 
 output_fmt = env["outputFormat"]
 # if env['imageType'] == 'qcow3':

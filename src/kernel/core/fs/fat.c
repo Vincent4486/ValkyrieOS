@@ -104,8 +104,32 @@ uint32_t FAT_ClusterToLba(uint32_t cluster);
 
 bool FAT_ReadBootSector(Partition* disk)
 {
-   if (!Partition_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes))
-      return false;
+   printf("FAT_ReadBootSector: Reading from partition offset %u (LBA 0)\n", disk->partitionOffset);
+   printf("FAT_ReadBootSector: Absolute disk sector = %u (0x%x)\n", disk->partitionOffset + 0, disk->partitionOffset + 0);
+   
+   // Try reading from different offsets to find the boot sector
+   printf("\nFAT: Searching for boot sector...\n");
+   for (uint32_t offset = 0; offset <= 32; offset += 16)
+   {
+      if (!Partition_ReadSectors(disk, offset, 1, g_Data->BS.BootSectorBytes))
+         continue;
+      
+      uint16_t sig = (g_Data->BS.BootSectorBytes[511] << 8) | g_Data->BS.BootSectorBytes[510];
+      printf("  Sector %u (0x%x): sig=0x%x, first_bytes=[%x %x %x %x...]\n",
+             disk->partitionOffset + offset, disk->partitionOffset + offset, sig,
+             g_Data->BS.BootSectorBytes[0], g_Data->BS.BootSectorBytes[1],
+             g_Data->BS.BootSectorBytes[2], g_Data->BS.BootSectorBytes[3]);
+      
+      // Check if this looks like a boot sector (signature 0xAA55 or starts with EB or E9)
+      if (sig == 0xaa55 || g_Data->BS.BootSectorBytes[0] == 0xEB || g_Data->BS.BootSectorBytes[0] == 0xE9)
+      {
+         printf("FAT: Found likely boot sector at offset %u!\n", offset);
+         
+         if (!Partition_ReadSectors(disk, offset, 1, g_Data->BS.BootSectorBytes))
+            return false;
+         break;
+      }
+   }
 
    printf("FAT: boot sector loaded - BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u, FatCount=%u, SectorsPerFat=%u\n",
           g_Data->BS.BootSector.BytesPerSector,
@@ -160,40 +184,17 @@ bool FAT_Initialize(Partition* disk)
     printf("DEBUG: sizeof(FAT_Data) = %lu, sizeof(FAT_BootSector) = %lu\n", 
            sizeof(FAT_Data), sizeof(FAT_BootSector));
 
-    /* ATA driver should already be initialized by kernel main before FAT_Initialize is called */
+    /* Stage2 preloaded the FAT data at MEMORY_FAT_ADDR (0x20000).
+     * The preloaded data is more reliable than reading from disk via ATA.
+     * The boot sector is the first 512 bytes of the preloaded FAT_Data structure.
+     */
     
-    // Try to read boot sector from disk to validate image
-    printf("FAT: Attempting to read boot sector from disk...\n");
-    if (FAT_ReadBootSector(disk))
-    {
-        printf("FAT: Boot sector read successfully from disk!\n");
-        printf("FAT: First 32 bytes of boot sector: ");
-        uint8_t *bs = (uint8_t *)&g_Data->BS.BootSector;
-        for (int i = 0; i < 32; i++) printf("%x ", bs[i]);
-        printf("\n");
-        printf("FAT: BytesPerSector=%u, SectorsPerCluster=%u, ReservedSectors=%u\n",
-               g_Data->BS.BootSector.BytesPerSector,
-               g_Data->BS.BootSector.SectorsPerCluster,
-               g_Data->BS.BootSector.ReservedSectors);
-        printf("FAT: FatCount=%u, SectorsPerFat=%u, DirEntryCount=%u\n",
-               g_Data->BS.BootSector.FatCount,
-               g_Data->BS.BootSector.SectorsPerFat,
-               g_Data->BS.BootSector.DirEntryCount);
-    }
-    else
-    {
-        printf("FAT: Failed to read boot sector from disk\n");
-        // Try hardcoded FAT16 defaults (common configuration)
-        printf("FAT: Using FAT16 defaults\n");
-        g_Data->BS.BootSector.BytesPerSector = 512;
-        g_Data->BS.BootSector.SectorsPerCluster = 8;
-        g_Data->BS.BootSector.ReservedSectors = 1;    // FAT16 typically has 1 reserved sector
-        g_Data->BS.BootSector.FatCount = 2;
-        g_Data->BS.BootSector.DirEntryCount = 512;    // FAT16 root dir entries
-        g_Data->BS.BootSector.SectorsPerFat = 256;    // Typical FAT16 size
-        g_Data->BS.BootSector.TotalSectors = 0;
-        g_Data->BS.BootSector.LargeSectorCount = 0;
-    }
+    printf("FAT: Using preloaded FAT data from stage2 at 0x%p\n", (void*)MEMORY_FAT_ADDR);
+    
+    // The boot sector is already loaded at g_Data->BS.BootSector
+    // Just validate it
+    uint16_t sig = (g_Data->BS.BootSectorBytes[511] << 8) | g_Data->BS.BootSectorBytes[510];
+    printf("FAT: Boot signature: 0x%x (valid=%d)\n", sig, sig == 0xaa55);
 
     // read FAT
     g_Data->FatCachePos = 0xFFFFFFFF;
