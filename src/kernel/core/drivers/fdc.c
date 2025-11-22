@@ -3,7 +3,6 @@
 #include "fdc.h"
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
-#include <std/stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -96,9 +95,6 @@ static void fdc_dma_init(bool is_read)
 
    // Unmask DMA channel 2 to allow transfers
    i686_outb(DMA_SINGLE_MASK, 0x02); // 0x02 = 0b0010 = mask clear | channel 2
-
-   printf("[FDC] DMA init: addr=0x1000 count=%u mode=%u read=%d\n", count + 1,
-          (unsigned)mode, is_read ? 1 : 0);
 }
 
 static void fdc_motor_on(void) { i686_outb(FDC_DOR, FDC_MOTOR_ON); }
@@ -120,7 +116,6 @@ static bool fdc_wait_irq(void)
 
    if (!g_fdc_irq_received)
    {
-      printf("[FDC] IRQ timeout\n");
       return false;
    }
 
@@ -147,8 +142,6 @@ static void fdc_send_byte(uint8_t byte)
       }
       i686_iowait();
    }
-
-   printf("[FDC] send_byte timeout (MSR=0x%02x)\n", msr);
 }
 
 static uint8_t fdc_read_byte(void)
@@ -167,11 +160,10 @@ static uint8_t fdc_read_byte(void)
       i686_iowait();
    }
 
-   printf("[FDC] read_byte timeout (MSR=0x%02x)\n", msr);
    return 0;
 }
 
-void fdc_reset(void)
+void FDC_Reset(void)
 {
    // Register IRQ handler for FDC
    i686_IRQ_RegisterHandler(FDC_IRQ, fdc_irq_handler);
@@ -187,7 +179,6 @@ void fdc_reset(void)
    // Wait for IRQ after reset
    if (!fdc_wait_irq())
    {
-      printf("[FDC] Reset IRQ timeout\n");
    }
 
    // Sense interrupt status 4 times (for 4 drives)
@@ -224,7 +215,6 @@ static bool fdc_seek(uint8_t head, uint8_t track)
 
    if (cyl != track)
    {
-      printf("[FDC] Seek failed: expected track %u, got %u\n", track, cyl);
       return false;
    }
 
@@ -239,7 +229,7 @@ static void lba_to_chs(uint32_t lba, uint8_t *head, uint8_t *track,
    *sector = (lba % FLOPPY_SECTORS_PER_TRACK) + 1;
 }
 
-int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
+int FDC_ReadLba(uint32_t lba, uint8_t *buffer, size_t count)
 {
    if (count == 0)
    {
@@ -259,7 +249,6 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
       // Seek to track
       if (!fdc_seek(head, track))
       {
-         printf("[FDC] Seek failed for LBA %lu\n", (unsigned long)(lba + i));
          fdc_motor_off();
          return 1;
       }
@@ -283,8 +272,6 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
       // Wait for IRQ indicating data transfer complete
       if (!fdc_wait_irq())
       {
-         printf("[FDC] Read IRQ timeout for LBA %lu\n",
-                (unsigned long)(lba + i));
          fdc_motor_off();
          return 1;
       }
@@ -301,30 +288,12 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
       // Check for errors in status
       if ((st0 & 0xC0) != 0)
       {
-         printf("[FDC] Read error: ST0=0x%02x ST1=0x%02x ST2=0x%02x\n", st0,
-                st1, st2);
          fdc_motor_off();
          return 1;
       }
 
-      // Debug: Show successful read
-      printf("[FDC] Read LBA %lu OK (C/H/S=%u/%u/%u)\n",
-             (unsigned long)(lba + i), track, head, sector);
-
       // Get DMA buffer pointer
       uint8_t *dma_buffer = (uint8_t *)FDC_DMA_BUFFER;
-
-      // Debug: Show first few bytes of data in DMA buffer
-      printf("[FDC] DMA[0-15]: ");
-      for (int j = 0; j < 16; j++)
-      {
-         unsigned char byte = dma_buffer[j];
-         if (byte >= 32 && byte < 127)
-            printf(" %c ", byte);
-         else
-            printf("%x ", byte);
-      }
-      printf("\n");
 
       // Copy data from DMA buffer to destination
       for (int j = 0; j < FLOPPY_SECTOR_SIZE; j++)
@@ -337,10 +306,8 @@ int fdc_read_lba(uint32_t lba, uint8_t *buffer, size_t count)
    return 0;
 }
 
-int fdc_write_lba(uint32_t lba, const uint8_t *buffer, size_t count)
+int FDC_WriteLba(uint32_t lba, const uint8_t *buffer, size_t count)
 {
-   printf("[FDC DEBUG] fdc_write_lba: lba=%lu buffer=%p count=%lu\n",
-          (unsigned long)lba, buffer, (unsigned long)count);
    // Not implemented: writing to floppy is more complex
    return 1;
 }
