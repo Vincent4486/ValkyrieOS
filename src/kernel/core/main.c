@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/dylib.h>
 #include <sys/memory.h>
+#include <std/string.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -197,6 +198,30 @@ void timer(Registers *regs)
    //    printf(".");
 }
 
+typedef int (*math_func_t)(int, int);
+int (*add)(int, int) = NULL;
+int (*subtract)(int, int) = NULL;
+int (*multiply)(int, int) = NULL;
+
+// Callback function to load symbols
+void load_libmath_symbols(const char *libname)
+{
+    if (strcmp(libname, "libmath") != 0)
+        return;
+    
+    printf("[*] Loading libmath symbols...\n");
+    add = (math_func_t)dylib_find_symbol("libmath", "add");
+    subtract = (math_func_t)dylib_find_symbol("libmath", "subtract");
+    multiply = (math_func_t)dylib_find_symbol("libmath", "multiply");
+    
+    if (!add || !subtract || !multiply)
+    {
+        printf("[ERROR] Failed to load libmath functions\n");
+        return;
+    }
+    printf("[*] libmath functions loaded successfully\n");
+}
+
 void __attribute__((section(".entry"))) start(uint16_t bootDrive,
                                               void *partitionPtr)
 {
@@ -218,7 +243,46 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   test_fat_filesystem(&partition);
+   // test_fat_filesystem(&partition);
+
+   // ======================================================================
+   // EXAMPLE: Load and call a dynamic library function with parameters
+   // ======================================================================
+   printf("\n=== Testing Dynamic Library Function Calls ===\n");
+
+   // Register the symbol loader callback
+   dylib_register_callback(load_libmath_symbols);
+    
+    // Now just load the library - symbols are loaded automatically!
+    printf("[*] Loading libmath.so...\n");
+    if (dylib_load_from_disk(&partition, "libmath", "/sys/libmath.so") != 0)
+    {
+        printf("[!] Failed to load libmath.so\n");
+        goto end;
+    }
+    
+    // Resolve dependencies
+    dylib_resolve_dependencies("libmath");
+    
+    dylib_list();
+    dylib_list_symbols("libmath");
+    
+    // Just call the functions directly - they're already loaded!
+    printf("\n[*] Testing library function calls:\n");
+    
+    printf("\nCalling add(9, 9):\n");
+    int result = add(9, 9);
+    printf("  Result: %d\n", result);
+    
+    printf("\nCalling subtract(20, 5):\n");
+    result = subtract(20, 5);
+    printf("  Result: %d\n", result);
+    
+    printf("\nCalling multiply(7, 6):\n");
+    result = multiply(7, 6);
+    printf("  Result: %d\n", result);
+    
+    printf("\n=== Dynamic Library Test Complete ===\n");
 
 end:
    for (;;);

@@ -42,6 +42,9 @@ typedef struct
    int is_kernel;     // 1 if from kernel, 0 if from library
 } GlobalSymbolEntry;
 
+// Symbol registration callback - called when a library is loaded
+typedef void (*dylib_register_symbols_t)(const char *libname);
+
 // Find a loaded library record by name (basename without extension). Returns
 // pointer into the shared registry or NULL if not found.
 LibRecord *dylib_find(const char *name);
@@ -126,3 +129,23 @@ int dylib_remove(const char *name);
 
 // Get memory usage statistics
 void dylib_mem_stats(void);
+
+// Register a callback to load symbols when library is loaded
+void dylib_register_callback(dylib_register_symbols_t callback);
+
+// ============================================================================
+// Helper macro for loading function symbols from a library
+// Usage: DYLIB_LOAD_SYMBOL(libname, funcname, functype);
+// 
+// Example:
+//   typedef int (*math_op_t)(int, int);
+//   DYLIB_LOAD_SYMBOL("libmath", add, math_op_t);
+//   result = add(9, 9);
+// ============================================================================
+
+#define DYLIB_LOAD_SYMBOL(libname, funcname, functype) \
+   functype funcname = (functype)dylib_find_symbol(libname, #funcname); \
+   if (!funcname) { \
+      printf("[!] Failed to resolve: " #libname "::" #funcname "\n"); \
+      goto end; \
+   }

@@ -12,6 +12,9 @@ TARGET_ENVIRONMENT: Environment
 # Build the core kernel executable from core/ directory
 SConscript('core/SConscript', variant_dir='core_build', duplicate=0)
 
+# Build libmath library explicitly
+SConscript('libmath/SConscript', variant_dir='libmath_build', duplicate=0)
+
 # Build optional kernel modules/libraries from other top-level directories
 # Each directory under kernel/ (except core/) becomes a separate shared library
 import glob
@@ -47,8 +50,11 @@ for module_dir in glob.glob('*/'):
 # Import core executable
 Import('core')
 
+# Import libmath library
+Import('libmath_module')
+
 # Collect all kernel components into an array
-kernel = [core]
+kernel = [core, libmath_module]
 
 # Import any module libraries that were built
 for module_dir in glob.glob('*/'):

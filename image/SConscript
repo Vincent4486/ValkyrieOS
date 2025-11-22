@@ -103,7 +103,7 @@ def install_stage2(target: str, stage2: str, offset=0, limit=None):
             ftarget.seek(offset * SECTOR_SIZE, SEEK_SET)
             ftarget.write(fstage2.read())
 
-def build_floppy(image, stage1, stage2, kernel, files, env):
+def build_floppy(image, stage1, stage2, kernel, kernel_modules, files, env):
     size_sectors = 2880
     stage2_size = os.stat(stage2).st_size
     stage2_sectors = (stage2_size + SECTOR_SIZE - 1) // SECTOR_SIZE
@@ -123,6 +123,11 @@ def build_floppy(image, stage1, stage2, kernel, files, env):
     print('    ... copying', kernel)
     sh.mmd('-i', image, "::sys")
     sh.mcopy('-i', image, kernel, "::sys/")
+    
+    # Copy kernel modules (dynamic libraries)
+    for module in kernel_modules:
+        print('    ... copying', module)
+        sh.mcopy('-i', image, module, "::sys/")
 
     # copy rest of files
     src_root = env['BASEDIR']
@@ -231,7 +236,7 @@ def unmount_fs(mount_dir: str):
     os.remove(device_file)
 
 
-def build_disk(image, stage1, stage2, kernel, files, env):
+def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     file_system = env['imageFS']
     partition_offset = 2048
@@ -272,6 +277,11 @@ def build_disk(image, stage1, stage2, kernel, files, env):
         bootdir = os.path.join(tempdir, 'sys')
         sh.sudo.mkdir('-p', bootdir)
         sh.sudo.cp(kernel, bootdir)
+        
+        # copy kernel modules (dynamic libraries)
+        for module in kernel_modules:
+            print(f"    ... copying {os.path.basename(module)}")
+            sh.sudo.cp(module, bootdir)
 
         # copy rest of files
         src_root = env['BASEDIR']
@@ -319,9 +329,9 @@ def build_image(target, source, env):
 
     image = str(target[0])
     if env['imageType'] == 'floppy':
-        build_floppy(image, stage1, stage2, kernel_exe, files, env)
+        build_floppy(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
     elif env['imageType'] == 'disk':
-        build_disk(image, stage1, stage2, kernel_exe, files, env)
+        build_disk(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
     else:
         raise ValueError('Unknown image type ' + env['imageType'])
 

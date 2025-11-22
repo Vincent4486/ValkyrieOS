@@ -5,36 +5,36 @@ import subprocess
 
 from SCons.Environment import Environment
 from SCons.Script import Dir
-from scripts.scons.utility import GlobRecursive, FindIndex, IsFileName
-
+from scripts.scons.utility import GlobRecursive
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
 
 env = TARGET_ENVIRONMENT.Clone()
-# With variant_dir and duplicate=0, we need to explicitly reference the source files
-# The build root is at '#' (where SConstruct is), so src/kernel/core is at src/kernel/core
-src_dir = Dir('#src/kernel/core').abspath
+
+# Get source directory
+src_dir = Dir('#src/kernel/libmath').abspath
 
 env.Append(
-    # Enable position-independent code for dynamic linking support
-    # This allows kernel to have PLT/GOT entries for library function calls
-    CCFLAGS = ['-fPIC'],
-    LINKFLAGS = [
+    # Absolute code with explicit relocations that we'll patch at load time
+    CCFLAGS=['-fno-PIC', '-fno-asynchronous-unwind-tables'],
+    CFLAGS=['-fno-PIC'],
+    CXXFLAGS=['-fno-PIC'],
+    LINKFLAGS=[
+        '-shared',
         '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
-        '-Wl,-Map=' + env.File('core.map').path,
-        # Allow undefined symbols (will be resolved at runtime via PLT/GOT patching)
-        '-Wl,--unresolved-symbols=ignore-all'
+        '-Wl,-Map=' + env.File('libmath.map').path,
+        '-Wl,--as-needed',
+        '-Wl,-soname,libmath.so',
+        '-Wl,-Bsymbolic-functions',  # Resolve internal references locally
     ],
-    CPATH = [ src_dir ],
-    CPPPATH = [ src_dir ],
+    CPATH=[src_dir],
+    CPPPATH=[src_dir],
     # Include source directory for assembly files (nasm -I flag for include paths)
-    # Use list format so each item becomes a separate argument
-    ASFLAGS = [ '-I', src_dir + '/', '-f', 'elf' ]
+    ASFLAGS=['-I', src_dir + '/', '-f', 'elf']
 )
 
 # Glob files directly from the source directory using os.walk
-# This is necessary because we're in a variant_dir and GlobRecursive looks in the build dir
 sources = []
 for root, dirs, files in os.walk(src_dir):
     for file in files:
@@ -42,7 +42,6 @@ for root, dirs, files in os.walk(src_dir):
         if file.endswith(('.c', '.cpp', '.asm')):
             # Make path relative to src_dir so SCons puts objects in build dir
             rel_path = os.path.relpath(full_path, src_dir)
-            # Use File() with the relative path - SCons will resolve it relative to variant_dir
             sources.append(rel_path)
 
 # Compile Rust files if rustSupport is enabled
@@ -64,8 +63,8 @@ if TARGET_ENVIRONMENT.get('rustSupport', True) and rust_sources:
             '/home/vincent/.cargo/bin/rustc',
             '--target', 'i686-unknown-linux-gnu',
             '-C', 'no-redzone=on',
-            '-C', 'relocation-model=static',
-            '-C', 'code-model=kernel',
+            '-C', 'relocation-model=pic',
+            '-C', 'code-model=small',
             '-C', f'opt-level={opt_level}',
             '--edition', '2021',
             '--crate-type', 'lib',
@@ -98,18 +97,12 @@ if TARGET_ENVIRONMENT.get('rustSupport', True) and rust_sources:
         obj = env.RustObject(src)
         rust_objects.append(obj)
 
-objects = env.Object(sources) + rust_objects
-obj_crti = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crti.o')))
-obj_crtn = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crtn.o')))
+# Compile objects as shared objects (PIC)
+objects = env.SharedObject(sources) + rust_objects
 
-objects = [
-    obj_crti,
-    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtbegin.o'),
-    *objects,
-    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtend.o'),
-    obj_crtn
-]
+# Build shared library
+libmath_so = env.SharedLibrary('libmath', objects)
 
-core = env.Program('core.elf', objects)
-
-Export('core')
+# Export as libmath_module for kernel build system detection
+libmath_module = libmath_so
+Export('libmath_module')

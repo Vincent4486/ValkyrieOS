@@ -34,8 +34,41 @@ typedef struct
    int32_t r_addend;
 } Elf32_Rela;
 
+// ELF32 Symbol table entry
+typedef struct
+{
+   uint32_t st_name;
+   uint32_t st_value;
+   uint32_t st_size;
+   uint8_t st_info;
+   uint8_t st_other;
+   uint16_t st_shndx;
+} Elf32_Sym;
+
 #define ELF32_R_SYM(i) ((i) >> 8)
 #define ELF32_R_TYPE(i) ((i) & 0xff)
+#define ELF32_ST_BIND(i) ((i) >> 4)
+#define ELF32_ST_TYPE(i) ((i) & 0xf)
+
+// ELF section header entry
+typedef struct
+{
+   uint32_t sh_name;
+   uint32_t sh_type;
+   uint32_t sh_flags;
+   uint32_t sh_addr;
+   uint32_t sh_offset;
+   uint32_t sh_size;
+   uint32_t sh_link;
+   uint32_t sh_info;
+   uint32_t sh_addralign;
+   uint32_t sh_entsize;
+} Elf32_Shdr;
+
+// Section types
+#define SHT_SYMTAB 2
+#define SHT_DYNSYM 11
+#define SHT_STRTAB 3
 
 // Extended library data (kept separately from the base LibRecord registry)
 typedef struct
@@ -67,6 +100,11 @@ static ExtendedLibData extended_data[LIB_REGISTRY_MAX];
 // Global symbol table - shared across all loaded libraries and kernel
 static GlobalSymbolEntry global_symtab[DYLIB_MAX_GLOBAL_SYMBOLS];
 static int global_symtab_count = 0;
+
+// Forward declarations
+static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t size);
+
+static dylib_register_symbols_t symbol_callback = NULL;
 
 int dylib_mem_init(void)
 {
@@ -595,6 +633,227 @@ int dylib_load(const char *name, const void *image, uint32_t size)
 
    printf("[DYLIB] Loaded %s (%d bytes) at 0x%x\n", name, size, load_addr);
 
+   // Parse ELF symbols from the loaded library
+   parse_elf_symbols(ext, load_addr, size);
+
+   return 0;
+}
+
+// Parse ELF header and extract dynamic symbols from a loaded library
+static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t size)
+{
+   // ELF header at the beginning of the loaded binary
+   uint8_t *elf_data = (uint8_t *)base_addr;
+   
+   // Check ELF magic number
+   if (elf_data[0] != 0x7f || elf_data[1] != 'E' || elf_data[2] != 'L' || elf_data[3] != 'F')
+   {
+      printf("[ERROR] Not a valid ELF file\n");
+      return -1;
+   }
+   
+   // Parse ELF32 header (little-endian)
+   uint32_t e_shoff = *(uint32_t *)(elf_data + 32);  // Section header offset (in file)
+   uint16_t e_shnum = *(uint16_t *)(elf_data + 48);  // Number of sections
+   uint16_t e_shentsize = *(uint16_t *)(elf_data + 46); // Section header entry size
+   
+   printf("[DYLIB] ELF: e_shoff=0x%x, e_shnum=%d, e_shentsize=%d\n", e_shoff, e_shnum, e_shentsize);
+   
+   if (e_shoff == 0 || e_shnum == 0 || e_shentsize == 0)
+   {
+      printf("[DYLIB] Invalid section headers\n");
+      return 0;
+   }
+   
+   // Find the first PROGBITS section to determine the offset adjustment
+   // When we load the ELF file, all sections keep their relative offsets
+   // But the sections that need to be in memory are those with SHF_ALLOC flag
+   // We need to find where .text actually starts in the file
+   uint32_t text_section_file_offset = 0;
+   for (int i = 0; i < e_shnum; i++)
+   {
+      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
+      // Find the first allocable section - this is where code actually starts
+      if (sh->sh_type == 1 && (sh->sh_flags & 0x2))  // PROGBITS with ALLOC
+      {
+         text_section_file_offset = sh->sh_offset;
+         printf("[DYLIB] First loadable section (.text) at file offset 0x%x\n", text_section_file_offset);
+         break;
+      }
+   }
+   
+   // File offsets from base_addr need to be adjusted by the .text section offset
+   // Memory layout: base_addr points to start of loaded file (including ELF header)
+   // But symbols are addresses in the code section
+   // So: symbol_memory_address = base_addr + file_offset_of_section + offset_within_section
+   //                           = base_addr + st_value_offset
+   // where st_value_offset = st_value - original_base (offset from link address)
+   
+   // Find the first loadable section to determine the original base address
+   // For simplicity, we'll use a default of 0x08000000 (from typical shared lib link address)
+   uint32_t original_base = 0x08000000;
+   
+   // Find .symtab and .strtab sections
+   uint32_t symtab_addr = 0, symtab_size = 0, symtab_entsize = 0;
+   uint32_t strtab_addr = 0, strtab_size = 0;
+   int strtab_link = -1;
+   
+   for (int i = 0; i < e_shnum; i++)
+   {
+      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
+      
+      printf("[DYLIB] Section %d: type=%d, offset=0x%x, size=%d, link=%d, entsize=%d\n", 
+             i, sh->sh_type, sh->sh_offset, sh->sh_size, sh->sh_link, sh->sh_entsize);
+      
+      if (sh->sh_type == SHT_SYMTAB)
+      {
+         // Found symbol table - address is file offset + base (since we loaded full file)
+         symtab_addr = base_addr + sh->sh_offset;
+         symtab_size = sh->sh_size;
+         symtab_entsize = sh->sh_entsize;
+         strtab_link = sh->sh_link;  // Index of associated string table
+         printf("[DYLIB] Found .symtab at file offset 0x%x, memory 0x%x, size=%d, entsize=%d, strtab_link=%d\n", 
+                sh->sh_offset, symtab_addr, symtab_size, symtab_entsize, strtab_link);
+      }
+   }
+   
+   // Now find the associated string table
+   if (strtab_link >= 0 && strtab_link < e_shnum)
+   {
+      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (strtab_link * e_shentsize));
+      if (sh->sh_type == SHT_STRTAB)
+      {
+         strtab_addr = base_addr + sh->sh_offset;
+         strtab_size = sh->sh_size;
+         printf("[DYLIB] Found associated .strtab at file offset 0x%x, memory 0x%x, size=%d\n", 
+                sh->sh_offset, strtab_addr, strtab_size);
+      }
+   }
+   
+   if (symtab_addr == 0 || strtab_addr == 0 || symtab_entsize == 0)
+   {
+      printf("[DYLIB] Symbol table, string table, or entsize not found/invalid\n");
+      return 0;
+   }
+   
+   // Parse symbol entries
+   uint32_t num_symbols = symtab_size / symtab_entsize;
+   ext->symbol_count = 0;
+   
+   printf("[DYLIB] Parsing %d symbols (entsize=%d, base_addr=0x%x, original_base=0x%x)...\n", 
+          num_symbols, symtab_entsize, base_addr, original_base);
+   
+   for (uint32_t i = 0; i < num_symbols && ext->symbol_count < DYLIB_MAX_SYMBOLS; i++)
+   {
+      Elf32_Sym *sym = (Elf32_Sym *)(symtab_addr + (i * symtab_entsize));
+      
+      // Skip undefined and local symbols
+      uint8_t st_bind = ELF32_ST_BIND(sym->st_info);
+      uint8_t st_type = ELF32_ST_TYPE(sym->st_info);
+      
+      if (st_bind == 0 || sym->st_shndx == 0) continue;  // Skip local or undefined
+      
+      // Get symbol name from string table
+      if (sym->st_name < strtab_size)
+      {
+         const char *sym_name = (const char *)(strtab_addr + sym->st_name);
+         if (sym_name[0] != '\0')
+         {
+            // Add to symbol table
+            strncpy(ext->symbols[ext->symbol_count].name, sym_name, 63);
+            ext->symbols[ext->symbol_count].name[63] = '\0';
+            
+            // Symbol address calculation:
+            // st_value is the absolute address in the linked image (e.g., 0x08000000 + offset)
+            // Offset from link base: st_value - original_base
+            // Actual address: base_addr (ELF file start in memory) + file_offset_of_section + offset_within_section
+            // But st_value is already relative to 0x08000000, which is 0x1000 bytes into the file (where .text starts)
+            // So: memory_addr = base_addr + text_section_file_offset + (st_value - original_base)
+            //               = base_addr + 0x1000 + (st_value - 0x08000000)
+            uint32_t symbol_offset_in_code = sym->st_value - original_base;
+            uint32_t symbol_addr = base_addr + text_section_file_offset + symbol_offset_in_code;
+            ext->symbols[ext->symbol_count].address = symbol_addr;
+            printf("[DYLIB]   Symbol[%d]: %s @ 0x%x (st_value=0x%x, shndx=%d)\n", 
+                   ext->symbol_count, sym_name, symbol_addr, sym->st_value, sym->st_shndx);
+            ext->symbol_count++;
+         }
+      }
+   }
+   
+   printf("[DYLIB] Extracted %d symbols\n", ext->symbol_count);
+   
+   // Apply simple relocation: scan loadable sections for embedded original_base addresses and patch them
+   printf("[DYLIB] Applying address relocations...\n");
+   
+   for (int i = 0; i < e_shnum; i++)
+   {
+      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
+      
+      if (sh->sh_type == 1 && (sh->sh_flags & 0x2))  // PROGBITS with ALLOC flag
+      {
+         uint8_t *section_start = elf_data + sh->sh_offset;
+         uint32_t section_size = sh->sh_size;
+         
+         printf("[DYLIB]   Scanning section at file offset 0x%x (size=%d) for embedded addresses...\n", 
+                sh->sh_offset, section_size);
+         
+         // Scan for 32-bit addresses matching the original base
+         for (uint32_t j = 0; j < section_size - 3; j++)
+         {
+            uint32_t *addr_ptr = (uint32_t *)(section_start + j);
+            uint32_t value = *addr_ptr;
+            
+            // Check if this looks like an address in the original library range
+            if (value >= original_base && value < original_base + 0x10000)
+            {
+               // This might be a relative address - compute the offset
+               uint32_t offset = value - original_base;
+               // Patch with new base
+               uint32_t new_value = base_addr + offset;
+               *addr_ptr = new_value;
+               printf("[DYLIB]     Patched at file offset 0x%x (memory 0x%x): 0x%x -> 0x%x\n", 
+                      sh->sh_offset + j, (uint32_t)addr_ptr, value, new_value);
+            }
+         }
+      }
+   }
+   
+   printf("[DYLIB] Relocation patching complete\n");
+   
+   // Now look for formal relocation sections (if they exist)
+   printf("[DYLIB] Looking for formal relocation sections...\n");
+   for (int i = 0; i < e_shnum; i++)
+   {
+      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
+      
+      // Look for .rel.dyn or .rel.text sections (type 9 = SHT_REL)
+      if (sh->sh_type == 9)  // SHT_REL
+      {
+         uint32_t rel_addr = base_addr + sh->sh_offset;
+         uint32_t rel_size = sh->sh_size;
+         uint32_t rel_entsize = sh->sh_entsize;
+         int rel_count = rel_size / rel_entsize;
+         
+         printf("[DYLIB]   Applying %d relocations from section %d\n", rel_count, i);
+         
+         for (int j = 0; j < rel_count; j++)
+         {
+            Elf32_Rel *rel = (Elf32_Rel *)(rel_addr + (j * rel_entsize));
+            uint32_t *patch_addr = (uint32_t *)(base_addr + rel->r_offset);
+            uint32_t type = ELF32_R_TYPE(rel->r_info);
+            
+            // For R_386_RELATIVE, just add the difference between load and original base
+            if (type == R_386_RELATIVE)
+            {
+               uint32_t adjustment = base_addr - original_base;
+               *patch_addr += adjustment;
+               printf("[DYLIB]     Reloc at 0x%x: R_386_RELATIVE, patching with +0x%x\n", 
+                      rel->r_offset, adjustment);
+            }
+         }
+      }
+   }
+   
    return 0;
 }
 
@@ -655,6 +914,7 @@ int dylib_load_from_disk(Partition *partition, const char *name,
 
    // Read library data from disk
    printf("[DYLIB] Reading %d bytes into memory...\n", file_size);
+   FAT_Seek(partition, file, 0);
    uint32_t bytes_read =
        FAT_Read(partition, file, file_size, (void *)load_addr);
    if (bytes_read != file_size)
@@ -676,6 +936,14 @@ int dylib_load_from_disk(Partition *partition, const char *name,
 
    printf("[DYLIB] Loaded %s (%d bytes) from disk at 0x%x\n", name, file_size,
           load_addr);
+
+   // Parse ELF symbols from the loaded library
+   parse_elf_symbols(ext, load_addr, file_size);
+
+   if (symbol_callback)
+   {
+       symbol_callback(name);
+   }
 
    return 0;
 }
@@ -753,4 +1021,9 @@ void dylib_mem_stats(void)
       }
    }
    printf("\n");
+}
+
+void dylib_register_callback(dylib_register_symbols_t callback)
+{
+    symbol_callback = callback;
 }
