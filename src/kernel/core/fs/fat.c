@@ -31,7 +31,6 @@ typedef struct{
 } __attribute__((packed)) FAT_ExtendedBootRecord;
 
 typedef struct {
-   FAT_ExtendedBootRecord EBR;
    uint32_t SectorsPerFat;
    uint16_t Flags;
    uint16_t FatVersionNumber;
@@ -39,6 +38,7 @@ typedef struct {
    uint16_t FSInfoSector;
    uint16_t BackupBootSector;
    uint8_t _Reserved[12];
+   FAT_ExtendedBootRecord EBR;
 } __attribute__((packed)) FAT32_ExtendedBootRecord;
 
 typedef struct
@@ -178,21 +178,26 @@ void FAT_Detect(Partition* disk)
 
 bool FAT_Initialize(Partition* disk)
 {
-    g_Data = (FAT_Data*)MEMORY_FAT_ADDR;
+    /* Stage2 preloads the boot sector and root directory at MEMORY_FAT_ADDR (0x20000).
+     * We need to allocate our own FAT_Data structure in a different location,
+     * then copy the preloaded boot sector into it.
+     */
+    
+    // Allocate FAT_Data structure (normally would use malloc, but we'll use a static)
+    static FAT_Data s_FatData;
+    g_Data = &s_FatData;
     
     printf("DEBUG: g_Data = %p, MEMORY_FAT_ADDR = %p\n", (void*)g_Data, (void*)MEMORY_FAT_ADDR);
     printf("DEBUG: sizeof(FAT_Data) = %lu, sizeof(FAT_BootSector) = %lu\n", 
            sizeof(FAT_Data), sizeof(FAT_BootSector));
 
-    /* Stage2 preloaded the FAT data at MEMORY_FAT_ADDR (0x20000).
-     * The preloaded data is more reliable than reading from disk via ATA.
-     * The boot sector is the first 512 bytes of the preloaded FAT_Data structure.
-     */
+    // Copy preloaded boot sector from stage2 location
+    uint8_t* preloaded_boot = (uint8_t*)MEMORY_FAT_ADDR;
+    memcpy(g_Data->BS.BootSectorBytes, preloaded_boot, SECTOR_SIZE);
     
     printf("FAT: Using preloaded FAT data from stage2 at 0x%p\n", (void*)MEMORY_FAT_ADDR);
     
-    // The boot sector is already loaded at g_Data->BS.BootSector
-    // Just validate it
+    // Validate boot sector signature
     uint16_t sig = (g_Data->BS.BootSectorBytes[511] << 8) | g_Data->BS.BootSectorBytes[510];
     printf("FAT: Boot signature: 0x%x (valid=%d)\n", sig, sig == 0xaa55);
 
@@ -206,6 +211,8 @@ bool FAT_Initialize(Partition* disk)
 
     bool isFat32 = false;
     g_SectorsPerFat = g_Data->BS.BootSector.SectorsPerFat;
+    uint32_t rootDirCluster = 0;
+    
     printf("FAT: DEBUG TotalSectors=%u, SectorsPerFat=%u\n", g_TotalSectors, g_SectorsPerFat);
     printf("FAT: DEBUG BootSector bytes: %x %x %x %x %x %x %x %x\n",
            g_Data->BS.BootSector.BytesPerSector & 0xFF, (g_Data->BS.BootSector.BytesPerSector >> 8) & 0xFF,
@@ -216,8 +223,9 @@ bool FAT_Initialize(Partition* disk)
     
     if (g_SectorsPerFat == 0) {         // fat32
         isFat32 = true;
-        g_SectorsPerFat = g_Data->BS.BootSector.ExtendedBootRecord.EBR32.RootDirectoryCluster;
-        printf("FAT: Detected FAT32, RootDirectoryCluster=%u\n", g_SectorsPerFat);
+        rootDirCluster = g_Data->BS.BootSector.ExtendedBootRecord.EBR32.RootDirectoryCluster;
+        g_SectorsPerFat = g_Data->BS.BootSector.ExtendedBootRecord.EBR32.SectorsPerFat;
+        printf("FAT: Detected FAT32, RootDirectoryCluster=%u, SectorsPerFat=%u\n", rootDirCluster, g_SectorsPerFat);
     }
     
     // open root directory file
@@ -225,7 +233,7 @@ bool FAT_Initialize(Partition* disk)
     uint32_t rootDirSize;
     if (isFat32) {
         g_DataSectionLba = g_Data->BS.BootSector.ReservedSectors + g_SectorsPerFat * g_Data->BS.BootSector.FatCount;
-        rootDirLba = FAT_ClusterToLba(g_Data->BS.BootSector.ExtendedBootRecord.EBR32.RootDirectoryCluster);
+        rootDirLba = FAT_ClusterToLba(rootDirCluster);
         rootDirSize = 0;
     }
     else {
@@ -245,28 +253,11 @@ bool FAT_Initialize(Partition* disk)
     g_Data->RootDirectory.CurrentCluster = rootDirLba;
     g_Data->RootDirectory.CurrentSectorInCluster = 0;
     
-    // Note: Root directory size is set correctly from boot sector DirEntryCount
-    // The FAT_Read function will load additional sectors on demand
-    // Do NOT limit to 1 sector - allow full root directory size
-
-    // Check if stage2 already loaded the root directory
-    uint8_t first = g_Data->RootDirectory.Buffer[0];
-    bool preloaded =
-        ((first >= 0x20 && first < 0x7F) || first == 0x00 || first == 0xE5);
-
-    if (preloaded)
-    {
-       printf("FAT: using preloaded root directory from stage2\n");
-    }
-    else
-    {
-       // Try to read from disk
-       if (!Partition_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
-       {
-           printf("FAT: read root directory failed\r\n");
-           return false;
-       }
-    }
+    // Copy preloaded root directory (starts after 512-byte boot sector)
+    uint8_t* preloaded_root = (uint8_t*)MEMORY_FAT_ADDR + SECTOR_SIZE;
+    memcpy(g_Data->RootDirectory.Buffer, preloaded_root, SECTOR_SIZE);
+    
+    printf("FAT: using preloaded root directory from stage2\n");
 
     // calculate data section
     FAT_Detect(disk);

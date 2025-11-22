@@ -16,7 +16,7 @@
 uint8_t *KernelLoadBuffer = (uint8_t *)MEMORY_LOAD_KERNEL;
 uint8_t *Kernel = (uint8_t *)MEMORY_KERNEL_ADDR;
 
-typedef void (*KernelStart)(uint16_t bootDrive);
+typedef void (*KernelStart)(uint16_t bootDrive, void *partitionPtr);
 
 void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 {
@@ -50,11 +50,10 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
       goto end;
    }
 
-   // jump to kernel entry (pass the boot drive number so kernel can access
-   // disk)
+   // jump to kernel entry (pass the boot drive number and partition pointer)
    printf("Jumping to kernel...\n");
    KernelStart kernelStart = (KernelStart)entry;
-   kernelStart(bootDrive);
+   kernelStart(bootDrive, partition);
 
 end:
    for (;;);

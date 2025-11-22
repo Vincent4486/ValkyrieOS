@@ -175,3 +175,8 @@ PhonyTargets(HOST_ENVIRONMENT,
              bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
              toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']],
              fformat=['./scripts/base/format.sh'])
+
+
+Depends('run', image)
+Depends('debug', image)
+Depends('bochs', image)

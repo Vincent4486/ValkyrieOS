@@ -138,24 +138,66 @@ def build_floppy(image, stage1, stage2, kernel, files, env):
             print('    ... copying', file_rel)
             sh.mcopy('-i', image, file_src, file_dst)
 
+    username=os.getlogin()
+    print(f"> changing ownership of {image} to {os.getuid()}...")
+    sh.sudo.chown(f'{username}:{username}', image)
+    print(f"> changing all build files to owned by {os.getuid()}")
+    sh.sudo.chown('-R', f'{username}:{username}', 'build/')
 
-def create_partition_table(target: str, align_start: int):
-    device = parted.getDevice(target)
-    disk = parted.freshDisk(device, 'msdos')
-    freeSpace = disk.getFreeSpaceRegions()
-    partitionGeometry = parted.Geometry(device, align_start, end=freeSpace[-1].end)
-    partition = parted.Partition(disk=disk, type=parted.PARTITION_NORMAL, geometry=partitionGeometry)
-    partition.setFlag(parted.PARTITION_BOOT)
-    disk.addPartition(partition, constraint=device.optimalAlignedConstraint)
-    disk.commit()
+def create_partition_table(target: str, align_start: int, filesystem: str = 'fat32'):
+    """Create MBR partition table with correct filesystem type.
+    
+    Uses parted CLI to ensure the partition type ID is set correctly.
+    (python-parted defaults to 0x83 Linux, which mkfs.fat does not change.)
+    """
+    # Create msdos (MBR) label
+    sh.parted('-s', target, 'mklabel', 'msdos')
+    
+    # Map filesystem type to parted filesystem name
+    parted_fs = {
+        'fat12': 'fat12',
+        'fat16': 'fat16',
+        'fat32': 'fat32',
+        'ext2': 'ext2'
+    }.get(filesystem, 'fat32')
+    
+    # Create partition starting at align_start and spanning to end of disk
+    # parted's mkpart requires: <name> <type> <fs-type> <start> <end>
+    sh.parted('-s', target, 'mkpart', 'primary', parted_fs, f'{align_start}s', '100%')
+    
+    # Set boot flag on partition 1
+    sh.parted('-s', target, 'set', '1', 'boot', 'on')
 
 
 def mount_fs(image: str, mount_dir: str):
     # Use losetup + mount instead of guestmount (avoids kernel read permission issues)
     import sh
+    import time
+    import subprocess
+    
     print("    > associating image with a loop device...")
     device = sh.sudo.losetup('-fP', '--show', image).strip()
+    
+    # Wait for loop device to be set up and partitions to appear
     partition = f'{device}p1'
+    max_retries = 10
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            # Check if partition device exists
+            result = subprocess.run(['ls', '-la', partition], capture_output=True, timeout=1)
+            if result.returncode == 0:
+                break
+        except:
+            pass
+        time.sleep(0.5)
+        retry_count += 1
+    
+    if retry_count >= max_retries:
+        print(f"ERROR: Partition {partition} did not appear after losetup")
+        # Try to list what loop devices we have
+        subprocess.run(['losetup', '-l'], check=False)
+        raise RuntimeError(f"Loop partition {partition} not found")
     
     # Store the device path BEFORE mounting (in the parent directory on the host FS)
     device_file = mount_dir + '.device'
@@ -208,11 +250,11 @@ def build_disk(image, stage1, stage2, kernel, files, env):
     print(f"> formatting file using {file_system}...")
     create_filesystem(image, file_system, offset=partition_offset)
 
-    # install stage1
+    # install stage1 at LBA 0 (MBR bootcode + BDB header)
     print(f"> installing stage1...")
     install_stage1(image, stage1, offset=partition_offset, stage2_offset=1, stage2_size=stage2_sectors)
  
-    # install stage2
+    # install stage2 at LBA 1 (first-stage loader)
     print(f"> installing stage2...")
     install_stage2(image, stage2, offset=1, limit=partition_offset)
 

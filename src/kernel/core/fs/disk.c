@@ -38,9 +38,13 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
    {
       // Hard disk (ATA) detected
       disk->type = DISK_TYPE_ATA;
-      printf("DISK: ATA hard disk detected (drive 0x%02x)\n", driveNumber);
-      // Note: ATA initialization may be performed elsewhere or lazily
-      // when the first read is requested.
+      printf("DISK: ATA hard disk detected (drive 0x%x)\n", driveNumber);
+      
+      // Initialize ATA driver for primary master channel
+      // We'll use the standard primary master (IDE0 master) for hard disk access
+      ata_init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
+      
+      printf("DISK: ATA driver initialized\n");
       return true;
    }
 
@@ -75,11 +79,12 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
        * floppy controller. This avoids relying on BIOS INT13 services from
        * the kernel.
        */
+      printf("DISK: FDC read from LBA %lu, sectors %u\n", (unsigned long)lba, sectors);
       int rc = fdc_read_lba(lba, (uint8_t *)dataOut, sectors);
       if (rc != 0)
       {
-         printf("DISK: FDC read failed (lba=%lu, sectors=%u)\n",
-                (unsigned long)lba, sectors);
+         printf("DISK: FDC read failed (lba=%lu, sectors=%u, error=%d)\n",
+                (unsigned long)lba, sectors, rc);
          return false;
       }
       return true;
@@ -88,6 +93,7 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
    {
       /* Hard disk (ATA): use the kernel ATA driver with primary master channel/drive.
        */
+      printf("DISK: ATA read from LBA %lu, sectors %u\n", (unsigned long)lba, sectors);
       int rc = ata_read(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, lba, (uint8_t *)dataOut, sectors);
       if (rc != 0)
       {

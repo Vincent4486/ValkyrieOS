@@ -24,7 +24,7 @@
 #define ATA_STATUS_ERR     0x01  // Error
 
 // ATA commands
-#define ATA_CMD_READ_PIO   0x20
+#define ATA_CMD_READ_PIO   0x20       // 28-bit LBA read
 
 // Driver data structure
 typedef struct {
@@ -86,12 +86,15 @@ static ata_driver_t* ata_get_driver(int channel, int drive)
 static int ata_wait_busy(uint16_t tf_port)
 {
     int timeout = 0x1000000;  // Increased timeout
+    int iterations = 0;
     while (timeout--) {
         uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+        iterations++;
         if (!(status & ATA_STATUS_BSY))
             return 0;
     }
-    printf("ATA: wait_busy timeout, status last read=0x%x\n", i686_inb(tf_port + ATA_REG_STATUS));
+    printf("ATA: wait_busy timeout after %d iterations, status last read=0x%x\n", 
+           iterations, i686_inb(tf_port + ATA_REG_STATUS));
     return -1;  // Timeout
 }
 
@@ -101,14 +104,22 @@ static int ata_wait_busy(uint16_t tf_port)
 static int ata_wait_drq(uint16_t tf_port)
 {
     int timeout = 0x1000000;  // Increased timeout
+    int iterations = 0;
     while (timeout--) {
         uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+        iterations++;
         if (status & ATA_STATUS_DRQ)
             return 0;
-        if (status & ATA_STATUS_ERR)
+        if (status & ATA_STATUS_ERR) {
+            uint8_t error = i686_inb(tf_port + ATA_REG_ERROR);
+            printf("ATA: wait_drq error occurred after %d iterations, error=0x%x, status=0x%x\n",
+                   iterations, error, status);
             return -1;  // Error occurred
+        }
     }
-    printf("ATA: wait_drq timeout, status last read=0x%x\n", i686_inb(tf_port + ATA_REG_STATUS));
+    uint8_t final_status = i686_inb(tf_port + ATA_REG_STATUS);
+    printf("ATA: wait_drq timeout after %d iterations, status last read=0x%x\n", 
+           iterations, final_status);
     return -1;  // Timeout
 }
 
@@ -149,7 +160,7 @@ void ata_init(int channel, int drive, uint32_t partition_start, uint32_t partiti
 }
 
 /**
- * Read sectors from ATA drive using PIO mode
+ * Read sectors from ATA drive using PIO mode (28-bit LBA)
  */
 int ata_read(int channel, int drive, uint32_t lba, uint8_t *buffer, uint32_t count)
 {
@@ -157,64 +168,54 @@ int ata_read(int channel, int drive, uint32_t lba, uint8_t *buffer, uint32_t cou
     if (!drv || !buffer || count == 0)
         return -1;
     
+    // Limit to 255 sectors per read (8-bit sector count)
+    if (count > 255) {
+        printf("ATA: Read count too large (%u), limiting to 255\n", count);
+        count = 255;
+    }
+    
     printf("ATA: read ch=%d drv=%d lba=0x%x count=%u\n", channel, drive, lba, count);
     
     // Wait for drive to be ready
     if (ata_wait_busy(drv->tf_port) != 0) {
-        printf("ATA: Drive busy timeout\n");
+        printf("ATA: Drive busy timeout before read\n");
         return -1;
     }
     
-    // Set drive/head register with master/slave bits and upper LBA bits
-    uint8_t device = drv->slave_bits | ((lba >> 24) & 0x0F);
-    i686_outb(drv->tf_port + ATA_REG_DEVICE, device);
+    // Prepare device register value with master/slave bits, LBA flag, and upper LBA bits (bits 24-27)
+    // Note: must set the LBA bit (0x40) when using LBA addressing, otherwise the device may ABRT.
+    uint8_t device = drv->slave_bits | 0x40 | ((lba >> 24) & 0x0F);
     
-    // Small delay to allow drive to respond to device selection
-    for (volatile int i = 0; i < 50000; i++);
-    
-    // Read status to ensure drive is ready
-    uint8_t status = i686_inb(drv->tf_port + ATA_REG_STATUS);
-    printf("ATA: Status after device select: 0x%x\n", status);
-    
-    // Set LBA low 24 bits and sector count
+    // Write all command registers in the correct sequence
+    // This is critical - must follow ATA protocol
     i686_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
     i686_outb(drv->tf_port + ATA_REG_LBA_LOW,  (lba & 0xFF));
     i686_outb(drv->tf_port + ATA_REG_LBA_MID,  ((lba >> 8) & 0xFF));
     i686_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
+    i686_outb(drv->tf_port + ATA_REG_DEVICE,   device);
+    
+    // Small delay to allow registers to settle
+    for (volatile int i = 0; i < 50000; i++);
     
     // Issue READ SECTORS command
     i686_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_READ_PIO);
     
-    // Small delay to allow drive to process command
-    for (volatile int i = 0; i < 50000; i++);
-    
-    status = i686_inb(drv->tf_port + ATA_REG_STATUS);
-    printf("ATA: Status after command: 0x%x\n", status);
+    printf("ATA: Command issued, waiting for data...\n");
     
     // Read sectors
     for (uint32_t sec = 0; sec < count; sec++) {
-        // Wait for data ready
+        // Wait for data ready or error
         if (ata_wait_drq(drv->tf_port) != 0) {
             printf("ATA: DRQ timeout on sector %lu\n", (unsigned long)sec);
             return -1;
         }
         
-        // Read 512 bytes (256 words) from data port
+        // Read 512 bytes (256 words) from data port using 16-bit reads
         uint8_t *dest = buffer + (sec * 512);
+        uint16_t *dest_words = (uint16_t *)dest;
         for (int i = 0; i < 256; i++) {
-            // Read 16-bit word from data port using two 8-bit reads
-            uint8_t low = i686_inb(drv->tf_port + ATA_REG_DATA);
-            uint8_t high = i686_inb(drv->tf_port + ATA_REG_DATA);
-            dest[i * 2] = low;
-            dest[i * 2 + 1] = high;
-        }
-        
-        // Check for errors
-        uint8_t status = i686_inb(drv->tf_port + ATA_REG_STATUS);
-        if (status & ATA_STATUS_ERR) {
-            uint8_t error = i686_inb(drv->tf_port + ATA_REG_ERROR);
-            printf("ATA: Read error at sector %lu, error=0x%x\n", (unsigned long)sec, error);
-            return -1;
+            // Read 16-bit word from data port
+            dest_words[i] = i686_inw(drv->tf_port + ATA_REG_DATA);
         }
     }
     
