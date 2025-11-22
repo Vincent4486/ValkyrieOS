@@ -13,12 +13,12 @@
 #include <stdint.h>
 
 // ELF32 relocation types (i686)
-#define R_386_NONE        0
-#define R_386_32          1
-#define R_386_PC32        2
-#define R_386_GLOB_DAT    6
-#define R_386_JMP_SLOT    7
-#define R_386_RELATIVE    8
+#define R_386_NONE 0
+#define R_386_32 1
+#define R_386_PC32 2
+#define R_386_GLOB_DAT 6
+#define R_386_JMP_SLOT 7
+#define R_386_RELATIVE 8
 
 // ELF32 structures for parsing at runtime
 typedef struct
@@ -34,8 +34,8 @@ typedef struct
    int32_t r_addend;
 } Elf32_Rela;
 
-#define ELF32_R_SYM(i)    ((i) >> 8)
-#define ELF32_R_TYPE(i)   ((i) & 0xff)
+#define ELF32_R_SYM(i) ((i) >> 8)
+#define ELF32_R_TYPE(i) ((i) & 0xff)
 
 // Extended library data (kept separately from the base LibRecord registry)
 typedef struct
@@ -44,18 +44,18 @@ typedef struct
    int dep_count;
    SymbolRecord symbols[DYLIB_MAX_SYMBOLS];
    int symbol_count;
-   
+
    // ELF dynamic section metadata (parsed from .dynamic at load time)
-   uint32_t dynsym_addr;      // Address of .dynsym section in loaded memory
-   uint32_t dynsym_size;      // Size in bytes
-   uint32_t dynstr_addr;      // Address of .dynstr section in loaded memory
-   uint32_t dynstr_size;      // Size in bytes
-   uint32_t rel_addr;         // Address of .rel.dyn relocations
-   uint32_t rel_size;         // Size of .rel.dyn
-   uint32_t jmprel_addr;      // Address of .rel.plt (PLT relocations)
-   uint32_t jmprel_size;      // Size of .rel.plt
-   uint32_t pltgot_addr;      // Address of .got.plt (for PLT patching)
-   
+   uint32_t dynsym_addr; // Address of .dynsym section in loaded memory
+   uint32_t dynsym_size; // Size in bytes
+   uint32_t dynstr_addr; // Address of .dynstr section in loaded memory
+   uint32_t dynstr_size; // Size in bytes
+   uint32_t rel_addr;    // Address of .rel.dyn relocations
+   uint32_t rel_size;    // Size of .rel.dyn
+   uint32_t jmprel_addr; // Address of .rel.plt (PLT relocations)
+   uint32_t jmprel_size; // Size of .rel.plt
+   uint32_t pltgot_addr; // Address of .got.plt (for PLT patching)
+
    int loaded; // 1 if loaded in memory, 0 if not
 } ExtendedLibData;
 
@@ -163,8 +163,8 @@ void dylib_clear_global_symtab(void)
 // Apply relocations to a loaded library or to the kernel
 // Returns 0 on success, -1 on unresolved symbols
 static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
-                              uint32_t rel_count, uint32_t dynsym_addr,
-                              uint32_t dynstr_addr, const char *context)
+                             uint32_t rel_count, uint32_t dynsym_addr,
+                             uint32_t dynstr_addr, const char *context)
 {
    if (!rel_table || rel_count == 0) return 0;
 
@@ -180,27 +180,31 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
          uint32_t addend = *where;
          *where = base + addend;
       }
-      else if (type == R_386_32 || type == R_386_PC32 || type == R_386_GLOB_DAT ||
-               type == R_386_JMP_SLOT)
+      else if (type == R_386_32 || type == R_386_PC32 ||
+               type == R_386_GLOB_DAT || type == R_386_JMP_SLOT)
       {
          // Symbol-based relocation - need to look up symbol in global table
          if (symidx > 0 && dynsym_addr > 0)
          {
             // Read symbol from dynsym table
-            // Elf32_Sym structure: uint32_t st_name, st_value, st_size, st_info, st_other, st_shndx (16 bytes)
+            // Elf32_Sym structure: uint32_t st_name, st_value, st_size,
+            // st_info, st_other, st_shndx (16 bytes)
             uint32_t sym_ent_offset = symidx * 16;
-            uint32_t st_name_offset = *(uint32_t *)(dynsym_addr + sym_ent_offset);
+            uint32_t st_name_offset =
+                *(uint32_t *)(dynsym_addr + sym_ent_offset);
             uint32_t st_value = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
 
             if (dynstr_addr > 0)
             {
-               const char *sym_name = (const char *)(dynstr_addr + st_name_offset);
+               const char *sym_name =
+                   (const char *)(dynstr_addr + st_name_offset);
 
                // Look up symbol in global table
                uint32_t sym_addr = dylib_lookup_global_symbol(sym_name);
                if (sym_addr == 0)
                {
-                  printf("[ERROR] Unresolved symbol in %s: %s\n", context, sym_name);
+                  printf("[ERROR] Unresolved symbol in %s: %s\n", context,
+                         sym_name);
                   return -1;
                }
 
@@ -209,19 +213,19 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
                // Apply relocation based on type
                switch (type)
                {
-                  case R_386_32:
-                     // S + A (absolute address + addend)
-                     *where = sym_addr + addend;
-                     break;
-                  case R_386_PC32:
-                     // S + A - P (relative to position)
-                     *where = sym_addr + addend - (uint32_t)where;
-                     break;
-                  case R_386_GLOB_DAT:
-                  case R_386_JMP_SLOT:
-                     // S (just the symbol address, for GOT entries)
-                     *where = sym_addr;
-                     break;
+               case R_386_32:
+                  // S + A (absolute address + addend)
+                  *where = sym_addr + addend;
+                  break;
+               case R_386_PC32:
+                  // S + A - P (relative to position)
+                  *where = sym_addr + addend - (uint32_t)where;
+                  break;
+               case R_386_GLOB_DAT:
+               case R_386_JMP_SLOT:
+                  // S (just the symbol address, for GOT entries)
+                  *where = sym_addr;
+                  break;
                }
             }
          }
@@ -243,28 +247,34 @@ int dylib_apply_kernel_relocations(void)
 
    // Apply .rel.dyn relocations
    {
-      uint32_t rel_size = (uint32_t)_kernel_rel_dyn_end - (uint32_t)_kernel_rel_dyn_start;
+      uint32_t rel_size =
+          (uint32_t)_kernel_rel_dyn_end - (uint32_t)_kernel_rel_dyn_start;
       Elf32_Rel *rel = (Elf32_Rel *)_kernel_rel_dyn_start;
       int rel_count = rel_size / sizeof(Elf32_Rel);
 
       if (rel_count > 0)
       {
-         printf("[DYLIB] Applying %d kernel .rel.dyn relocations...\n", rel_count);
-         if (apply_relocations(kernel_base, rel, rel_count, 0, 0, "kernel .rel.dyn") != 0)
+         printf("[DYLIB] Applying %d kernel .rel.dyn relocations...\n",
+                rel_count);
+         if (apply_relocations(kernel_base, rel, rel_count, 0, 0,
+                               "kernel .rel.dyn") != 0)
             return -1;
       }
    }
 
    // Apply .rel.plt relocations
    {
-      uint32_t rel_size = (uint32_t)_kernel_rel_plt_end - (uint32_t)_kernel_rel_plt_start;
+      uint32_t rel_size =
+          (uint32_t)_kernel_rel_plt_end - (uint32_t)_kernel_rel_plt_start;
       Elf32_Rel *rel = (Elf32_Rel *)_kernel_rel_plt_start;
       int rel_count = rel_size / sizeof(Elf32_Rel);
 
       if (rel_count > 0)
       {
-         printf("[DYLIB] Applying %d kernel .rel.plt relocations...\n", rel_count);
-         if (apply_relocations(kernel_base, rel, rel_count, 0, 0, "kernel .rel.plt") != 0)
+         printf("[DYLIB] Applying %d kernel .rel.plt relocations...\n",
+                rel_count);
+         if (apply_relocations(kernel_base, rel, rel_count, 0, 0,
+                               "kernel .rel.plt") != 0)
             return -1;
       }
    }

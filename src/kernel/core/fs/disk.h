@@ -8,7 +8,7 @@
 typedef struct
 {
    uint8_t id;
-   uint8_t type;        // DISK_TYPE_FLOPPY or DISK_TYPE_ATA
+   uint8_t type; // DISK_TYPE_FLOPPY or DISK_TYPE_ATA
    uint16_t cylinders;
    uint16_t sectors;
    uint16_t heads;

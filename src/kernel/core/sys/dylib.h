@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Dynamic-linking helper for kernel side to find, load, and relocate ELF modules.
-// Supports true dynamic linking with PLT/GOT relocation like Linux ld.so.
+// Dynamic-linking helper for kernel side to find, load, and relocate ELF
+// modules. Supports true dynamic linking with PLT/GOT relocation like Linux
+// ld.so.
 #pragma once
 
 #include <fs/partition.h>
@@ -35,10 +36,10 @@ typedef struct
 // Populated when libraries are loaded; used by relocations
 typedef struct
 {
-   char name[64];      // Symbol name (e.g., "add", "malloc")
-   uint32_t address;   // Absolute memory address where symbol is located
-   char lib_name[64];  // Which library/module exports this symbol
-   int is_kernel;      // 1 if from kernel, 0 if from library
+   char name[64];     // Symbol name (e.g., "add", "malloc")
+   uint32_t address;  // Absolute memory address where symbol is located
+   char lib_name[64]; // Which library/module exports this symbol
+   int is_kernel;     // 1 if from kernel, 0 if from library
 } GlobalSymbolEntry;
 
 // Find a loaded library record by name (basename without extension). Returns
