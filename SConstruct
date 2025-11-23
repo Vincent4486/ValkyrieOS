@@ -93,6 +93,11 @@ HOST_ENVIRONMENT.Replace(ASCOMSTR        = "Assembling [$SOURCE]",
                          ARCOMSTR        = "Archiving  [$TARGET]",
                          RANLIBCOMSTR    = "Ranlib     [$TARGET]")
 
+# Normalize `rustSupport` into a boolean on the host environment so SConscript
+# can rely on a consistent type (the config file may provide strings).
+host_rust = HOST_ENVIRONMENT.get('rustSupport', True)
+HOST_ENVIRONMENT['rustSupport'] = str(host_rust).lower() in ('1', 'true', 'yes', 'on')
+
 
 #
 # ***  Target environment ***

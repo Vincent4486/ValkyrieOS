@@ -15,6 +15,8 @@ env = TARGET_ENVIRONMENT.Clone()
 # With variant_dir and duplicate=0, we need to explicitly reference the source files
 # The build root is at '#' (where SConstruct is), so src/kernel/core is at src/kernel/core
 src_dir = Dir('#src/kernel/core').abspath
+# Node (relative) to pass into GlobRecursive so it searches the actual source
+src_node = '#src/kernel/core'
 
 env.Append(
     # Enable position-independent code for dynamic linking support
@@ -45,58 +47,60 @@ for root, dirs, files in os.walk(src_dir):
             # Use File() with the relative path - SCons will resolve it relative to variant_dir
             sources.append(rel_path)
 
-# Compile Rust files if rustSupport is enabled
-rust_sources = GlobRecursive(env, '*.rs')
+# Compile Rust files if rustSupport is enabled. Handle SCons variable types
+# (the config system may leave boolean-like values as strings).
 rust_objects = []
-if TARGET_ENVIRONMENT.get('rustSupport', True) and rust_sources:
-    def build_rust(target, source, env):
-        src = str(source[0])
-        out = str(target[0])
-        
-        # Remove .rlib extension and replace with .o
-        out_obj = out.replace('.rlib', '.o')
-        
-        # Determine optimization level
-        opt_level = '0' if TARGET_ENVIRONMENT['config'] == 'debug' else '3'
-        
-        # Build rustc command directly (no rustup wrapper)
-        cmd = [
-            '/home/vincent/.cargo/bin/rustc',
-            '--target', 'i686-unknown-linux-gnu',
-            '-C', 'no-redzone=on',
-            '-C', 'relocation-model=static',
-            '-C', 'code-model=kernel',
-            '-C', f'opt-level={opt_level}',
-            '--edition', '2021',
-            '--crate-type', 'lib',
-            '-o', out_obj,
-            src
-        ]
-        
-        # Create environment for rustc with required variables
-        rust_env = os.environ.copy()
-        rust_env['HOME'] = '/home/vincent'
-        rust_env['USER'] = 'vincent'
-        result = subprocess.run(cmd, cwd=str(env.Dir('.').srcnode()), env=rust_env)
-        if result.returncode != 0:
-            return result.returncode
-        
-        # Rename output to expected name
-        if os.path.exists(out_obj):
-            os.rename(out_obj, out)
-        return 0
-    
-    rust_builder = env.Builder(
-        action=build_rust,
-        suffix='.o',
-        src_suffix='.rs',
-        single_source=True
-    )
-    env.Append(BUILDERS={'RustObject': rust_builder})
-    
-    for src in rust_sources:
-        obj = env.RustObject(src)
-        rust_objects.append(obj)
+# Normalize rustSupport to a boolean: accept common truthy strings
+rust_enabled = str(TARGET_ENVIRONMENT.get('rustSupport', True)).lower() in ('1', 'true', 'yes', 'on')
+if rust_enabled:
+    # GlobRecursive must be pointed at the source directory when using variant_dir
+    rust_sources = GlobRecursive(env, '*.rs', src_node)
+    if rust_sources:
+        def build_rust(target, source, env):
+            # Use the original source file path (srcnode) so we compile the real source
+            src = source[0].srcnode().path
+            # Target is the build artifact path in the variant dir
+            out = target[0].path
+            out_obj = out
+
+            # Determine optimization level
+            opt_level = '0' if TARGET_ENVIRONMENT['config'] == 'debug' else '3'
+
+            # Build rustc command directly (no rustup wrapper)
+            rustc_cmd = env.get('RUSTC', 'rustc')
+            cmd = [
+                rustc_cmd,
+                '--target', 'i686-unknown-linux-gnu',
+                '-C', 'no-redzone=on',
+                '-C', 'relocation-model=static',
+                '-C', 'code-model=kernel',
+                '-C', f'opt-level={opt_level}',
+                '--edition', '2021',
+                '--crate-type', 'lib',
+                '-o', out_obj,
+                src
+            ]
+
+            # Create environment for rustc with required variables
+            rust_env = os.environ.copy()
+            rust_env['HOME'] = '/home/vincent'
+            rust_env['USER'] = 'vincent'
+            result = subprocess.run(cmd, cwd=env.Dir('.').abspath, env=rust_env)
+            if result.returncode != 0:
+                return result.returncode
+            return 0
+
+        rust_builder = env.Builder(
+            action=build_rust,
+            suffix='.o',
+            src_suffix='.rs',
+            single_source=True
+        )
+        env.Append(BUILDERS={'RustObject': rust_builder})
+
+        for src in rust_sources:
+            obj = env.RustObject(src)
+            rust_objects.append(obj)
 
 objects = env.Object(sources) + rust_objects
 obj_crti = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crti.o')))
