@@ -22,7 +22,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 {
    clrscr();
 
-   bool drawScreen = false;
+   bool drawScreen =true;
    draw_start_screen(drawScreen);
    delay_ms(1000);
 

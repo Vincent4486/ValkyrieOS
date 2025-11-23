@@ -3,7 +3,7 @@
 #include "memory.h"
 #include "malloc.h"
 #include <stdint.h>
-#include <string.h>
+#include <std/string.h>
 
 extern uint8_t __end; /* linker-provided end of kernel image */
 

@@ -44,58 +44,58 @@ for root, dirs, files in os.walk(src_dir):
             rel_path = os.path.relpath(full_path, src_dir)
             sources.append(rel_path)
 
-# Compile Rust files if rustSupport is enabled
+# Compile Rust files if  is enabled
 rust_sources = GlobRecursive(env, '*.rs')
 rust_objects = []
-if TARGET_ENVIRONMENT.get('rustSupport', True) and rust_sources:
-    def build_rust(target, source, env):
-        src = str(source[0])
-        out = str(target[0])
-        
-        # Remove .rlib extension and replace with .o
-        out_obj = out.replace('.rlib', '.o')
-        
-        # Determine optimization level
-        opt_level = '0' if TARGET_ENVIRONMENT['config'] == 'debug' else '3'
-        
-        # Build rustc command directly (no rustup wrapper)
-        cmd = [
-            '/home/vincent/.cargo/bin/rustc',
-            '--target', 'i686-unknown-linux-gnu',
-            '-C', 'no-redzone=on',
-            '-C', 'relocation-model=pic',
-            '-C', 'code-model=small',
-            '-C', f'opt-level={opt_level}',
-            '--edition', '2021',
-            '--crate-type', 'lib',
-            '-o', out_obj,
-            src
-        ]
-        
-        # Create environment for rustc with required variables
-        rust_env = os.environ.copy()
-        rust_env['HOME'] = '/home/vincent'
-        rust_env['USER'] = 'vincent'
-        result = subprocess.run(cmd, cwd=str(env.Dir('.').srcnode()), env=rust_env)
-        if result.returncode != 0:
-            return result.returncode
-        
-        # Rename output to expected name
-        if os.path.exists(out_obj):
-            os.rename(out_obj, out)
-        return 0
+
+def build_rust(target, source, env):
+    src = str(source[0])
+    out = str(target[0])
     
-    rust_builder = env.Builder(
-        action=build_rust,
-        suffix='.o',
-        src_suffix='.rs',
-        single_source=True
-    )
-    env.Append(BUILDERS={'RustObject': rust_builder})
+    # Remove .rlib extension and replace with .o
+    # out_obj = out.replace('.rlib', '.o')
     
-    for src in rust_sources:
-        obj = env.RustObject(src)
-        rust_objects.append(obj)
+    # Determine optimization level
+    opt_level = '0' if TARGET_ENVIRONMENT['config'] == 'debug' else '3'
+    
+    # Build rustc command directly (no rustup wrapper)
+    cmd = [
+        '/home/vincent/.cargo/bin/rustc',
+        '--target', 'i686-unknown-linux-gnu',
+        '-C', 'no-redzone=on',
+        '-C', 'relocation-model=pic',
+        '-C', 'code-model=small',
+        '-C', f'opt-level={opt_level}',
+        '--edition', '2021',
+        '--crate-type', 'lib',
+        '-o', out_obj,
+        src
+    ]
+    
+    # Create environment for rustc with required variables
+    rust_env = os.environ.copy()
+    rust_env['HOME'] = '/home/vincent'
+    rust_env['USER'] = 'vincent'
+    result = subprocess.run(cmd, cwd=str(env.Dir('.').srcnode()), env=rust_env)
+    if result.returncode != 0:
+        return result.returncode
+    
+    # Rename output to expected name
+    if os.path.exists(out_obj):
+        os.rename(out_obj, out)
+    return 0
+
+rust_builder = env.Builder(
+    action=build_rust,
+    suffix='.o',
+    src_suffix='.rs',
+    single_source=True
+)
+env.Append(BUILDERS={'RustObject': rust_builder})
+    
+for src in rust_sources:
+    obj = env.RustObject(src)
+    rust_objects.append(obj)
 
 # Compile objects as shared objects (PIC)
 objects = env.SharedObject(sources) + rust_objects

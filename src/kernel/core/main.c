@@ -243,7 +243,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   // test_fat_filesystem(&partition);
+   test_fat_filesystem(&partition);
 
    // ======================================================================
    // EXAMPLE: Load and call a dynamic library function with parameters
