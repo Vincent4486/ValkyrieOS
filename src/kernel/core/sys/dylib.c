@@ -7,6 +7,7 @@
  */
 
 #include "dylib.h"
+#include "memory.h"
 #include <fs/fat.h>
 #include <std/stdio.h>
 #include <std/string.h>
@@ -111,8 +112,7 @@ int dylib_mem_init(void)
    if (dylib_mem_initialized) return 0;
 
    // Clear the memory region
-   uint8_t *mem = (uint8_t *)DYLIB_MEMORY_ADDR;
-   for (uint32_t i = 0; i < DYLIB_MEMORY_SIZE; i++) mem[i] = 0;
+   memset((void *)DYLIB_MEMORY_ADDR, 0, DYLIB_MEMORY_SIZE);
 
    // Clear extended data
    for (int i = 0; i < LIB_REGISTRY_MAX; i++)
@@ -622,9 +622,9 @@ int dylib_load(const char *name, const void *image, uint32_t size)
    }
 
    // Copy library image to allocated memory
-   uint8_t *dest = (uint8_t *)load_addr;
-   const uint8_t *src = (const uint8_t *)image;
-   for (uint32_t i = 0; i < size; i++) dest[i] = src[i];
+   void *dest = (void *)load_addr;
+   const void *src = (const void *)image;
+   memcpy(dest, src, size);
 
    // Update library record
    lib->base = (void *)load_addr;
