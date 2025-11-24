@@ -5,7 +5,7 @@
 QEMU_ARGS='-debugcon stdio -m 32 -machine pc'
 
 if [ "$#" -le 1 ]; then
-    echo "Usage: ./run.sh <image_type> <image>"
+    echo "Usage: $0 <image_type> <image>"
     exit 1
 fi
 

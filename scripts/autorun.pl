@@ -14,7 +14,7 @@ my %config = (
     'BOCHS_DISK_CONFIG' => 'scripts/config/bochs_hda.txt',
     'GDB_FLOPPY_CONFIG' => 'scripts/config/gdb_fda.gdb',
     'GDB_DISK_CONFIG' => 'scripts/config/gdb_hda.gdb',
-    'BUILD_COMMAND' => 'make',
+    'BUILD_COMMAND' => 'scons',
 );
 
 # Parse options
@@ -141,7 +141,7 @@ Configuration:
     BOCHS_DISK_CONFIG     - Bochs config for hard disk
     GDB_FLOPPY_CONFIG     - GDB script for floppy
     GDB_DISK_CONFIG       - GDB script for hard disk
-    BUILD_COMMAND         - Build command (default: make)
+    BUILD_COMMAND         - Build command (default: scons)
 
 Examples:
   $0 aqf                      # Build and run with QEMU (floppy)

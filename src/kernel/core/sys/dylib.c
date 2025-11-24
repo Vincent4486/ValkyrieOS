@@ -280,6 +280,10 @@ int dylib_apply_kernel_relocations(void)
    extern char _kernel_rel_dyn_end[];
    extern char _kernel_rel_plt_start[];
    extern char _kernel_rel_plt_end[];
+   extern char _kernel_dynsym_start[];
+   extern char _kernel_dynsym_end[];
+   extern char _kernel_dynstr_start[];
+   extern char _kernel_dynstr_end[];
 
    uint32_t kernel_base = 0x00A00000; // Kernel load address
 
@@ -294,7 +298,9 @@ int dylib_apply_kernel_relocations(void)
       {
          printf("[DYLIB] Applying %d kernel .rel.dyn relocations...\n",
                 rel_count);
-         if (apply_relocations(kernel_base, rel, rel_count, 0, 0,
+         uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
+         uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
+         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr, dynstr_addr,
                                "kernel .rel.dyn") != 0)
             return -1;
       }
@@ -311,7 +317,9 @@ int dylib_apply_kernel_relocations(void)
       {
          printf("[DYLIB] Applying %d kernel .rel.plt relocations...\n",
                 rel_count);
-         if (apply_relocations(kernel_base, rel, rel_count, 0, 0,
+         uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
+         uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
+         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr, dynstr_addr,
                                "kernel .rel.plt") != 0)
             return -1;
       }

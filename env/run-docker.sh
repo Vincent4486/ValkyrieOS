@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

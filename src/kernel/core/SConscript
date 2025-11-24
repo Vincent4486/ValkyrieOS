@@ -25,11 +25,14 @@ env.Append(
     LINKFLAGS = [
         '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
         '-Wl,-Map=' + env.File('core.map').path,
-        # Allow undefined symbols (will be resolved at runtime via PLT/GOT patching)
-        '-Wl,--unresolved-symbols=ignore-all'
+        # Create relocation records for undefined symbols (GOT/PLT)
+        # The linker will generate R_386_GLOB_DAT and R_386_JMP_SLOT relocations
+        '-Wl,-z,notext',  # Allow relocations in text segment
+        '-Wl,--as-needed',
+        '-Wl,--export-dynamic',
     ],
-    CPATH = [ src_dir ],
-    CPPPATH = [ src_dir ],
+    CPATH = [ src_dir, '#lib' ],
+    CPPPATH = [ src_dir, '#lib' ],
     # Include source directory for assembly files (nasm -I flag for include paths)
     # Use list format so each item becomes a separate argument
     ASFLAGS = [ '-I', src_dir + '/', '-f', 'elf' ]

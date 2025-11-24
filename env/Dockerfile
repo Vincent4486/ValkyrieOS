@@ -1,4 +1,4 @@
-# SPDX Licence Identifier: AGPL 3.0 or later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 FROM archlinux:latest
 
 # Install build dependencies using pacman and pip for a few python bindings

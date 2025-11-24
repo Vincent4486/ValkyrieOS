@@ -45,6 +45,14 @@ SECTIONS
     /* Global Offset Table - stores resolved addresses for indirect references */
     .got                : { *(.got) }
     .got.plt            : { *(.got.plt) }
+    /* Dynamic symbol sections - expose so runtime can resolve kernel relocations */
+    _kernel_dynsym_start = .;
+    .dynsym             : { *(.dynsym) }
+    _kernel_dynsym_end = .;
+
+    _kernel_dynstr_start = .;
+    .dynstr             : { *(.dynstr) }
+    _kernel_dynstr_end = .;
     
     /* Relocations - kernel loader will apply these after loading libraries */
     _kernel_rel_dyn_start = .;
