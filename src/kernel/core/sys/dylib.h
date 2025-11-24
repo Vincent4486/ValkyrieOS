@@ -78,6 +78,10 @@ int dylib_call_symbol(const char *libname, const char *symname);
 // List all symbols exported by a library
 void dylib_list_symbols(const char *name);
 
+// Parse symbols from a pre-loaded library (already in memory via bootloader registration)
+// Call this when a library is already registered in LibRecord but symbols haven't been parsed yet
+int dylib_parse_symbols(LibRecord *lib);
+
 // Global symbol table management functions
 
 // Add a symbol to the global registry. Symbols are extracted from .dynsym

@@ -206,6 +206,8 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
 {
    if (!rel_table || rel_count == 0) return 0;
 
+   printf("[DYLIB] Processing %d relocations for %s at base 0x%x\n", rel_count, context, base);
+
    for (uint32_t i = 0; i < rel_count; i++)
    {
       uint32_t *where = (uint32_t *)(base + rel_table[i].r_offset);
@@ -217,6 +219,7 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
          // Relative relocation - adjust by base address
          uint32_t addend = *where;
          *where = base + addend;
+         printf("[DYLIB]   [%d] R_386_RELATIVE at 0x%x: 0x%x -> 0x%x\n", i, (uint32_t)where, addend, *where);
       }
       else if (type == R_386_32 || type == R_386_PC32 ||
                type == R_386_GLOB_DAT || type == R_386_JMP_SLOT)
@@ -254,15 +257,18 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
                case R_386_32:
                   // S + A (absolute address + addend)
                   *where = sym_addr + addend;
+                  printf("[DYLIB]   [%d] R_386_32 %s at 0x%x: 0x%x -> 0x%x\n", i, sym_name, (uint32_t)where, addend, *where);
                   break;
                case R_386_PC32:
                   // S + A - P (relative to position)
                   *where = sym_addr + addend - (uint32_t)where;
+                  printf("[DYLIB]   [%d] R_386_PC32 %s at 0x%x: 0x%x -> 0x%x\n", i, sym_name, (uint32_t)where, addend, *where);
                   break;
                case R_386_GLOB_DAT:
                case R_386_JMP_SLOT:
                   // S (just the symbol address, for GOT entries)
                   *where = sym_addr;
+                  printf("[DYLIB]   [%d] R_386_%s %s at 0x%x: 0x%x\n", i, (type == R_386_GLOB_DAT ? "GLOB_DAT" : "JMP_SLOT"), sym_name, (uint32_t)where, *where);
                   break;
                }
             }
@@ -574,6 +580,34 @@ void dylib_list_symbols(const char *name)
              ext->symbols[i].address);
    }
    printf("\n");
+}
+
+int dylib_parse_symbols(LibRecord *lib)
+{
+   if (!lib || !lib->base)
+   {
+      printf("[ERROR] Invalid library record\n");
+      return -1;
+   }
+
+   int idx = dylib_find_index(lib->name);
+   if (idx < 0)
+   {
+      printf("[ERROR] Library not found in registry: %s\n", lib->name);
+      return -1;
+   }
+
+   ExtendedLibData *ext = &extended_data[idx];
+
+   // Parse ELF symbols from the pre-loaded library at its base address
+   printf("[DYLIB] Parsing symbols for pre-loaded library: %s at 0x%x\n", 
+          lib->name, (unsigned int)lib->base);
+   
+   parse_elf_symbols(ext, (uint32_t)lib->base, lib->size);
+   
+   ext->loaded = 1;  // Mark as loaded so symbol table is available
+
+   return 0;
 }
 
 int dylib_mem_free(const char *lib_name)

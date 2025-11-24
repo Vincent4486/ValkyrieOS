@@ -227,12 +227,23 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    // ======================================================================
    printf("\n=== Testing Dynamic Library Function Calls ===\n");
 
-   // Load the library
+   // Load libmath from disk if not already registered by bootloader
    printf("[*] Loading libmath.so...\n");
-   if (dylib_load_from_disk(&partition, "libmath", "/sys/libmath.so") != 0)
+   LibRecord *existing_lib = dylib_find("libmath");
+   if (existing_lib && existing_lib->base)
    {
-      printf("[!] Failed to load libmath.so\n");
-      goto end;
+      printf("[*] libmath already registered at 0x%x (loaded by bootloader)\n",
+             (unsigned int)existing_lib->base);
+      // Parse symbols from the pre-loaded library
+      dylib_parse_symbols(existing_lib);
+   }
+   else
+   {
+      if (dylib_load_from_disk(&partition, "libmath", "/sys/libmath.so") != 0)
+      {
+         printf("[!] Failed to load libmath.so\n");
+         goto end;
+      }
    }
 
    // Resolve dependencies
@@ -286,8 +297,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    dylib_apply_kernel_relocations();
    printf("[*] Relocations applied\n");
 
-   // Call the functions directly via extern declarations from libmath/math.h
-   printf("\n[*] Testing library function calls:\n");
+   // Test direct calls via extern declarations (uses GOT/PLT)
+   printf("\n[*] Testing library function calls (via GOT/PLT):\n");
 
    printf("\nCalling add(9, 9):\n");
    int result = add(9, 9);
@@ -299,6 +310,10 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
 
    printf("\nCalling multiply(7, 6):\n");
    result = multiply(7, 6);
+   printf("  Result: %d\n", result);
+
+   printf("\nCalling divide(42, 6):\n");
+   result = divide(42, 6);
    printf("  Result: %d\n", result);
 
    printf("\n=== Dynamic Library Test Complete ===\n");

@@ -30,7 +30,7 @@
  * @param b Second number
  * @return Sum of a and b
  */
-extern int add(int a, int b) __attribute__((weak));
+extern int add(int a, int b);
 
 /**
  * Subtract two integers
@@ -38,7 +38,7 @@ extern int add(int a, int b) __attribute__((weak));
  * @param b Second number (subtrahend)
  * @return Difference a - b
  */
-extern int subtract(int a, int b) __attribute__((weak));
+extern int subtract(int a, int b);
 
 /**
  * Multiply two integers
@@ -46,7 +46,7 @@ extern int subtract(int a, int b) __attribute__((weak));
  * @param b Second number
  * @return Product of a and b
  */
-extern int multiply(int a, int b) __attribute__((weak));
+extern int multiply(int a, int b);
 
 /**
  * Divide two integers
@@ -54,7 +54,7 @@ extern int multiply(int a, int b) __attribute__((weak));
  * @param b Divisor
  * @return Integer quotient a / b (returns 0 if b == 0)
  */
-extern int divide(int a, int b) __attribute__((weak));
+extern int divide(int a, int b);
 
 /**
  * Modulo operation
@@ -62,14 +62,14 @@ extern int divide(int a, int b) __attribute__((weak));
  * @param b Divisor
  * @return Remainder a % b (returns 0 if b == 0)
  */
-extern int modulo(int a, int b) __attribute__((weak));
+extern int modulo(int a, int b);
 
 /**
  * Absolute value of integer
  * @param x Value
  * @return Absolute value |x|
  */
-extern int abs_int(int x) __attribute__((weak));
+extern int abs_int(int x);
 
 /* ===== Floating-Point Absolute Value ===== */
 
@@ -78,14 +78,14 @@ extern int abs_int(int x) __attribute__((weak));
  * @param x Value
  * @return Absolute value |x|
  */
-extern float fabsf(float x) __attribute__((weak));
+extern float fabsf(float x);
 
 /**
  * Absolute value of double
  * @param x Value
  * @return Absolute value |x|
  */
-extern double fabs(double x) __attribute__((weak));
+extern double fabs(double x);
 
 /* ===== Trigonometric Functions ===== */
 
@@ -94,27 +94,27 @@ extern double fabs(double x) __attribute__((weak));
  * @param x Angle in radians
  * @return sin(x)
  */
-extern float sinf(float x) __attribute__((weak));
+extern float sinf(float x);
 
-extern double sin(double x) __attribute__((weak));
+extern double sin(double x);
 
 /**
  * Cosine of x (in radians)
  * @param x Angle in radians
  * @return cos(x)
  */
-extern float cosf(float x) __attribute__((weak));
+extern float cosf(float x);
 
-extern double cos(double x) __attribute__((weak));
+extern double cos(double x);
 
 /**
  * Tangent of x (in radians)
  * @param x Angle in radians
  * @return tan(x)
  */
-extern float tanf(float x) __attribute__((weak));
+extern float tanf(float x);
 
-extern double tan(double x) __attribute__((weak));
+extern double tan(double x);
 
 /* ===== Exponential & Logarithm ===== */
 
@@ -123,27 +123,27 @@ extern double tan(double x) __attribute__((weak));
  * @param x Exponent
  * @return e^x
  */
-extern float expf(float x) __attribute__((weak));
+extern float expf(float x);
 
-extern double exp(double x) __attribute__((weak));
+extern double exp(double x);
 
 /**
  * Natural logarithm (base e)
  * @param x Value (must be > 0)
  * @return ln(x)
  */
-extern float logf(float x) __attribute__((weak));
+extern float logf(float x);
 
-extern double log(double x) __attribute__((weak));
+extern double log(double x);
 
 /**
  * Base-10 logarithm
  * @param x Value (must be > 0)
  * @return log₁₀(x)
  */
-extern float log10f(float x) __attribute__((weak));
+extern float log10f(float x);
 
-extern double log10(double x) __attribute__((weak));
+extern double log10(double x);
 
 /* ===== Power Function ===== */
 
@@ -153,18 +153,18 @@ extern double log10(double x) __attribute__((weak));
  * @param y Exponent
  * @return x^y
  */
-extern float powf(float x, float y) __attribute__((weak));
+extern float powf(float x, float y);
 
-extern double pow(double x, double y) __attribute__((weak));
+extern double pow(double x, double y);
 
 /**
  * Square root
  * @param x Value (must be >= 0)
  * @return √x
  */
-extern float sqrtf(float x) __attribute__((weak));
+extern float sqrtf(float x);
 
-extern double sqrt(double x) __attribute__((weak));
+extern double sqrt(double x);
 
 /* ===== Rounding ===== */
 
@@ -173,27 +173,27 @@ extern double sqrt(double x) __attribute__((weak));
  * @param x Value
  * @return ⌊x⌋
  */
-extern float floorf(float x) __attribute__((weak));
+extern float floorf(float x);
 
-extern double floor(double x) __attribute__((weak));
+extern double floor(double x);
 
 /**
  * Ceiling: smallest integer >= x
  * @param x Value
  * @return ⌈x⌉
  */
-extern float ceilf(float x) __attribute__((weak));
+extern float ceilf(float x);
 
-extern double ceil(double x) __attribute__((weak));
+extern double ceil(double x);
 
 /**
  * Round to nearest integer
  * @param x Value
  * @return Rounded value
  */
-extern float roundf(float x) __attribute__((weak));
+extern float roundf(float x);
 
-extern double round(double x) __attribute__((weak));
+extern double round(double x);
 
 /* ===== Min/Max ===== */
 
@@ -205,7 +205,7 @@ extern double round(double x) __attribute__((weak));
  */
 extern float fminf(float x, float y)__attribute__((weak));
 
-extern double fmin(double x, double y) __attribute__((weak));
+extern double fmin(double x, double y);
 
 /**
  * Maximum of two floats
@@ -213,9 +213,9 @@ extern double fmin(double x, double y) __attribute__((weak));
  * @param y Second value
  * @return max(x, y)
  */
-extern float fmaxf(float x, float y) __attribute__((weak));
+extern float fmaxf(float x, float y);
 
-extern double fmax(double x, double y) __attribute__((weak));
+extern double fmax(double x, double y);
 
 /* ===== Floating-Point Modulo ===== */
 
@@ -225,9 +225,9 @@ extern double fmax(double x, double y) __attribute__((weak));
  * @param y Divisor (must be != 0)
  * @return x - trunc(x/y) * y
  */
-extern float fmodf(float x, float y) __attribute__((weak));
+extern float fmodf(float x, float y);
 
-extern double fmod(double x, double y) __attribute__((weak));
+extern double fmod(double x, double y);
 
 /* ===== Library Entry Point ===== */
 
@@ -236,6 +236,6 @@ extern double fmod(double x, double y) __attribute__((weak));
  * Called when libmath is loaded by the dynamic linker
  * @return 0 on success
  */
-extern int libmath_init(void) __attribute__((weak));
+extern int libmath_init(void);
 
 #endif /* LIBMATH_MATH_H */
