@@ -61,6 +61,10 @@ void test_dynamic_library()
    result = divide(42, 6);
    printf("  Result: %d\n", result);
 
+   printf("\nCalling log10(10):\n");
+   result = log10(10);
+   printf("  Result: %d\n", result);
+
    printf("\n=== Dynamic Library Test Complete ===\n");
 }
 
@@ -254,9 +258,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   // test_fat_filesystem(&partition);
+   test_fat_filesystem(&partition);
 
-   // test_dynamic_library();
+   test_dynamic_library();
 
 end:
    for (;;);
