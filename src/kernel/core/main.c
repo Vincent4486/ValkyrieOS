@@ -239,10 +239,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    _init();
    mem_init();
    HAL_Initialize();
-   // Enable I/O port access for ATA driver
    set_iopl_level_3();
+   
    i686_IRQ_RegisterHandler(0, timer);
-   dylib_list();
 
    DISK disk;
    Partition partition;

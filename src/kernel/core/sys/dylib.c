@@ -1232,6 +1232,8 @@ static int load_libmath(Partition *partition)
 
 bool dylib_Initialize(Partition *partition)
 {
+   // list libraries loaded in stage2
+   dylib_list();
    // Load math library
    if(load_libmath(partition) != 0)
       return false;
