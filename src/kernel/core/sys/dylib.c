@@ -210,66 +210,126 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
 
    for (uint32_t i = 0; i < rel_count; i++)
    {
-      uint32_t *where = (uint32_t *)(base + rel_table[i].r_offset);
+      uint32_t r_offset = rel_table[i].r_offset; /* relocation target (usually absolute) */
       int type = ELF32_R_TYPE(rel_table[i].r_info);
       int symidx = ELF32_R_SYM(rel_table[i].r_info);
 
+      /* Basic sanity checks before touching memory */
+      if (r_offset == 0)
+      {
+         printf("[ERROR] Relocation[%d] has r_offset == 0 (skipping)\n", i);
+         continue;
+      }
+
+      /* Verify target falls within expected area for this base. This avoids
+       * writing to clearly invalid low addresses when the relocation entry
+       * already contains an absolute virtual address. We allow a large
+       * permitted range (1 MiB..+16 MiB) relative to base to be tolerant.
+       */
+      uint32_t allowed_low = base;
+      uint32_t allowed_high = base + 0x0100000; /* 1 MiB window */
+      if (r_offset < allowed_low || r_offset > allowed_high)
+      {
+         printf("[ERROR] Relocation[%d] target 0x%08x outside allowed range 0x%08x-0x%08x\n",
+                i, r_offset, allowed_low, allowed_high);
+         return -1;
+      }
+
+      uint32_t *where = (uint32_t *)r_offset;
+      uint32_t cur_val = *where;
+
+      /* Diagnostic: print one-line summary for the relocation */
+      printf("[DYLIB]   [%d] type=%d symidx=%d where=0x%08x cur=0x%08x\n",
+             i, type, symidx, r_offset, cur_val);
+
       if (type == R_386_RELATIVE)
       {
-         // Relative relocation - adjust by base address
-         uint32_t addend = *where;
-         *where = base + addend;
-         printf("[DYLIB]   [%d] R_386_RELATIVE at 0x%x: 0x%x -> 0x%x\n", i, (uint32_t)where, addend, *where);
+         /* Relative relocation - the stored value at *where may already be
+          * an absolute address (already relocated) or it may be an addend
+          * that must be added to the runtime base. Avoid blindly adding
+          * base to an already-correct absolute address (which produced
+          * incorrect results and crashes).
+          */
+         uint32_t addend = cur_val;
+
+         /* If the current value already falls inside the kernel image at
+          * runtime, assume it was already relocated and skip rewriting it.
+          */
+         if (addend >= base && addend <= base + 0x00f00000)
+         {
+            printf("[DYLIB]     R_386_RELATIVE at 0x%08x: already 0x%08x (skipping)\n",
+                   r_offset, addend);
+         }
+         else if (addend < 0x01000000)
+         {
+            /* If addend is a small offset, treat it as an addend and
+             * relocate to runtime base + addend.
+             */
+            uint32_t newv = base + addend;
+            *where = newv;
+            printf("[DYLIB]     R_386_RELATIVE at 0x%08x: addend=0x%08x -> 0x%08x\n",
+                   r_offset, addend, newv);
+         }
+         else
+         {
+            printf("[WARNING] R_386_RELATIVE at 0x%08x has unexpected value 0x%08x (skipping)\n",
+                   r_offset, addend);
+            continue;
+         }
       }
       else if (type == R_386_32 || type == R_386_PC32 ||
                type == R_386_GLOB_DAT || type == R_386_JMP_SLOT)
       {
-         // Symbol-based relocation - need to look up symbol in global table
          if (symidx > 0 && dynsym_addr > 0)
          {
-            // Read symbol from dynsym table
-            // Elf32_Sym structure: uint32_t st_name, st_value, st_size,
-            // st_info, st_other, st_shndx (16 bytes)
             uint32_t sym_ent_offset = symidx * 16;
-            uint32_t st_name_offset =
-                *(uint32_t *)(dynsym_addr + sym_ent_offset);
+            uint32_t st_name_offset = *(uint32_t *)(dynsym_addr + sym_ent_offset);
             uint32_t st_value = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
 
             if (dynstr_addr > 0)
             {
-               const char *sym_name =
-                   (const char *)(dynstr_addr + st_name_offset);
+               const char *sym_name = (const char *)(dynstr_addr + st_name_offset);
 
-               // Look up symbol in global table
                uint32_t sym_addr = dylib_lookup_global_symbol(sym_name);
                if (sym_addr == 0)
                {
-                  printf("[ERROR] Unresolved symbol in %s: %s\n", context,
-                         sym_name);
-                  return -1;
+                  printf("[WARNING] Unresolved symbol in %s: %s (skipping relocation)\n", context, sym_name);
+                  /* Don't abort the whole relocation pass for an unresolved
+                   * symbol - warn and continue so other relocations (in
+                   * particular .rel.plt entries) can still be applied. */
+                  continue;
                }
 
-               uint32_t addend = *where;
+               uint32_t addend = cur_val;
 
-               // Apply relocation based on type
                switch (type)
                {
                case R_386_32:
-                  // S + A (absolute address + addend)
-                  *where = sym_addr + addend;
-                  printf("[DYLIB]   [%d] R_386_32 %s at 0x%x: 0x%x -> 0x%x\n", i, sym_name, (uint32_t)where, addend, *where);
-                  break;
+               {
+                  uint32_t newv = sym_addr + addend;
+                  *where = newv;
+                  printf("[DYLIB]     R_386_32 %s at 0x%08x: addend=0x%08x -> 0x%08x\n",
+                         sym_name, r_offset, addend, newv);
+               }
+               break;
                case R_386_PC32:
-                  // S + A - P (relative to position)
-                  *where = sym_addr + addend - (uint32_t)where;
-                  printf("[DYLIB]   [%d] R_386_PC32 %s at 0x%x: 0x%x -> 0x%x\n", i, sym_name, (uint32_t)where, addend, *where);
-                  break;
+               {
+                  uint32_t newv = sym_addr + addend - (uint32_t)where;
+                  *where = newv;
+                  printf("[DYLIB]     R_386_PC32 %s at 0x%08x: addend=0x%08x -> 0x%08x\n",
+                         sym_name, r_offset, addend, newv);
+               }
+               break;
                case R_386_GLOB_DAT:
                case R_386_JMP_SLOT:
-                  // S (just the symbol address, for GOT entries)
-                  *where = sym_addr;
-                  printf("[DYLIB]   [%d] R_386_%s %s at 0x%x: 0x%x\n", i, (type == R_386_GLOB_DAT ? "GLOB_DAT" : "JMP_SLOT"), sym_name, (uint32_t)where, *where);
-                  break;
+               {
+                  uint32_t newv = sym_addr;
+                  *where = newv;
+                  printf("[DYLIB]     R_386_%s %s at 0x%08x: wrote 0x%08x\n",
+                         (type == R_386_GLOB_DAT ? "GLOB_DAT" : "JMP_SLOT"),
+                         sym_name, r_offset, newv);
+               }
+               break;
                }
             }
          }
@@ -328,6 +388,32 @@ int dylib_apply_kernel_relocations(void)
          if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr, dynstr_addr,
                                "kernel .rel.plt") != 0)
             return -1;
+
+            /* Diagnostic: print GOT entries for JMP_SLOT relocations so we can
+             * verify they point to the expected symbol addresses. */
+            printf("[DYLIB] Inspecting GOT entries for kernel .rel.plt...\n");
+            for (int ri = 0; ri < rel_count; ri++)
+            {
+               int rtype = ELF32_R_TYPE(rel[ri].r_info);
+               int rsym = ELF32_R_SYM(rel[ri].r_info);
+               if (rtype != R_386_JMP_SLOT) continue;
+
+               uint32_t where_addr = rel[ri].r_offset; /* already absolute */
+               uint32_t got_val = *(uint32_t *)where_addr;
+
+               const char *sym_name = "(unknown)";
+               uint32_t sym_addr = 0;
+               if (dynsym_addr && dynstr_addr && rsym > 0)
+               {
+                  uint32_t sym_ent_offset = rsym * 16;
+                  uint32_t st_name = *(uint32_t *)(dynsym_addr + sym_ent_offset);
+                  sym_name = (const char *)(dynstr_addr + st_name);
+                  sym_addr = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
+               }
+
+               printf("[DYLIB]  .rel.plt[%d] -> GOT@0x%x = 0x%08x (sym='%s' dynsym_val=0x%08x)\n",
+                      ri, where_addr, got_val, sym_name, sym_addr);
+            }
       }
    }
 
@@ -1068,4 +1154,86 @@ void dylib_mem_stats(void)
 void dylib_register_callback(dylib_register_symbols_t callback)
 {
     symbol_callback = callback;
+}
+
+static int load_libmath(Partition *partition)
+{
+   // Load libmath from disk if not already registered by bootloader
+   printf("[*] Loading libmath.so...\n");
+   LibRecord *existing_lib = dylib_find("libmath");
+   if (existing_lib && existing_lib->base)
+   {
+      printf("[*] libmath already registered at 0x%x (loaded by bootloader)\n",
+             (unsigned int)existing_lib->base);
+      // Parse symbols from the pre-loaded library
+      dylib_parse_symbols(existing_lib);
+   }
+   else
+   {
+      if (dylib_load_from_disk(partition, "libmath", "/sys/libmath.so") != 0)
+      {
+         printf("[!] Failed to load libmath.so\n");
+         return -1;
+      }
+   }
+
+   // Resolve dependencies
+   dylib_resolve_dependencies("libmath");
+
+   dylib_list();
+   dylib_list_symbols("libmath");
+
+   // Register libmath symbols in global symbol table for GOT patching
+   printf("\n[*] Registering libmath symbols in global symbol table...\n");
+   dylib_add_global_symbol("add", (uint32_t)dylib_find_symbol("libmath", "add"), "libmath", 0);
+   dylib_add_global_symbol("subtract", (uint32_t)dylib_find_symbol("libmath", "subtract"), "libmath", 0);
+   dylib_add_global_symbol("multiply", (uint32_t)dylib_find_symbol("libmath", "multiply"), "libmath", 0);
+   dylib_add_global_symbol("divide", (uint32_t)dylib_find_symbol("libmath", "divide"), "libmath", 0);
+   dylib_add_global_symbol("modulo", (uint32_t)dylib_find_symbol("libmath", "modulo"), "libmath", 0);
+   dylib_add_global_symbol("abs_int", (uint32_t)dylib_find_symbol("libmath", "abs_int"), "libmath", 0);
+   dylib_add_global_symbol("fabsf", (uint32_t)dylib_find_symbol("libmath", "fabsf"), "libmath", 0);
+   dylib_add_global_symbol("fabs", (uint32_t)dylib_find_symbol("libmath", "fabs"), "libmath", 0);
+   dylib_add_global_symbol("sinf", (uint32_t)dylib_find_symbol("libmath", "sinf"), "libmath", 0);
+   dylib_add_global_symbol("sin", (uint32_t)dylib_find_symbol("libmath", "sin"), "libmath", 0);
+   dylib_add_global_symbol("cosf", (uint32_t)dylib_find_symbol("libmath", "cosf"), "libmath", 0);
+   dylib_add_global_symbol("cos", (uint32_t)dylib_find_symbol("libmath", "cos"), "libmath", 0);
+   dylib_add_global_symbol("tanf", (uint32_t)dylib_find_symbol("libmath", "tanf"), "libmath", 0);
+   dylib_add_global_symbol("tan", (uint32_t)dylib_find_symbol("libmath", "tan"), "libmath", 0);
+   dylib_add_global_symbol("expf", (uint32_t)dylib_find_symbol("libmath", "expf"), "libmath", 0);
+   dylib_add_global_symbol("exp", (uint32_t)dylib_find_symbol("libmath", "exp"), "libmath", 0);
+   dylib_add_global_symbol("logf", (uint32_t)dylib_find_symbol("libmath", "logf"), "libmath", 0);
+   dylib_add_global_symbol("log", (uint32_t)dylib_find_symbol("libmath", "log"), "libmath", 0);
+   dylib_add_global_symbol("log10f", (uint32_t)dylib_find_symbol("libmath", "log10f"), "libmath", 0);
+   dylib_add_global_symbol("log10", (uint32_t)dylib_find_symbol("libmath", "log10"), "libmath", 0);
+   dylib_add_global_symbol("powf", (uint32_t)dylib_find_symbol("libmath", "powf"), "libmath", 0);
+   dylib_add_global_symbol("pow", (uint32_t)dylib_find_symbol("libmath", "pow"), "libmath", 0);
+   dylib_add_global_symbol("sqrtf", (uint32_t)dylib_find_symbol("libmath", "sqrtf"), "libmath", 0);
+   dylib_add_global_symbol("sqrt", (uint32_t)dylib_find_symbol("libmath", "sqrt"), "libmath", 0);
+   dylib_add_global_symbol("floorf", (uint32_t)dylib_find_symbol("libmath", "floorf"), "libmath", 0);
+   dylib_add_global_symbol("floor", (uint32_t)dylib_find_symbol("libmath", "floor"), "libmath", 0);
+   dylib_add_global_symbol("ceilf", (uint32_t)dylib_find_symbol("libmath", "ceilf"), "libmath", 0);
+   dylib_add_global_symbol("ceil", (uint32_t)dylib_find_symbol("libmath", "ceil"), "libmath", 0);
+   dylib_add_global_symbol("roundf", (uint32_t)dylib_find_symbol("libmath", "roundf"), "libmath", 0);
+   dylib_add_global_symbol("round", (uint32_t)dylib_find_symbol("libmath", "round"), "libmath", 0);
+   dylib_add_global_symbol("fminf", (uint32_t)dylib_find_symbol("libmath", "fminf"), "libmath", 0);
+   dylib_add_global_symbol("fmin", (uint32_t)dylib_find_symbol("libmath", "fmin"), "libmath", 0);
+   dylib_add_global_symbol("fmaxf", (uint32_t)dylib_find_symbol("libmath", "fmaxf"), "libmath", 0);
+   dylib_add_global_symbol("fmax", (uint32_t)dylib_find_symbol("libmath", "fmax"), "libmath", 0);
+   dylib_add_global_symbol("fmodf", (uint32_t)dylib_find_symbol("libmath", "fmodf"), "libmath", 0);
+   dylib_add_global_symbol("fmod", (uint32_t)dylib_find_symbol("libmath", "fmod"), "libmath", 0);
+   printf("[*] Symbols registered\n");
+
+   // Apply kernel GOT/PLT relocations for libmath
+   printf("\n[*] Applying kernel GOT/PLT relocations...\n");
+   dylib_apply_kernel_relocations();
+   printf("[*] Relocations applied\n");
+   return 0;
+}
+
+bool dylib_Initialize(Partition *partition)
+{
+   // Load math library
+   if(load_libmath(partition) != 0)
+      return false;
+   return true;
 }

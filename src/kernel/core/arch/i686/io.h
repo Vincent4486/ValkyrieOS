@@ -14,3 +14,5 @@ uint8_t __attribute__((cdecl)) i686_DisableInterrupts();
 
 void i686_iowait();
 void __attribute__((cdecl)) i686_Panic();
+
+void __attribute__((cdecl)) i686_Halt();

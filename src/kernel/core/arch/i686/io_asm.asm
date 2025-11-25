@@ -54,3 +54,8 @@ crash_me:
     mov eax, 0
     div eax
     ret
+
+global i686_Halt
+i686_Halt:
+    cli
+    hlt

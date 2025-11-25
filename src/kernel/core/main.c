@@ -35,6 +35,35 @@ static inline void set_iopl_level_3(void)
                         : "memory");
 }
 
+void test_dynamic_library()
+{
+   // ======================================================================
+   // EXAMPLE: Load and call a dynamic library function with parameters
+   // ======================================================================
+   printf("\n=== Testing Dynamic Library Function Calls ===\n");
+
+   // Test direct calls via extern declarations (uses GOT/PLT)
+   printf("\n[*] Testing library function calls (via GOT/PLT):\n");
+
+   printf("\nCalling add(9, 9):\n");
+   int result = add(9, 9);
+   printf("  Result: %d\n", result);
+
+   printf("\nCalling subtract(20, 5):\n");
+   result = subtract(20, 5);
+   printf("  Result: %d\n", result);
+
+   printf("\nCalling multiply(7, 6):\n");
+   result = multiply(7, 6);
+   printf("  Result: %d\n", result);
+
+   printf("\nCalling divide(42, 6):\n");
+   result = divide(42, 6);
+   printf("  Result: %d\n", result);
+
+   printf("\n=== Dynamic Library Test Complete ===\n");
+}
+
 /**
  * Test FAT filesystem operations: list directories and read files
  */
@@ -220,103 +249,14 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
+   if(!dylib_Initialize(&partition)){
+      printf("Failed to load dynamic libraries...");
+      goto end;
+   }
+
    // test_fat_filesystem(&partition);
 
-   // ======================================================================
-   // EXAMPLE: Load and call a dynamic library function with parameters
-   // ======================================================================
-   printf("\n=== Testing Dynamic Library Function Calls ===\n");
-
-   // Load libmath from disk if not already registered by bootloader
-   printf("[*] Loading libmath.so...\n");
-   LibRecord *existing_lib = dylib_find("libmath");
-   if (existing_lib && existing_lib->base)
-   {
-      printf("[*] libmath already registered at 0x%x (loaded by bootloader)\n",
-             (unsigned int)existing_lib->base);
-      // Parse symbols from the pre-loaded library
-      dylib_parse_symbols(existing_lib);
-   }
-   else
-   {
-      if (dylib_load_from_disk(&partition, "libmath", "/sys/libmath.so") != 0)
-      {
-         printf("[!] Failed to load libmath.so\n");
-         goto end;
-      }
-   }
-
-   // Resolve dependencies
-   dylib_resolve_dependencies("libmath");
-
-   dylib_list();
-   dylib_list_symbols("libmath");
-
-   // Register libmath symbols in global symbol table for GOT patching
-   printf("\n[*] Registering libmath symbols in global symbol table...\n");
-   dylib_add_global_symbol("add", (uint32_t)dylib_find_symbol("libmath", "add"), "libmath", 0);
-   dylib_add_global_symbol("subtract", (uint32_t)dylib_find_symbol("libmath", "subtract"), "libmath", 0);
-   dylib_add_global_symbol("multiply", (uint32_t)dylib_find_symbol("libmath", "multiply"), "libmath", 0);
-   dylib_add_global_symbol("divide", (uint32_t)dylib_find_symbol("libmath", "divide"), "libmath", 0);
-   dylib_add_global_symbol("modulo", (uint32_t)dylib_find_symbol("libmath", "modulo"), "libmath", 0);
-   dylib_add_global_symbol("abs_int", (uint32_t)dylib_find_symbol("libmath", "abs_int"), "libmath", 0);
-   dylib_add_global_symbol("fabsf", (uint32_t)dylib_find_symbol("libmath", "fabsf"), "libmath", 0);
-   dylib_add_global_symbol("fabs", (uint32_t)dylib_find_symbol("libmath", "fabs"), "libmath", 0);
-   dylib_add_global_symbol("sinf", (uint32_t)dylib_find_symbol("libmath", "sinf"), "libmath", 0);
-   dylib_add_global_symbol("sin", (uint32_t)dylib_find_symbol("libmath", "sin"), "libmath", 0);
-   dylib_add_global_symbol("cosf", (uint32_t)dylib_find_symbol("libmath", "cosf"), "libmath", 0);
-   dylib_add_global_symbol("cos", (uint32_t)dylib_find_symbol("libmath", "cos"), "libmath", 0);
-   dylib_add_global_symbol("tanf", (uint32_t)dylib_find_symbol("libmath", "tanf"), "libmath", 0);
-   dylib_add_global_symbol("tan", (uint32_t)dylib_find_symbol("libmath", "tan"), "libmath", 0);
-   dylib_add_global_symbol("expf", (uint32_t)dylib_find_symbol("libmath", "expf"), "libmath", 0);
-   dylib_add_global_symbol("exp", (uint32_t)dylib_find_symbol("libmath", "exp"), "libmath", 0);
-   dylib_add_global_symbol("logf", (uint32_t)dylib_find_symbol("libmath", "logf"), "libmath", 0);
-   dylib_add_global_symbol("log", (uint32_t)dylib_find_symbol("libmath", "log"), "libmath", 0);
-   dylib_add_global_symbol("log10f", (uint32_t)dylib_find_symbol("libmath", "log10f"), "libmath", 0);
-   dylib_add_global_symbol("log10", (uint32_t)dylib_find_symbol("libmath", "log10"), "libmath", 0);
-   dylib_add_global_symbol("powf", (uint32_t)dylib_find_symbol("libmath", "powf"), "libmath", 0);
-   dylib_add_global_symbol("pow", (uint32_t)dylib_find_symbol("libmath", "pow"), "libmath", 0);
-   dylib_add_global_symbol("sqrtf", (uint32_t)dylib_find_symbol("libmath", "sqrtf"), "libmath", 0);
-   dylib_add_global_symbol("sqrt", (uint32_t)dylib_find_symbol("libmath", "sqrt"), "libmath", 0);
-   dylib_add_global_symbol("floorf", (uint32_t)dylib_find_symbol("libmath", "floorf"), "libmath", 0);
-   dylib_add_global_symbol("floor", (uint32_t)dylib_find_symbol("libmath", "floor"), "libmath", 0);
-   dylib_add_global_symbol("ceilf", (uint32_t)dylib_find_symbol("libmath", "ceilf"), "libmath", 0);
-   dylib_add_global_symbol("ceil", (uint32_t)dylib_find_symbol("libmath", "ceil"), "libmath", 0);
-   dylib_add_global_symbol("roundf", (uint32_t)dylib_find_symbol("libmath", "roundf"), "libmath", 0);
-   dylib_add_global_symbol("round", (uint32_t)dylib_find_symbol("libmath", "round"), "libmath", 0);
-   dylib_add_global_symbol("fminf", (uint32_t)dylib_find_symbol("libmath", "fminf"), "libmath", 0);
-   dylib_add_global_symbol("fmin", (uint32_t)dylib_find_symbol("libmath", "fmin"), "libmath", 0);
-   dylib_add_global_symbol("fmaxf", (uint32_t)dylib_find_symbol("libmath", "fmaxf"), "libmath", 0);
-   dylib_add_global_symbol("fmax", (uint32_t)dylib_find_symbol("libmath", "fmax"), "libmath", 0);
-   dylib_add_global_symbol("fmodf", (uint32_t)dylib_find_symbol("libmath", "fmodf"), "libmath", 0);
-   dylib_add_global_symbol("fmod", (uint32_t)dylib_find_symbol("libmath", "fmod"), "libmath", 0);
-   printf("[*] Symbols registered\n");
-
-   // Apply kernel GOT/PLT relocations for libmath
-   printf("\n[*] Applying kernel GOT/PLT relocations...\n");
-   dylib_apply_kernel_relocations();
-   printf("[*] Relocations applied\n");
-
-   // Test direct calls via extern declarations (uses GOT/PLT)
-   printf("\n[*] Testing library function calls (via GOT/PLT):\n");
-
-   printf("\nCalling add(9, 9):\n");
-   int result = add(9, 9);
-   printf("  Result: %d\n", result);
-
-   printf("\nCalling subtract(20, 5):\n");
-   result = subtract(20, 5);
-   printf("  Result: %d\n", result);
-
-   printf("\nCalling multiply(7, 6):\n");
-   result = multiply(7, 6);
-   printf("  Result: %d\n", result);
-
-   printf("\nCalling divide(42, 6):\n");
-   result = divide(42, 6);
-   printf("  Result: %d\n", result);
-
-   printf("\n=== Dynamic Library Test Complete ===\n");
+   // test_dynamic_library();
 
 end:
    for (;;);

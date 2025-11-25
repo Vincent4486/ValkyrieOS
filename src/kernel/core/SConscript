@@ -20,9 +20,8 @@ src_node = '#src/kernel/core'
 
 env.Append(
     # Enable position-independent code for dynamic linking support
-    # Build as a position-independent executable (PIE) so the linker
-    # emits .dynsym/.rel.plt sections and generates PLT/GOT relocations.
-    CCFLAGS = ['-fPIE'],
+    # Use PIC so object files generate GOT/PLT entries for dynamic linking.
+    CCFLAGS = ['-fPIC'],
     LINKFLAGS = [
         '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
         '-Wl,-Map=' + env.File('core.map').path,
@@ -30,9 +29,9 @@ env.Append(
         # The linker will generate R_386_GLOB_DAT and R_386_JMP_SLOT relocations
         '-Wl,-z,notext',  # Allow relocations in text segment
         '-Wl,--unresolved-symbols=ignore-all',  # Allow undefined symbols - will be resolved at runtime
-        '-pie',
         '-Wl,--as-needed',
         '-Wl,--export-dynamic',
+        '-pie',
     ],
     CPATH = [ src_dir, '#lib' ],
     CPPPATH = [ src_dir, '#lib' ],
