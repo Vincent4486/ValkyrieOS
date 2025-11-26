@@ -10,7 +10,7 @@ extern "C"
 {
 #endif
 
-extern void i686_keyboard_init(void);
+   extern void i686_keyboard_init(void);
 
 #ifdef __cplusplus
 }

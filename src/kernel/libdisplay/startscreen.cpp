@@ -58,12 +58,14 @@ static void scroll_up_if_needed(void)
    /* clear last row */
    for (int col = 0; col < VGA_WIDTH; ++col)
    {
-      VGA[(VGA_HEIGHT - 1) * VGA_WIDTH + col] = (uint16_t)(' ') | ((uint16_t)cur_attr << 8);
+      VGA[(VGA_HEIGHT - 1) * VGA_WIDTH + col] =
+          (uint16_t)(' ') | ((uint16_t)cur_attr << 8);
    }
    cur_y = VGA_HEIGHT - 1;
 }
 
-namespace libdisplay{
+namespace libdisplay
+{
 
 void draw_outline()
 {
@@ -94,7 +96,8 @@ void draw_outline()
       delay_ms(ANIMATION_DELAY_MS);
       if (x + 1 <= right)
       {
-         VGA[top * VGA_WIDTH + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+         VGA[top * VGA_WIDTH + (x + 1)] =
+             (uint16_t)(' ') | ((uint16_t)attr << 8);
          delay_ms(ANIMATION_DELAY_MS);
       }
       ++idx;
@@ -109,7 +112,8 @@ void draw_outline()
       delay_ms(ANIMATION_DELAY_MS);
       if (x + 1 <= right)
       {
-         VGA[bottom * VGA_WIDTH + (x + 1)] = (uint16_t)(' ') | ((uint16_t)attr << 8);
+         VGA[bottom * VGA_WIDTH + (x + 1)] =
+             (uint16_t)(' ') | ((uint16_t)attr << 8);
          delay_ms(ANIMATION_DELAY_MS);
       }
       ++idx;
@@ -122,16 +126,19 @@ void draw_outline()
       uint8_t attr_left = (bg_left << 4) | 0x00;
       VGA[y * VGA_WIDTH + left] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
       delay_ms(ANIMATION_DELAY_MS);
-      VGA[y * VGA_WIDTH + (left + 1)] = (uint16_t)(' ') | ((uint16_t)attr_left << 8);
+      VGA[y * VGA_WIDTH + (left + 1)] =
+          (uint16_t)(' ') | ((uint16_t)attr_left << 8);
       delay_ms(ANIMATION_DELAY_MS);
       ++idx;
 
       /* right pair (same color horizontally) */
       uint8_t bg_right = palette[idx % pcount];
       uint8_t attr_right = (bg_right << 4) | 0x00;
-      VGA[y * VGA_WIDTH + right] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
+      VGA[y * VGA_WIDTH + right] =
+          (uint16_t)(' ') | ((uint16_t)attr_right << 8);
       delay_ms(ANIMATION_DELAY_MS);
-      VGA[y * VGA_WIDTH + (right - 1)] = (uint16_t)(' ') | ((uint16_t)attr_right << 8);
+      VGA[y * VGA_WIDTH + (right - 1)] =
+          (uint16_t)(' ') | ((uint16_t)attr_right << 8);
       delay_ms(ANIMATION_DELAY_MS);
       ++idx;
    }
@@ -205,7 +212,7 @@ void delay_ms(unsigned int ms)
    }
 }
 
-}
+} // namespace libdisplay
 
 void draw_start_screen(bool showBoot)
 {

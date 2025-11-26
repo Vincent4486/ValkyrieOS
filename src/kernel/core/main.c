@@ -7,13 +7,13 @@
 #include <fs/storage.h>
 #include <hal/hal.h>
 #include <std/stdio.h>
+#include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
 #include <sys/memory.h>
-#include <std/string.h>
 
-#include <libmath/math.h>
 #include <libdisplay/startscreen.h>
+#include <libmath/math.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -251,7 +251,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    mem_init();
    HAL_Initialize();
    set_iopl_level_3();
-   
+
    i686_IRQ_RegisterHandler(0, timer);
 
    DISK disk;
@@ -263,12 +263,13 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   if(!dylib_Initialize(&partition)){
+   if (!dylib_Initialize(&partition))
+   {
       printf("Failed to load dynamic libraries...");
       goto end;
    }
 
-   //test_fat_filesystem(&partition);
+   // test_fat_filesystem(&partition);
 
    test_dynamic_library();
 
