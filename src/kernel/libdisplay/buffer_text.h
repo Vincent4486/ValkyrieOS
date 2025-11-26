@@ -9,6 +9,12 @@
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
 void buffer_init(void);
 void buffer_clear(void);
 void buffer_putc(char c);
@@ -30,3 +36,8 @@ uint32_t buffer_get_visible_start(void);
 /* Debug: draw a small overlay on row 0 with buffer internals (s_lines_used,
    s_head, s_scroll, max_scroll). This is temporary debugging aid. */
 void buffer_debug_overlay(void);
+
+#ifdef __cplusplus
+}
+#endif
+

@@ -63,14 +63,7 @@ static void scroll_up_if_needed(void)
    cur_y = VGA_HEIGHT - 1;
 }
 
-void draw_start_screen(bool showBoot)
-{
-   if (showBoot)
-   {
-      draw_outline();
-      draw_text();
-   }
-}
+namespace libdisplay{
 
 void draw_outline()
 {
@@ -190,7 +183,6 @@ void printChar(char character, uint8_t color)
 
    /* Busy-wait ~300 ms. This is approximate and depends on CPU speed.
    If you need precise timing, use PIT calibration or the PIT itself. */
-   extern void delay_ms(unsigned int ms);
    delay_ms(300);
 }
 
@@ -210,5 +202,16 @@ void delay_ms(unsigned int ms)
       {
          __asm__ volatile("nop");
       }
+   }
+}
+
+}
+
+void draw_start_screen(bool showBoot)
+{
+   if (showBoot)
+   {
+      libdisplay::draw_outline();
+      libdisplay::draw_text();
    }
 }
