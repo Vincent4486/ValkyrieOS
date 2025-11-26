@@ -36,9 +36,6 @@ static const char scancode_map[128] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-namespace libdisplay {
-extern "C" {
-
 /* IRQ handler for keyboard IRQ1 */
 void i686_keyboard_irq(Registers *regs)
 {
@@ -341,17 +338,14 @@ void i686_keyboard_irq(Registers *regs)
    }
 }
 
-}
-}
+
 
 /* Register keyboard handler for IRQ1 */
 void i686_keyboard_init(void)
 {
-   i686_IRQ_RegisterHandler(1, libdisplay::i686_keyboard_irq);
+   i686_IRQ_RegisterHandler(1, i686_keyboard_irq);
 }
 
-namespace libdisplay {
-extern "C" {
 
 /* Non-blocking readline: returns number of bytes written into buf, 0 if no line
  * ready */
@@ -372,14 +366,11 @@ int i686_keyboard_readline_nb(char *buf, int bufsize)
 int i686_keyboard_readline(char *buf, int bufsize)
 {
    int n;
-   while ((n = libdisplay::i686_keyboard_readline_nb(buf, bufsize)) == 0)
+   while ((n = i686_keyboard_readline_nb(buf, bufsize)) == 0)
    {
       /* simple idle: execute HLT to reduce busy spin and wait for interrupts
        */
       __asm__ volatile("sti; hlt; cli");
    }
    return n;
-}
-
-}
 }

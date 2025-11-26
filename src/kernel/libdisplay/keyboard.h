@@ -10,18 +10,11 @@ extern "C"
 {
 #endif
 
-   void i686_keyboard_init(void);
+void i686_keyboard_init(void);
+void i686_keyboard_irq(Registers *regs);
+int i686_keyboard_readline_nb(char *buf, int bufsize);
+int i686_keyboard_readline(char *buf, int bufsize);
 
 #ifdef __cplusplus
 }
 #endif
-
-namespace libdisplay
-{
-extern "C"
-{
-   void i686_keyboard_irq(Registers *regs);
-   int i686_keyboard_readline_nb(char *buf, int bufsize);
-   int i686_keyboard_readline(char *buf, int bufsize);
-}
-} // namespace libdisplay
