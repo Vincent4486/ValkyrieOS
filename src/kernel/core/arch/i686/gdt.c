@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "gdt.h"
-#include <std/stdio.h>
 #include <stdint.h>
 
 typedef struct
@@ -91,5 +90,4 @@ void i686_GDT_Initialize()
 {
    i686_GDT_Load(&g_GDTDescriptor, i686_GDT_CODE_SEGMENT,
                  i686_GDT_DATA_SEGMENT);
-   printf("GDT initialized successfully.\n");
 }
