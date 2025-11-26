@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "memory.h"
-#include "arch/i686/io.h"
 #include <stdint.h>
+#include "arch/i686/io.h"
 
 /* Runtime-controlled memory debug flag. Set non-zero to make the handler
  * call `i686_Panic()` when a memory safety fault is detected. Default is 0.
@@ -15,14 +15,11 @@ int memory_debug = 0;
  */
 void mem_fault_handler(void *addr, size_t len, int code)
 {
-   (void)addr;
-   (void)len;
-   (void)code;
-   if (memory_debug)
-   {
-      i686_Panic();
-   }
-   /* Otherwise return and let caller continue (safe no-op behavior). */
+    (void)addr; (void)len; (void)code;
+    if (memory_debug) {
+        i686_Panic();
+    }
+    /* Otherwise return and let caller continue (safe no-op behavior). */
 }
 
 /* Basic memory helpers */
@@ -33,19 +30,19 @@ void mem_fault_handler(void *addr, size_t len, int code)
 extern void *memcpy_asm(void *dst, const void *src, size_t num);
 void *memcpy(void *dst, const void *src, size_t num)
 {
-   return memcpy_asm(dst, src, num);
+    return memcpy_asm(dst, src, num);
 }
 
 extern void *memset_asm(void *ptr, int value, size_t num);
 void *memset(void *ptr, int value, size_t num)
 {
-   return memset_asm(ptr, value, num);
+    return memset_asm(ptr, value, num);
 }
 
 extern int memcmp_asm(const void *ptr1, const void *ptr2, size_t num);
 int memcmp(const void *ptr1, const void *ptr2, size_t num)
 {
-   return memcmp_asm(ptr1, ptr2, num);
+    return memcmp_asm(ptr1, ptr2, num);
 }
 
 void *SegmentOffsetToLinear(void *addr)

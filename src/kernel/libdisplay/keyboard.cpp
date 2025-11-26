@@ -3,8 +3,8 @@
 #include "keyboard.h"
 #include <core/arch/i686/io.h>
 #include <core/arch/i686/irq.h>
-#include <core/std/stdio.h> // for putc/printf
 #include <libdisplay/buffer_text.h>
+#include <core/std/stdio.h> // for putc/printf
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256
@@ -338,14 +338,11 @@ void i686_keyboard_irq(Registers *regs)
    }
 }
 
-
-
 /* Register keyboard handler for IRQ1 */
 void i686_keyboard_init(void)
 {
    i686_IRQ_RegisterHandler(1, i686_keyboard_irq);
 }
-
 
 /* Non-blocking readline: returns number of bytes written into buf, 0 if no line
  * ready */

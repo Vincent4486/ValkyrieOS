@@ -45,4 +45,7 @@ void i686_IDT_DisableGate(int interrupt)
    FLAG_UNSET(g_IDT[interrupt].Flags, IDT_FLAG_PRESENT);
 }
 
-void i686_IDT_Initialize() { i686_IDT_Load(&g_IDTDescriptor); }
+void i686_IDT_Initialize()
+{
+   i686_IDT_Load(&g_IDTDescriptor);
+}

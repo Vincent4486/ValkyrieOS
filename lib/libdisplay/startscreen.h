@@ -10,7 +10,7 @@ extern "C"
 {
 #endif
 
-   extern void draw_start_screen(bool showBoot);
+extern void draw_start_screen(bool showBoot);
 
 #ifdef __cplusplus
 }

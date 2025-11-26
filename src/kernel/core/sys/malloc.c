@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "malloc.h"
 #include "memory.h"
-#include <std/string.h>
+#include "malloc.h"
 #include <stdint.h>
+#include <std/string.h>
 
 extern uint8_t __end; /* linker-provided end of kernel image */
 
@@ -63,7 +63,10 @@ uintptr_t mem_heap_start(void) { return heap_start; }
 uintptr_t mem_heap_end(void) { return heap_end; }
 
 /* libc-like wrappers ---------------------------------------------------- */
-void *malloc(size_t size) { return kmalloc(size); }
+void *malloc(size_t size)
+{
+   return kmalloc(size);
+}
 
 void free(void *ptr)
 {
@@ -80,11 +83,7 @@ void *calloc(size_t nmemb, size_t size)
 void *realloc(void *ptr, size_t size)
 {
    if (!ptr) return kmalloc(size);
-   if (size == 0)
-   {
-      free(ptr);
-      return NULL;
-   }
+   if (size == 0) { free(ptr); return NULL; }
 
    /* Allocate new block and copy old contents. We can't know old size, so
     * this is a best-effort: copy 'size' bytes (may read past original if

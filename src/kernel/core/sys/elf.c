@@ -5,6 +5,7 @@
 #include <sys/memdefs.h>
 #include <sys/memory.h>
 
+
 #define EI_MAG0 0
 #define EI_MAG1 1
 #define EI_MAG2 2

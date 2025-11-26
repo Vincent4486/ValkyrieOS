@@ -124,8 +124,7 @@ void printf_unsigned(unsigned long long number, int radix)
    int pos = 0;
 
    // convert number to ASCII
-   do
-   {
+   do {
       unsigned long long rem = number % radix;
       number /= radix;
       buffer[pos++] = g_HexChars[rem];

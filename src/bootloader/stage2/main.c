@@ -47,17 +47,16 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 
    // Register libraries in the library registry
    LibRecord *lib_registry = LIB_REGISTRY_ADDR;
-
+   
    // Load and register libmath library
    printf("Loading libmath.so...\r\n");
    FAT_File *libmath_file = FAT_Open(&part, "/sys/libmath.so");
    if (libmath_file)
    {
       // Allocate memory for libmath (use a fixed address for simplicity)
-      void *libmath_base = (void *)0x500000; // Load at 5 MiB
-      uint32_t bytes_read =
-          FAT_Read(&part, libmath_file, libmath_file->Size, libmath_base);
-
+      void *libmath_base = (void *)0x500000;  // Load at 5 MiB
+      uint32_t bytes_read = FAT_Read(&part, libmath_file, libmath_file->Size, libmath_base);
+      
       if (bytes_read == libmath_file->Size)
       {
          // Register in library registry
@@ -70,12 +69,9 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
          lib_registry[0].name[6] = 'h';
          lib_registry[0].name[7] = '\0';
          lib_registry[0].base = libmath_base;
-         lib_registry[0].entry =
-             (void *)((uint32_t)libmath_base +
-                      0x100); // Entry point offset (will be fixed by kernel)
+         lib_registry[0].entry = (void *)((uint32_t)libmath_base + 0x100);  // Entry point offset (will be fixed by kernel)
          lib_registry[0].size = libmath_file->Size;
-         printf("libmath.so registered at 0x%x\r\n",
-                (unsigned int)libmath_base);
+         printf("libmath.so registered at 0x%x\r\n", (unsigned int)libmath_base);
       }
       else
       {
