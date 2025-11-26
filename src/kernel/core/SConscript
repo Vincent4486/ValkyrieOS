@@ -117,6 +117,27 @@ objects = [
     obj_crtn
 ]
 
+# Link libdisplay.a statically into core.elf (required for draw_start_screen etc.)
+try:
+    Import('libdisplay_module')
+    objects = objects + [libdisplay_module]
+except Exception:
+    print('[WARN] libdisplay not available - draw_start_screen will be unresolved')
+
 core = env.Program('core.elf', objects)
+
+# Ensure core is built AFTER libmath (and libdisplay if present).
+# This makes SCons schedule library compilation before core linking.
+try:
+    Import('libmath_module')
+    env.Depends(core, libmath_module)
+except Exception:
+    pass
+
+try:
+    Import('libdisplay_module')
+    env.Depends(core, libdisplay_module)
+except Exception:
+    pass
 
 Export('core')

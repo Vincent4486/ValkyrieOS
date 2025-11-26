@@ -9,11 +9,12 @@ from SCons.Environment import Environment
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
 
-# Build the core kernel executable from core/ directory
-SConscript('core/SConscript', variant_dir='core_build', duplicate=0)
-
-# Build libmath library explicitly
+# Build libmath and libdisplay libraries first so core can link them statically
 SConscript('libmath/SConscript', variant_dir='libmath_build', duplicate=0)
+SConscript('libdisplay/SConscript', variant_dir='libdisplay_build', duplicate=0)
+
+# Build the core kernel executable from core/ directory (after libs)
+SConscript('core/SConscript', variant_dir='core_build', duplicate=0)
 
 # Build optional kernel modules/libraries from other top-level directories
 # Each directory under kernel/ (except core/) becomes a separate shared library
@@ -79,5 +80,19 @@ for module_dir in glob.glob('*/'):
             kernel.append(locals()[f'{module_name}_module'])
         except:
             pass
+
+# Ensure `core` depends on built libraries so they are built first.
+# This makes SCons schedule libmath/libdisplay (and other modules)
+# before building the `core` target.
+try:
+    for mod in kernel[1:]:
+        try:
+            Depends(core, mod)
+        except Exception:
+            # If `Depends` or the node isn't usable here, ignore and continue
+            pass
+except Exception:
+    # If something unexpected occurs, don't break the SConscript evaluation.
+    pass
 
 Export('kernel')

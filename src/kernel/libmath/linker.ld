@@ -3,10 +3,10 @@ ENTRY(libmath_init)
 
 SECTIONS
 {
-    . = 0x08000000;  /* Base address for shared library */
+    . = 0x05000000;  /* Base address for shared library */
     
     /* Skip the ELF header - only executable and data sections are loaded */
-    .text 0x08000000 :
+    .text 0x05000000 :
     {
         *(.text)
         *(.text.*)

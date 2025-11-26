@@ -11,7 +11,9 @@
 #include <sys/dylib.h>
 #include <sys/memory.h>
 #include <std/string.h>
+
 #include <libmath/math.h>
+#include <libdisplay/startscreen.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -235,6 +237,11 @@ void timer(Registers *regs)
 void __attribute__((section(".entry"))) start(uint16_t bootDrive,
                                               void *partitionPtr)
 {
+   // Draw start screen
+   clrscr();
+   draw_start_screen(false);
+
+   // Init system
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
    mem_init();
@@ -257,7 +264,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   test_fat_filesystem(&partition);
+   //test_fat_filesystem(&partition);
 
    test_dynamic_library();
 

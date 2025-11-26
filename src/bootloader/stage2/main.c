@@ -6,7 +6,6 @@
 #include "mbr.h"
 #include "memdefs.h"
 #include "memory.h"
-#include "startscreen.h"
 #include "stdio.h"
 #include "x86.h"
 #include <stdbool.h>
@@ -21,10 +20,6 @@ typedef void (*KernelStart)(uint16_t bootDrive, void *partitionPtr);
 void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 {
    clrscr();
-
-   bool drawScreen =false;
-   draw_start_screen(drawScreen);
-   delay_ms(1000);
 
    DISK disk;
    if (!DISK_Initialize(&disk, bootDrive))
