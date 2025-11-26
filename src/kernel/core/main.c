@@ -67,6 +67,10 @@ void test_dynamic_library()
    result = log10(10);
    printf("  Result: %d\n", result);
 
+   printf("\nCalling sqrt(64):\n");
+   result = sqrt(64);
+   printf("  Result: %d\n", result);
+
    printf("\n=== Dynamic Library Test Complete ===\n");
 }
 

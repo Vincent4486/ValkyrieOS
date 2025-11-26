@@ -56,13 +56,9 @@ SECTIONS
     _kernel_dynstr_end = .;
     
     /* Relocations - kernel loader will apply these after loading libraries */
-    _kernel_rel_dyn_start = .;
-    .rel.dyn            : { *(.rel.dyn) }
-    _kernel_rel_dyn_end = .;
+    .rel.dyn            : { _kernel_rel_dyn_start = .; *(.rel.dyn) _kernel_rel_dyn_end = .; }
     
-    _kernel_rel_plt_start = .;
-    .rel.plt            : { *(.rel.plt) }
-    _kernel_rel_plt_end = .;
+    .rel.plt            : { _kernel_rel_plt_start = .; *(.rel.plt) _kernel_rel_plt_end = .; }
     
     .bss                : { __bss_start = .;        *(.bss .bss.*)     }
     

@@ -20,8 +20,8 @@ env.Append(
     CCFLAGS=['-fno-PIC', '-fno-asynchronous-unwind-tables'],
     CFLAGS=['-fno-PIC'],
     CXXFLAGS=['-fno-PIC'],
-    CPATH=[src_dir],
-    CPPPATH=[src_dir],
+    CPATH=[src_dir, '#lib'],
+    CPPPATH=[src_dir, '#lib'],
     ASFLAGS=['-I', src_dir + '/', '-f', 'elf']
 )
 

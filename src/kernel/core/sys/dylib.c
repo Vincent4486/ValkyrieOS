@@ -12,6 +12,7 @@
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>
+#include <sys/elf.h>
 
 // ELF32 relocation types (i686)
 #define R_386_NONE 0
@@ -817,9 +818,32 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    //                           = base_addr + st_value_offset
    // where st_value_offset = st_value - original_base (offset from link address)
    
-   // Find the first loadable section to determine the original base address
-   // For simplicity, we'll use a default of 0x08000000 (from typical shared lib link address)
-   uint32_t original_base = 0x08000000;
+   // Read ELF header fields for detecting original_base
+   uint32_t e_entry = *(uint32_t *)(elf_data + 24);     // Entry point address
+   uint32_t e_phoff = *(uint32_t *)(elf_data + 28);     // Program header offset
+   uint16_t e_phentsize = *(uint16_t *)(elf_data + 42); // Program header entry size
+   uint16_t e_phnum = *(uint16_t *)(elf_data + 44);     // Number of program headers
+   
+   // Detect original_base from the ELF entry point (e_entry) which is an absolute address
+   // in the linked image. For libmath linked at 0x05000000, e_entry will be something like
+   // 0x05001000. We can mask off the low bits to get the base.
+   uint32_t original_base = e_entry & 0xFFFF0000;  // Mask to get base (assumes 64KB alignment)
+   if (original_base == 0 && e_phoff != 0 && e_phnum != 0) {
+      // Fallback: scan program headers for first PT_LOAD segment
+      for (int i = 0; i < e_phnum; i++) {
+         uint8_t *ph = elf_data + e_phoff + (i * e_phentsize);
+         uint32_t p_type = *(uint32_t *)(ph + 0);
+         uint32_t p_vaddr = *(uint32_t *)(ph + 8);
+         if (p_type == 1) {  // PT_LOAD
+            original_base = p_vaddr & 0xFFFF0000;
+            break;
+         }
+      }
+   }
+   if (original_base == 0) {
+      original_base = 0x05000000;  // Default for our libmath
+   }
+   printf("[DYLIB] Detected original_base = 0x%x (from e_entry=0x%x)\n", original_base, e_entry);
    
    // Find .symtab and .strtab sections
    uint32_t symtab_addr = 0, symtab_size = 0, symtab_entsize = 0;
@@ -910,43 +934,17 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    
    printf("[DYLIB] Extracted %d symbols\n", ext->symbol_count);
    
-   // Apply simple relocation: scan loadable sections for embedded original_base addresses and patch them
-   printf("[DYLIB] Applying address relocations...\n");
+   // NOTE: We previously had heuristic scanning that looked for embedded addresses
+   // matching original_base and patched them. However, this caused corruption of
+   // PIC code (position-independent code) which uses PC-relative addressing via
+   // __x86.get_pc_thunk and doesn't need runtime patching. The heuristic was
+   // finding false positives in instruction immediates and corrupting code.
+   //
+   // Since libmath is built with -fPIC, it doesn't need address patching.
+   // If we later need to support non-PIC libraries, we should use formal
+   // relocation sections (SHT_REL) instead of heuristic scanning.
    
-   for (int i = 0; i < e_shnum; i++)
-   {
-      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
-      
-      if (sh->sh_type == 1 && (sh->sh_flags & 0x2))  // PROGBITS with ALLOC flag
-      {
-         uint8_t *section_start = elf_data + sh->sh_offset;
-         uint32_t section_size = sh->sh_size;
-         
-         printf("[DYLIB]   Scanning section at file offset 0x%x (size=%d) for embedded addresses...\n", 
-                sh->sh_offset, section_size);
-         
-         // Scan for 32-bit addresses matching the original base
-         for (uint32_t j = 0; j < section_size - 3; j++)
-         {
-            uint32_t *addr_ptr = (uint32_t *)(section_start + j);
-            uint32_t value = *addr_ptr;
-            
-            // Check if this looks like an address in the original library range
-            if (value >= original_base && value < original_base + 0x10000)
-            {
-               // This might be a relative address - compute the offset
-               uint32_t offset = value - original_base;
-               // Patch with new base
-               uint32_t new_value = base_addr + offset;
-               *addr_ptr = new_value;
-               printf("[DYLIB]     Patched at file offset 0x%x (memory 0x%x): 0x%x -> 0x%x\n", 
-                      sh->sh_offset + j, (uint32_t)addr_ptr, value, new_value);
-            }
-         }
-      }
-   }
-   
-   printf("[DYLIB] Relocation patching complete\n");
+   printf("[DYLIB] Skipping heuristic address patching (library is PIC)\n");
    
    // Now look for formal relocation sections (if they exist)
    printf("[DYLIB] Looking for formal relocation sections...\n");

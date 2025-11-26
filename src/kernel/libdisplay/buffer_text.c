@@ -7,7 +7,7 @@
  * to prevent overwriting by kernel heap/data.
  */
 #include "buffer_text.h"
-#include <std/stdio.h>
+#include <core/std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 

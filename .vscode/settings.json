@@ -11,7 +11,10 @@
   "editor.parameterHints.enabled": true,
   "editor.hover.enabled": true,
   "C_Cpp.errorSquiggles": "enabled",
-  
+  "editor.fontFamily": "Maple Mono",
+  "editor.fontWeight": "bold",
+  "editor.fontSize": 14,
+  "editor.fontLigatures": true,
   // Disable AI/Copilot suggestions
   "github.copilot.enable": {
     "*": false
@@ -32,7 +35,9 @@
     "irq.h": "c",
     "stdbool.h": "c",
     "fat.h": "c",
-    "dylib.h": "c"
+    "dylib.h": "c",
+    "float.h": "c",
+    "__locale": "c"
   },
   "makefile.launchConfigurations": [
     {

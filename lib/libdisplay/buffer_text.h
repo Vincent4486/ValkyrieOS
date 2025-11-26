@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#pragma once
+#include <stdint.h>
+
+/* Export screen dimensions so other modules (keyboard, etc.) can reference
+   the VGA text-mode dimensions. Keep these in the header to avoid duplicate
+   magic numbers across files. */
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 25
+
+extern void buffer_init(void);
+extern void buffer_clear(void);
+extern void buffer_putc(char c);
+extern void buffer_puts(const char *s);
+extern void buffer_repaint(void);
+extern void buffer_scroll(int lines);
+extern void buffer_set_color(uint8_t color);
+extern void buffer_set_cursor(int x, int y);
+extern void buffer_get_cursor(int *x, int *y);
+/* Return the length (number of printable chars) of the visible logical line
+   at the given visible row y (0..SCREEN_HEIGHT-1). Returns 0 if no line.
+   This is useful for cursor movement logic in input handling. */
+extern int buffer_get_visible_line_length(int y);
+/* Return maximum number of scroll lines available (older content). */
+extern int buffer_get_max_scroll(void);
+/* Return the logical index (relative to head) of the first visible line. */
+extern uint32_t buffer_get_visible_start(void);
+
+/* Debug: draw a small overlay on row 0 with buffer internals (s_lines_used,
+   s_head, s_scroll, max_scroll). This is temporary debugging aid. */
+extern void buffer_debug_overlay(void);

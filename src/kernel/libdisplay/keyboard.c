@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "keyboard.h"
-#include <arch/i686/io.h>
-#include <arch/i686/irq.h>
-#include <display/buffer_text.h>
-#include <std/stdio.h> // for putc/printf
+#include <core/arch/i686/io.h>
+#include <core/arch/i686/irq.h>
+#include <libdisplay/buffer_text.h>
+#include <core/std/stdio.h> // for putc/printf
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256

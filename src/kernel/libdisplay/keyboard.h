@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <arch/i686/irq.h>
+#include <core/arch/i686/irq.h>
 #include <stdint.h>
 
 void i686_keyboard_init(void);
