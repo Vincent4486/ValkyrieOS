@@ -14,6 +14,7 @@
 #define FDC_CCR (FDC_BASE + 7)
 
 #define FDC_CMD_READ_DATA 0x46 // Read with MFM encoding (not 0xE6)
+#define FDC_CMD_WRITE_DATA 0x45 // Write with MFM encoding
 #define FDC_CMD_RECALIBRATE 0x07
 #define FDC_CMD_SENSE_INT 0x08
 #define FDC_CMD_SPECIFY 0x03
@@ -308,6 +309,75 @@ int FDC_ReadLba(uint32_t lba, uint8_t *buffer, size_t count)
 
 int FDC_WriteLba(uint32_t lba, const uint8_t *buffer, size_t count)
 {
-   // Not implemented: writing to floppy is more complex
-   return 1;
+   if (count == 0)
+   {
+      return 0;
+   }
+
+   fdc_motor_on();
+
+   // Small delay for motor spin-up
+   for (volatile int i = 0; i < 100000; i++);
+
+   for (size_t i = 0; i < count; i++)
+   {
+      uint8_t head, track, sector;
+      lba_to_chs(lba + i, &head, &track, &sector);
+
+      // Seek to track
+      if (!fdc_seek(head, track))
+      {
+         fdc_motor_off();
+         return 1;
+      }
+
+      // Copy data to DMA buffer
+      uint8_t *dma_buffer = (uint8_t *)FDC_DMA_BUFFER;
+      for (int j = 0; j < FLOPPY_SECTOR_SIZE; j++)
+      {
+         dma_buffer[j] = buffer[i * FLOPPY_SECTOR_SIZE + j];
+      }
+
+      // Initialize DMA for write operation (transfer from memory to floppy)
+      fdc_dma_init(false); // false = write mode
+
+      g_fdc_irq_received = false;
+
+      // Issue WRITE DATA command
+      fdc_send_byte(FDC_CMD_WRITE_DATA);
+      fdc_send_byte((head << 2) | 0); // head | drive 0
+      fdc_send_byte(track);
+      fdc_send_byte(head);
+      fdc_send_byte(sector);
+      fdc_send_byte(2);      // 512 bytes per sector
+      fdc_send_byte(sector); // Write only this sector
+      fdc_send_byte(0x1B);   // GPL (gap3 length)
+      fdc_send_byte(0xFF); // DTL (data length, 0xFF for specified sector size)
+
+      // Wait for IRQ indicating data transfer complete
+      if (!fdc_wait_irq())
+      {
+         fdc_motor_off();
+         return 1;
+      }
+
+      // Read result bytes (7 bytes for WRITE DATA)
+      uint8_t st0 = fdc_read_byte();
+      uint8_t st1 = fdc_read_byte();
+      uint8_t st2 = fdc_read_byte();
+      uint8_t rtrack = fdc_read_byte();
+      uint8_t rhead = fdc_read_byte();
+      uint8_t rsector = fdc_read_byte();
+      uint8_t bps = fdc_read_byte();
+
+      // Check for errors in status
+      if ((st0 & 0xC0) != 0)
+      {
+         fdc_motor_off();
+         return 1;
+      }
+   }
+
+   fdc_motor_off();
+   return 0;
 }

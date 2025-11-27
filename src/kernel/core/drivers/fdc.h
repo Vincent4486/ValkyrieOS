@@ -2,6 +2,7 @@
 
 #pragma once
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define FDC_SECTOR_SIZE 512
@@ -13,5 +14,9 @@ int FDC_ReadLba(uint32_t lba, uint8_t *buffer, size_t count);
 // Write 'count' sectors from 'buffer' to 'lba'
 // Returns 0 on success, nonzero on error
 int FDC_WriteLba(uint32_t lba, const uint8_t *buffer, size_t count);
+
+// Seek to specified head and track
+// Returns true on success, false on error
+bool FDC_Seek(uint8_t head, uint8_t track);
 
 void FDC_Reset(void);

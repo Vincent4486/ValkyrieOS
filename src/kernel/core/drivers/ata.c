@@ -24,6 +24,7 @@
 
 // ATA commands
 #define ATA_CMD_READ_PIO 0x20 // 28-bit LBA read
+#define ATA_CMD_WRITE_PIO 0x30 // 28-bit LBA write
 
 // Driver data structure
 typedef struct
@@ -214,17 +215,69 @@ int ATA_Read(int channel, int drive, uint32_t lba, uint8_t *buffer,
 }
 
 /**
- * Write sectors to ATA drive (stub)
+ * Write sectors to ATA drive using PIO mode (28-bit LBA)
  */
 int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
               uint32_t count)
 {
-   (void)channel;
-   (void)drive;
-   (void)lba;
-   (void)buffer;
-   (void)count;
-   return -1;
+   ata_driver_t *drv = ata_get_driver(channel, drive);
+   if (!drv || !buffer || count == 0) return -1;
+
+   // Limit to 255 sectors per write (8-bit sector count)
+   if (count > 255)
+   {
+      count = 255;
+   }
+
+   // Wait for drive to be ready
+   if (ata_wait_busy(drv->tf_port) != 0)
+   {
+      return -1;
+   }
+
+   // Prepare device register value with master/slave bits, LBA flag, and upper
+   // LBA bits (bits 24-27)
+   uint8_t device = drv->slave_bits | 0x40 | ((lba >> 24) & 0x0F);
+
+   // Write all command registers in the correct sequence
+   i686_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
+   i686_outb(drv->tf_port + ATA_REG_LBA_LOW, (lba & 0xFF));
+   i686_outb(drv->tf_port + ATA_REG_LBA_MID, ((lba >> 8) & 0xFF));
+   i686_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
+   i686_outb(drv->tf_port + ATA_REG_DEVICE, device);
+
+   // Small delay to allow registers to settle
+   for (volatile int i = 0; i < 50000; i++);
+
+   // Issue WRITE SECTORS command
+   i686_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
+
+   // Write sectors
+   for (uint32_t sec = 0; sec < count; sec++)
+   {
+      // Wait for drive ready to accept data
+      if (ata_wait_drq(drv->tf_port) != 0)
+      {
+         return -1;
+      }
+
+      // Write 512 bytes (256 words) to data port using 16-bit writes
+      const uint8_t *src = buffer + (sec * 512);
+      const uint16_t *src_words = (const uint16_t *)src;
+      for (int i = 0; i < 256; i++)
+      {
+         // Write 16-bit word to data port
+         i686_outw(drv->tf_port + ATA_REG_DATA, src_words[i]);
+      }
+
+      // Wait for drive to finish processing the sector
+      if (ata_wait_busy(drv->tf_port) != 0)
+      {
+         return -1;
+      }
+   }
+
+   return 0;
 }
 
 /**
