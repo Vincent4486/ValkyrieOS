@@ -37,7 +37,8 @@
     "fat.h": "c",
     "dylib.h": "c",
     "float.h": "c",
-    "__locale": "c"
+    "__locale": "c",
+    "buffer_text.h": "c"
   },
   "makefile.launchConfigurations": [
     {
