@@ -1,6 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
-ENTRY(start)
+ENTRY(_start)
+/* Program headers: place the multiboot header in a small PT_LOAD (mb),
+    put executable code in PT_LOAD (txt) and writable data in PT_LOAD (dat). */
+PHDRS
+{
+   mb    PT_LOAD FLAGS(READ);
+   txt   PT_LOAD FLAGS(READ | EXEC);
+   dat   PT_LOAD FLAGS(READ | WRITE);
+}
 /* Produce ELF output (default) instead of raw binary so the bootloader can
    load an ELF image. 
    
@@ -29,22 +37,30 @@ phys = 0x00A00000;
 
 SECTIONS
 {
-    . = phys;
+    /* Place the multiboot header section at the start of the output file
+       so GRUB can find it within the first 8KiB. Do not place it at the
+       runtime physical address. */
+   .multiboot          : { __multiboot_start = .; KEEP(*(.multiboot)) } :mb
 
-    .entry              : { __entry_start = .;      *(.entry)   }
+   /* Now set the runtime origin for the kernel sections */
+   . = phys;
+
+   .entry              : { __entry_start = .;      *(.entry)   } :txt
     
-    .text               : { __text_start = .;       *(.text .text.*)    }
-    
+    .text               : { __text_start = .;       *(.text .text.*)    } :txt
+
     /* Procedure Linkage Table - for indirect function calls to library functions */
-    .plt                : { *(.plt) }
+    .plt                : { *(.plt) } :txt
+
+    /* Place read-only data next so it stays in the executable PT_LOAD */
+    .rodata             : { __rodata_start = .;     *(.rodata .rodata.*)    } :txt
+
+    /* Writable data goes after read-only segments to avoid overlap */
+    .data               : { __data_start = .;       *(.data .data.*)    } :dat
     
-    .data               : { __data_start = .;       *(.data .data.*)    }
-    
-    .rodata             : { __rodata_start = .;     *(.rodata .rodata.*)    }
-    
-    /* Global Offset Table - stores resolved addresses for indirect references */
-    .got                : { *(.got) }
-    .got.plt            : { *(.got.plt) }
+   /* Global Offset Table - stores resolved addresses for indirect references */
+   .got                : { *(.got) } :dat
+   .got.plt            : { *(.got.plt) } :dat
     
     /* Dynamic symbol sections - expose so runtime can resolve kernel relocations */
     _kernel_dynsym_start = .;

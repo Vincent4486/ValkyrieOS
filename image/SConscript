@@ -96,6 +96,35 @@ def install_stage1(target: str, stage1: str, stage2_offset, stage2_size, offset=
             ftarget.write(stage2_offset.to_bytes(4, byteorder='little'))
             ftarget.write(stage2_size.to_bytes(1, byteorder='little'))
 
+def mount_raw_fs(image: str, mount_dir: str):
+    print(f"    > associating raw image with a loop device...")
+    device = sh.sudo.losetup('-f', '--show', image).strip()
+
+    # Store the device path BEFORE mounting (in the parent directory on the host FS)
+    device_file = mount_dir + '.device'
+    with open(device_file, 'w') as f:
+        f.write(device)
+
+    print(f"    > mounting {device} to {mount_dir}...")
+    sh.sudo.mount(device, mount_dir)
+
+def install_grub(mount_dir: str):
+
+    device_file = mount_dir + '.device'
+    if not os.path.exists(device_file):
+        raise RuntimeError(f"Device file {device_file} not found; cannot install GRUB")
+
+    with open(device_file, 'r') as f:
+        device = f.read().strip()
+
+    bootdir = os.path.join(mount_dir, 'boot')
+    sh.sudo.mkdir('-p', bootdir)
+
+    print(f"    > installing GRUB on device {device} with boot-directory {bootdir}...")
+    # Run grub-install against the loop device. Use i386-pc (BIOS) target for
+    # the project's boot layout. --recheck forces probe of device.
+    sh.sudo('grub-install', '--target=i386-pc', f'--boot-directory={bootdir}', '--recheck', device)
+
 def install_stage2(target: str, stage2: str, offset=0, limit=None):
     with open(stage2, 'rb') as fstage2:
         with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT), 'wb+') as ftarget:
@@ -254,13 +283,14 @@ def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
     print(f"> formatting file using {file_system}...")
     create_filesystem(image, file_system, offset=partition_offset)
 
-    # install stage1 at LBA 0 (MBR bootcode + BDB header)
-    print(f"> installing stage1...")
-    install_stage1(image, stage1, offset=partition_offset, stage2_offset=1, stage2_size=stage2_sectors)
+    if env.get('bootloader', 'default') == 'default':
+        # install stage1 at LBA 0 (MBR bootcode + BDB header)
+        print(f"> installing stage1...")
+        install_stage1(image, stage1, offset=partition_offset, stage2_offset=1, stage2_size=stage2_sectors)
  
-    # install stage2 at LBA 1 (first-stage loader)
-    print(f"> installing stage2...")
-    install_stage2(image, stage2, offset=1, limit=partition_offset)
+        # install stage2 at LBA 1 (first-stage loader)
+        print(f"> installing stage2...")
+        install_stage2(image, stage2, offset=1, limit=partition_offset)
 
     # Create temp directory in the build folder (same directory as the image)
     tempdir = os.path.join(os.path.dirname(image), 'tmp_mount')
@@ -296,6 +326,9 @@ def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
             else:
                 print('    ... copying', file_rel)
                 sh.sudo.cp(file_src, file_dst)
+
+        if env.get('bootloader', 'default') == 'grub':
+            install_grub(tempdir)
 
     finally:
         print("> cleaning up...")

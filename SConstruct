@@ -28,6 +28,10 @@ VARS.AddVariables(
                  help="Type of image",
                  default="fat32",
                  allowed_values=("fat12", "fat16", "fat32", "ext2")),
+    EnumVariable("bootloader",
+                 help="The bootloader used to load the OS",
+                 default="default",
+                 allowed_values=("default", "grub")),
     )
 VARS.Add("imageSize", 
          help="The size of the image, will be rounded up to the nearest multiple of 512. " +
