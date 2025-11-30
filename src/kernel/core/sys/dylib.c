@@ -207,8 +207,6 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
 {
    if (!rel_table || rel_count == 0) return 0;
 
-   printf("[DYLIB] Processing %d relocations for %s at base 0x%x\n", rel_count, context, base);
-
    for (uint32_t i = 0; i < rel_count; i++)
    {
       uint32_t r_offset = rel_table[i].r_offset; /* relocation target (usually absolute) */
@@ -239,10 +237,6 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
       uint32_t *where = (uint32_t *)r_offset;
       uint32_t cur_val = *where;
 
-      /* Diagnostic: print one-line summary for the relocation */
-      printf("[DYLIB]   [%d] type=%d symidx=%d where=0x%08x cur=0x%08x\n",
-             i, type, symidx, r_offset, cur_val);
-
       if (type == R_386_RELATIVE)
       {
          /* Relative relocation - the stored value at *where may already be
@@ -258,8 +252,7 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
           */
          if (addend >= base && addend <= base + 0x00f00000)
          {
-            printf("[DYLIB]     R_386_RELATIVE at 0x%08x: already 0x%08x (skipping)\n",
-                   r_offset, addend);
+         
          }
          else if (addend < 0x01000000)
          {
@@ -268,8 +261,6 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
              */
             uint32_t newv = base + addend;
             *where = newv;
-            printf("[DYLIB]     R_386_RELATIVE at 0x%08x: addend=0x%08x -> 0x%08x\n",
-                   r_offset, addend, newv);
          }
          else
          {
@@ -309,16 +300,12 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
                {
                   uint32_t newv = sym_addr + addend;
                   *where = newv;
-                  printf("[DYLIB]     R_386_32 %s at 0x%08x: addend=0x%08x -> 0x%08x\n",
-                         sym_name, r_offset, addend, newv);
                }
                break;
                case R_386_PC32:
                {
                   uint32_t newv = sym_addr + addend - (uint32_t)where;
                   *where = newv;
-                  printf("[DYLIB]     R_386_PC32 %s at 0x%08x: addend=0x%08x -> 0x%08x\n",
-                         sym_name, r_offset, addend, newv);
                }
                break;
                case R_386_GLOB_DAT:
@@ -326,9 +313,6 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
                {
                   uint32_t newv = sym_addr;
                   *where = newv;
-                  printf("[DYLIB]     R_386_%s %s at 0x%08x: wrote 0x%08x\n",
-                         (type == R_386_GLOB_DAT ? "GLOB_DAT" : "JMP_SLOT"),
-                         sym_name, r_offset, newv);
                }
                break;
                }
@@ -411,9 +395,6 @@ int dylib_apply_kernel_relocations(void)
                   sym_name = (const char *)(dynstr_addr + st_name);
                   sym_addr = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
                }
-
-               printf("[DYLIB]  .rel.plt[%d] -> GOT@0x%x = 0x%08x (sym='%s' dynsym_val=0x%08x)\n",
-                      ri, where_addr, got_val, sym_name, sym_addr);
             }
       }
    }
@@ -786,8 +767,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    uint16_t e_shnum = *(uint16_t *)(elf_data + 48);  // Number of sections
    uint16_t e_shentsize = *(uint16_t *)(elf_data + 46); // Section header entry size
    
-   printf("[DYLIB] ELF: e_shoff=0x%x, e_shnum=%d, e_shentsize=%d\n", e_shoff, e_shnum, e_shentsize);
-   
    if (e_shoff == 0 || e_shnum == 0 || e_shentsize == 0)
    {
       printf("[DYLIB] Invalid section headers\n");
@@ -854,8 +833,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    {
       Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
       
-      printf("[DYLIB] Section %d: type=%d, offset=0x%x, size=%d, link=%d, entsize=%d\n", 
-             i, sh->sh_type, sh->sh_offset, sh->sh_size, sh->sh_link, sh->sh_entsize);
       
       if (sh->sh_type == SHT_SYMTAB)
       {
@@ -892,9 +869,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    uint32_t num_symbols = symtab_size / symtab_entsize;
    ext->symbol_count = 0;
    
-   printf("[DYLIB] Parsing %d symbols (entsize=%d, base_addr=0x%x, original_base=0x%x)...\n", 
-          num_symbols, symtab_entsize, base_addr, original_base);
-   
    for (uint32_t i = 0; i < num_symbols && ext->symbol_count < DYLIB_MAX_SYMBOLS; i++)
    {
       Elf32_Sym *sym = (Elf32_Sym *)(symtab_addr + (i * symtab_entsize));
@@ -925,8 +899,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
             uint32_t symbol_offset_in_code = sym->st_value - original_base;
             uint32_t symbol_addr = base_addr + text_section_file_offset + symbol_offset_in_code;
             ext->symbols[ext->symbol_count].address = symbol_addr;
-            printf("[DYLIB]   Symbol[%d]: %s @ 0x%x (st_value=0x%x, shndx=%d)\n", 
-                   ext->symbol_count, sym_name, symbol_addr, sym->st_value, sym->st_shndx);
             ext->symbol_count++;
          }
       }
@@ -973,8 +945,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
             {
                uint32_t adjustment = base_addr - original_base;
                *patch_addr += adjustment;
-               printf("[DYLIB]     Reloc at 0x%x: R_386_RELATIVE, patching with +0x%x\n", 
-                      rel->r_offset, adjustment);
             }
          }
       }
@@ -1039,7 +1009,6 @@ int dylib_load_from_disk(Partition *partition, const char *name,
    }
 
    // Read library data from disk
-   printf("[DYLIB] Reading %d bytes into memory...\n", file_size);
    FAT_Seek(partition, file, 0);
    uint32_t bytes_read =
        FAT_Read(partition, file, file_size, (void *)load_addr);
@@ -1156,30 +1125,39 @@ void dylib_register_callback(dylib_register_symbols_t callback)
 
 static int load_libmath(Partition *partition)
 {
-   // Load libmath from disk if not already registered by bootloader
-   printf("[*] Loading libmath.so...\n");
+   // First, ensure libmath is registered in the library registry
+   LibRecord *lib_registry = LIB_REGISTRY_ADDR;
+   
+   // Check if libmath is already registered
    LibRecord *existing_lib = dylib_find("libmath");
-   if (existing_lib && existing_lib->base)
+   if (!existing_lib || existing_lib->name[0] == '\0')
    {
-      printf("[*] libmath already registered at 0x%x (loaded by bootloader)\n",
-             (unsigned int)existing_lib->base);
-      // Parse symbols from the pre-loaded library
-      dylib_parse_symbols(existing_lib);
+      // Register libmath in the registry
+      lib_registry[0].name[0] = 'l';
+      lib_registry[0].name[1] = 'i';
+      lib_registry[0].name[2] = 'b';
+      lib_registry[0].name[3] = 'm';
+      lib_registry[0].name[4] = 'a';
+      lib_registry[0].name[5] = 't';
+      lib_registry[0].name[6] = 'h';
+      lib_registry[0].name[7] = '\0';
+      lib_registry[0].base = NULL;
+      lib_registry[0].entry = NULL;
+      lib_registry[0].size = 0;
+      printf("[DYLIB] Registered libmath in library registry\n");
    }
-   else
+
+   // Load libmath from disk using the standard loader
+   if (dylib_load_from_disk(partition, "libmath", "/sys/libmath.so") != 0)
    {
-      if (dylib_load_from_disk(partition, "libmath", "/sys/libmath.so") != 0)
-      {
-         printf("[!] Failed to load libmath.so\n");
-         return -1;
-      }
+      printf("[ERROR] Failed to load libmath.so\n");
+      return -1;
    }
 
    // Resolve dependencies
    dylib_resolve_dependencies("libmath");
 
-   dylib_list();
-   dylib_list_symbols("libmath");
+   // dylib_list_symbols("libmath");
 
    // Register libmath symbols in global symbol table for GOT patching
    printf("\n[*] Registering libmath symbols in global symbol table...\n");
