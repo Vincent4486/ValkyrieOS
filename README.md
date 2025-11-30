@@ -7,7 +7,7 @@ Archives ```jar``` or Java Bytecode or ```.class``` files.
 The JVM on this operating system contains most JVM features such as IO. However, this operating system is command-line based, so features in Java Swing are not usable. 
 
 ## Install
-To install Valkyrie OS, you can use the pre-built floppy images or hard disk images from the release page of this repository. Alternatively, you can use the build tool to build the operating system locally. To build this operating system, please follow these steps. Building the Valkyrie OS requires the following dependencies:
+To install Valkyrie OS, you can use the pre-built hard disk images from the release page of this repository. Alternatively, you can use the build tool to build the operating system locally. To build this operating system, please follow these steps. Building the Valkyrie OS requires the following dependencies:
 
 ### Prerequisites
 
@@ -25,7 +25,6 @@ gcc
 
 # other dependencies
 nasm              # compiling assembly code
-mtools            # for floppy support
 python3           # base python for scons
 python3-scons     # scons for build
 python3-sh        # shell library 
@@ -67,14 +66,14 @@ These tools are for extra utilities such as autorun for development and build do
    To customize the build, you can use various options:
    - `config=debug` or `config=release` - Build configuration (default: debug)
    - `arch=i686` - Target architecture (currently only i686 supported)
-   - `imageType=floppy` or `imageType=disk` - Output image type (default: disk)
    - `imageFS=fat12|fat16|fat32|ext2` - Filesystem type (default: fat32)
    - `imageSize=250m` - Image size with suffixes k/m/g (default: 250m)
    - `outputFile=name` - Output filename without extension (default: valkyrie_os)
 
    Example:
    ```bash
-   scons config=release imageType=floppy outputFile=valkyrie_floppy
+   scons config=release
+   outputFile=valkyrie_disk
    ```
 
 4. **Run the image** with QEMU:

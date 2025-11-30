@@ -2,13 +2,10 @@
 # This file configures disk images and configuration paths for the build system
 
 # Disk images
-FLOPPY_IMAGE=build/i686_debug/valkyrie_os.img
 DISK_IMAGE=build/i686_debug/valkyrie_os.img
 
 # Configuration files
-BOCHS_FLOPPY_CONFIG=scripts/config/bochs_fda.txt
 BOCHS_DISK_CONFIG=scripts/config/bochs_hda.txt
-GDB_FLOPPY_CONFIG=scripts/config/gdb_fda.gdb
 GDB_DISK_CONFIG=scripts/config/gdb_hda.gdb
 
 # Build command

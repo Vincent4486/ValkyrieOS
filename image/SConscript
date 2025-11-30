@@ -131,52 +131,6 @@ def install_stage2(target: str, stage2: str, offset=0, limit=None):
             ftarget.seek(offset * SECTOR_SIZE, SEEK_SET)
             ftarget.write(fstage2.read())
 
-def build_floppy(image, stage1, stage2, kernel, kernel_modules, files, env):
-    size_sectors = 2880
-    stage2_size = os.stat(stage2).st_size
-    stage2_sectors = (stage2_size + SECTOR_SIZE - 1) // SECTOR_SIZE
-    
-    generate_image_file(image, size_sectors)
-
-    print(f"> formatting file using fat12...")
-    create_filesystem(image, 'fat12', stage2_sectors)
-
-    print(f"> installing stage1...")
-    install_stage1(image, stage1, stage2_offset=1, stage2_size=stage2_sectors)
-
-    print(f"> installing stage2...")
-    install_stage2(image, stage2, offset=1)
-
-    print(f"> copying files...")
-    print('    ... copying', kernel)
-    sh.mmd('-i', image, "::sys")
-    sh.mcopy('-i', image, kernel, "::sys/")
-    
-    # Copy kernel modules (dynamic libraries)
-    for module in kernel_modules:
-        print('    ... copying', module)
-        sh.mcopy('-i', image, module, "::sys/")
-
-    # copy rest of files
-    src_root = env['BASEDIR']
-    for file in files:
-        file_src = file.srcnode().path
-        file_rel = os.path.relpath(file_src, src_root)
-        file_dst = '::' + file_rel
-
-        if os.path.isdir(file_src):
-            print('    ... creating directory', file_rel)
-            sh.mmd('-i', image, file_dst)
-        else:
-            print('    ... copying', file_rel)
-            sh.mcopy('-i', image, file_src, file_dst)
-
-    username=os.getlogin()
-    print(f"> changing ownership of {image} to {os.getuid()}...")
-    sh.sudo.chown(f'{username}:{username}', image)
-    print(f"> changing all build files to owned by {os.getuid()}")
-    sh.sudo.chown('-R', f'{username}:{username}', 'build/')
-
 def create_partition_table(target: str, align_start: int, filesystem: str = 'fat32'):
     """Create MBR partition table with correct filesystem type.
     
@@ -344,9 +298,9 @@ def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
     
     # Change ownership of the final image file to the current user
     username=os.getlogin()
-    print(f"> changing ownership of {image} to {os.getuid()}...")
+    print(f"> changing ownership of {image} to {username}...")
     sh.sudo.chown(f'{username}:{username}', image)
-    print(f"> changing all build files to owned by {os.getuid()}")
+    print(f"> changing all build files to owned by {username}")
     sh.sudo.chown('-R', f'{username}:{username}', 'build/')
 
 
@@ -360,22 +314,15 @@ def build_image(target, source, env):
     files = [src for src in source[3:] if 'kernel' not in str(src)]
 
     image = str(target[0])
-    if env['imageType'] == 'floppy':
-        build_floppy(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
-    elif env['imageType'] == 'disk':
-        build_disk(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
-    else:
-        raise ValueError('Unknown image type ' + env['imageType'])
 
-
+    build_disk(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
+ 
 # Setup image target
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
 inputs = [stage1, stage2] + kernel + root_content
 
 output_fmt = env["outputFormat"]
-# if env['imageType'] == 'qcow3':
-#     output_fmt = 'qcow3'
 
 output = f'{env["outputFile"]}.{output_fmt}'
 

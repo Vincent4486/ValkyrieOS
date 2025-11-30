@@ -23,7 +23,7 @@ const searchablePages = [
     {
         title: "Downloads",
         url: "downloads.html",
-        description: "Download pre-built floppy and disk images of Valkyrie OS",
+        description: "Download pre-built disk images of Valkyrie OS",
         keywords: ["download", "downloads", "release", "image", "floppy", "disk", "iso"]
     }
 ];

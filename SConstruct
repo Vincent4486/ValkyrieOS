@@ -19,15 +19,11 @@ VARS.AddVariables(
                  default="i686",
                  allowed_values=("i686")),
 
-    EnumVariable("imageType",
-                 help="Type of image",
-                 default="disk",
-                 allowed_values=("floppy", "disk")),
-
     EnumVariable("imageFS",
                  help="Type of image",
                  default="fat32",
                  allowed_values=("fat12", "fat16", "fat32", "ext2")),
+    
     EnumVariable("bootloader",
                  help="The bootloader used to load the OS",
                  default="default",
@@ -76,9 +72,6 @@ if HOST_ENVIRONMENT['config'] == 'debug':
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O0'])
 else:
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3'])
-
-if HOST_ENVIRONMENT['imageType'] == 'floppy':
-    HOST_ENVIRONMENT['imageFS'] = 'fat12'
 
 HOST_ENVIRONMENT.Replace(ASCOMSTR        = "Assembling [$SOURCE]",
                          CCCOMSTR        = "Compiling  [$SOURCE]",
@@ -169,9 +162,9 @@ Import('image')
 
 # Phony targets
 PhonyTargets(HOST_ENVIRONMENT, 
-             run=['./scripts/base/qemu.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             debug=['./scripts/base/gdb.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
-             bochs=['./scripts/base/bochs.sh', HOST_ENVIRONMENT['imageType'], image[0].path],
+             run=['./scripts/base/qemu.sh', 'disk', image[0].path],
+             debug=['./scripts/base/gdb.sh', 'disk', image[0].path],
+             bochs=['./scripts/base/bochs.sh', 'disk', image[0].path],
              toolchain=['./scripts/base/toolchain.sh', HOST_ENVIRONMENT['toolchain']],
              fformat=['./scripts/base/format.sh'])
 

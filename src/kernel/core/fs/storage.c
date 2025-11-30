@@ -5,6 +5,7 @@
 #include "fat.h"
 #include "partition.h"
 #include <stdint.h>
+#include <sys/memdefs.h>
 
 /**
  * Initialize storage system: disk detection, partition detection, and FAT
@@ -71,6 +72,10 @@ bool Storage_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
    {
       partition->partitionOffset = 0;
       partition->partitionSize = disk->sectors;
+   }
+
+   if(!Partition_ReadSectors(partition, 0, 1, MEMORY_FAT_ADDR)){
+      return -1;
    }
 
    /* Initialize FAT filesystem on the detected partition */

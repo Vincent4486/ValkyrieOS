@@ -25,6 +25,7 @@
 // ATA commands
 #define ATA_CMD_READ_PIO 0x20 // 28-bit LBA read
 #define ATA_CMD_WRITE_PIO 0x30 // 28-bit LBA write
+#define ATA_CMD_IDENTIFY 0xEC // Identify device
 
 // Driver data structure
 typedef struct
