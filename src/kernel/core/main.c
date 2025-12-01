@@ -4,8 +4,7 @@
 #include <fs/disk.h>
 #include <fs/fat.h>
 #include <fs/partition.h>
-#include <init/initfs.h>
-#include <init/inithal.h>
+#include <init/init.h>
 #include <std/stdio.h>
 #include <stdint.h>
 #include <sys/dylib.h>

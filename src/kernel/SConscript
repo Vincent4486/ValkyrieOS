@@ -54,8 +54,8 @@ Import('core')
 # Import libmath library
 Import('libmath_module')
 
-# Collect all kernel components into an array
-kernel = [core, libmath_module]
+# Collect kernel libraries into a separate array
+kernel_libraries = [libmath_module]
 
 # Import any module libraries that were built
 for module_dir in glob.glob('*/'):
@@ -77,7 +77,7 @@ for module_dir in glob.glob('*/'):
         module_name = module_dir.rstrip('/')
         try:
             Import(f'{module_name}_module')
-            kernel.append(locals()[f'{module_name}_module'])
+            kernel_libraries.append(locals()[f'{module_name}_module'])
         except:
             pass
 
@@ -85,9 +85,9 @@ for module_dir in glob.glob('*/'):
 # This makes SCons schedule libmath/libdisplay (and other modules)
 # before building the `core` target.
 try:
-    for mod in kernel[1:]:
+    for lib in kernel_libraries:
         try:
-            Depends(core, mod)
+            Depends(core, lib)
         except Exception:
             # If `Depends` or the node isn't usable here, ignore and continue
             pass
@@ -95,4 +95,5 @@ except Exception:
     # If something unexpected occurs, don't break the SConscript evaluation.
     pass
 
-Export('kernel')
+Export('core')
+Export('kernel_libraries')

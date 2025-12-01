@@ -33,8 +33,8 @@ env.Append(
         '-Wl,--export-dynamic',
         '-pie',
     ],
-    CPATH = [ src_dir, '#lib' ],
-    CPPPATH = [ src_dir, '#lib' ],
+    CPATH = [ src_dir, '#include' ],
+    CPPPATH = [ src_dir, '#include' ],
     # Include source directory for assembly files (nasm -I flag for include paths)
     # Use list format so each item becomes a separate argument
     ASFLAGS = [ '-I', src_dir + '/', '-f', 'elf' ]

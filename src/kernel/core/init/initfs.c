@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "initfs.h"
+#include "init.h"
 #include <fs/disk.h>
 #include <fs/fat.h>
 #include <fs/partition.h>

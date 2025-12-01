@@ -17,7 +17,8 @@ from scripts.scons.utility import FindIndex, GlobRecursive, IsFileName
 
 Import('stage1')
 Import('stage2')
-Import('kernel')
+Import('core')
+Import('kernel_libraries')
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
@@ -218,7 +219,7 @@ def unmount_fs(mount_dir: str):
     os.remove(device_file)
 
 
-def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
+def build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env):
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     file_system = env['imageFS']
     partition_offset = 2048
@@ -255,16 +256,18 @@ def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
         print(f"> mounting image to {tempdir}...")
         mount_fs(image, tempdir)
 
-        # copy kernel
+        # copy kernel core
         print(f"> copying kernel...")
-        bootdir = os.path.join(tempdir, 'sys')
+        bootdir = os.path.join(tempdir, 'boot')
         sh.sudo.mkdir('-p', bootdir)
-        sh.sudo.cp(kernel, bootdir)
+        sh.sudo.cp(core_exe, bootdir)
         
-        # copy kernel modules (dynamic libraries)
-        for module in kernel_modules:
-            print(f"    ... copying {os.path.basename(module)}")
-            sh.sudo.cp(module, bootdir)
+        # copy kernel libraries to /usr/lib
+        libdir = os.path.join(tempdir, 'usr', 'lib')
+        sh.sudo.mkdir('-p', libdir)
+        for library in kernel_libraries:
+            print(f"    ... copying {os.path.basename(library)} to /usr/lib")
+            sh.sudo.cp(library, libdir)
 
         # copy rest of files
         src_root = env['BASEDIR']
@@ -307,20 +310,19 @@ def build_disk(image, stage1, stage2, kernel, kernel_modules, files, env):
 def build_image(target, source, env):
     stage1 = str(source[0])
     stage2 = str(source[1])
-    # kernel is an array - first element is the main executable (core.elf)
-    # Additional elements are module libraries
-    kernel_exe = str(source[2])  # main kernel executable
-    kernel_modules = [str(src) for src in source[3:] if 'kernel' in str(src)]
+    # source[2] is core.elf, source[3:] are libraries + files
+    core_exe = str(source[2])  # main kernel executable
+    kernel_libraries = [str(src) for src in source[3:] if 'kernel' in str(src)]
     files = [src for src in source[3:] if 'kernel' not in str(src)]
 
     image = str(target[0])
 
-    build_disk(image, stage1, stage2, kernel_exe, kernel_modules, files, env)
+    build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env)
  
 # Setup image target
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
-inputs = [stage1, stage2] + kernel + root_content
+inputs = [stage1, stage2, core] + kernel_libraries + root_content
 
 output_fmt = env["outputFormat"]
 

@@ -21,3 +21,7 @@
  * @return true on success, false on failure
  */
 bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
+
+void HAL_Initialize();
+
+bool dylib_Initialize(Partition *partition);
