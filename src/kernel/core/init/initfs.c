@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "storage.h"
-#include "disk.h"
-#include "fat.h"
-#include "partition.h"
+#include "initfs.h"
+#include <fs/disk.h>
+#include <fs/fat.h>
+#include <fs/partition.h>
 #include <stdint.h>
 #include <sys/memdefs.h>
 
@@ -20,7 +20,7 @@
  * @param bootDrive - BIOS drive number
  * @return true on success, false on failure
  */
-bool Storage_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
+bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
 {
    /* Initialize DISK structure */
    if (!DISK_Initialize(disk, bootDrive))

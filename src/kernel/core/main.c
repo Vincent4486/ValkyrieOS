@@ -4,8 +4,8 @@
 #include <fs/disk.h>
 #include <fs/fat.h>
 #include <fs/partition.h>
-#include <fs/storage.h>
-#include <hal/hal.h>
+#include <init/initfs.h>
+#include <init/inithal.h>
 #include <std/stdio.h>
 #include <stdint.h>
 #include <sys/dylib.h>
@@ -257,9 +257,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    DISK disk;
    Partition partition;
 
-   if (!Storage_Initialize(&disk, &partition, bootDrive))
+   if (!FS_Initialize(&disk, &partition, bootDrive))
    {
-      printf("Storage initialization failed\n");
+      printf("FS initialization failed\n");
       goto end;
    }
 

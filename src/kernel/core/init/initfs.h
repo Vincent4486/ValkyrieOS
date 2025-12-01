@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "disk.h"
-#include "partition.h"
+#include <fs/disk.h>
+#include <fs/partition.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -20,4 +20,4 @@
  * @param bootDrive - BIOS drive number
  * @return true on success, false on failure
  */
-bool Storage_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
+bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
