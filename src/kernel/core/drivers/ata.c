@@ -271,11 +271,29 @@ int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
          i686_outw(drv->tf_port + ATA_REG_DATA, src_words[i]);
       }
 
-      // Wait for drive to finish processing the sector
-      if (ata_wait_busy(drv->tf_port) != 0)
+      // For all sectors except the last, wait briefly before next sector
+      // For the last sector, wait for completion
+      if (sec < count - 1)
       {
-         return -1;
+         // Brief delay between sectors
+         for (volatile int i = 0; i < 10000; i++);
       }
+      else
+      {
+         // Last sector: wait for drive to finish
+         if (ata_wait_busy(drv->tf_port) != 0)
+         {
+            return -1;
+         }
+      }
+   }
+
+   // Final status check to catch any errors
+   uint8_t final_status = i686_inb(drv->tf_port + ATA_REG_STATUS);
+   if (final_status & ATA_STATUS_ERR)
+   {
+      uint8_t error = i686_inb(drv->tf_port + ATA_REG_ERROR);
+      return -1;
    }
 
    return 0;

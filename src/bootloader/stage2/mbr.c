@@ -47,7 +47,6 @@ void MBR_DetectPartition(Partition *part, DISK *disk, void *partition)
 bool Partition_ReadSectors(Partition *part, uint32_t lba, uint8_t sectors,
                            void *lowerDataOut)
 {
-   printf("LBA: %x, sectors: %x\n", lba, sectors);
    return DISK_ReadSectors(part->disk, lba + part->partitionOffset, sectors,
                            lowerDataOut);
 }

@@ -88,3 +88,30 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
 
    return false;
 }
+
+bool DISK_WriteSectors(DISK *disk, uint32_t lba, uint8_t sectors, const void *dataIn)
+{
+   if (sectors == 0) return false;
+
+   if (disk->type == DISK_TYPE_FLOPPY)
+   {
+      /* Floppy drive: use the kernel FDC driver which speaks directly to the
+       * floppy controller.
+       */
+      int rc = FDC_WriteLba(lba, (const uint8_t *)dataIn, sectors);
+      if (rc != 0) return false;
+      return true;
+   }
+   else if (disk->type == DISK_TYPE_ATA)
+   {
+      /* Hard disk (ATA): use the kernel ATA driver with primary master
+       * channel/drive.
+       */
+      int rc = ATA_Write(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, lba,
+                         (const uint8_t *)dataIn, sectors);
+      if (rc != 0) return false;
+      return true;
+   }
+
+   return false;
+}

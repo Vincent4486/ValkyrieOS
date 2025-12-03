@@ -17,3 +17,6 @@ void MBR_DetectPartition(Partition *part, DISK *disk, void *partition);
 
 bool Partition_ReadSectors(Partition *disk, uint32_t lba, uint8_t sectors,
                            void *lowDataOut);
+
+bool Partition_WriteSectors(Partition *part, uint32_t lba, uint8_t sectors,
+                            const void *lowerDataIn);

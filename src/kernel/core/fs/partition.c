@@ -48,3 +48,10 @@ bool Partition_ReadSectors(Partition *part, uint32_t lba, uint8_t sectors,
    return DISK_ReadSectors(part->disk, lba + part->partitionOffset, sectors,
                            lowerDataOut);
 }
+
+bool Partition_WriteSectors(Partition *part, uint32_t lba, uint8_t sectors,
+                            const void *lowerDataIn)
+{
+   return DISK_WriteSectors(part->disk, lba + part->partitionOffset, sectors,
+                            lowerDataIn);
+}
