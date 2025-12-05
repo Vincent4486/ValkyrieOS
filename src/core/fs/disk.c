@@ -89,7 +89,8 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
    return false;
 }
 
-bool DISK_WriteSectors(DISK *disk, uint32_t lba, uint8_t sectors, const void *dataIn)
+bool DISK_WriteSectors(DISK *disk, uint32_t lba, uint8_t sectors,
+                       const void *dataIn)
 {
    if (sectors == 0) return false;
 

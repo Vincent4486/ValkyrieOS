@@ -13,7 +13,7 @@
 #define FDC_FIFO (FDC_BASE + 5)
 #define FDC_CCR (FDC_BASE + 7)
 
-#define FDC_CMD_READ_DATA 0x46 // Read with MFM encoding (not 0xE6)
+#define FDC_CMD_READ_DATA 0x46  // Read with MFM encoding (not 0xE6)
 #define FDC_CMD_WRITE_DATA 0x45 // Write with MFM encoding
 #define FDC_CMD_RECALIBRATE 0x07
 #define FDC_CMD_SENSE_INT 0x08

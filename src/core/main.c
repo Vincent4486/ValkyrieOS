@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <arch/i686/irq.h>
+#include <drivers/ata.h>
 #include <fs/disk.h>
 #include <fs/fat.h>
 #include <fs/partition.h>
 #include <init/init.h>
 #include <std/stdio.h>
+#include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
 #include <sys/memory.h>
-#include <std/string.h>
-#include <drivers/ata.h>
 
-#include <libmath/math.h>
 #include <libdisplay/startscreen.h>
+#include <libmath/math.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -36,7 +36,6 @@ static inline void set_iopl_level_3(void)
                         :
                         : "memory");
 }
-
 
 // Global timer tick counter
 static volatile uint32_t timer_ticks = 0;
@@ -62,7 +61,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    mem_init();
    HAL_Initialize();
    set_iopl_level_3();
-   
+
    i686_IRQ_RegisterHandler(0, timer);
 
    DISK disk;
@@ -74,7 +73,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   if(!dylib_Initialize(&partition)){
+   if (!dylib_Initialize(&partition))
+   {
       printf("Failed to load dynamic libraries...");
       goto end;
    }
@@ -83,39 +83,53 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    printf("Test 1: Write to /test/test.txt\n");
    char *buff = "This is data writen to the file";
    FAT_File *fd = FAT_Open(&partition, "/test/test.txt");
-   if (fd) {
-      FAT_Truncate(&partition, fd);  // Clear file and free clusters
-      
+   if (fd)
+   {
+      FAT_Truncate(&partition, fd); // Clear file and free clusters
+
       uint32_t len = strlen(buff);
-      uint32_t written = FAT_Write(&partition, fd, len, buff);  // Will allocate new cluster
-      if (written != len) {
+      uint32_t written =
+          FAT_Write(&partition, fd, len, buff); // Will allocate new cluster
+      if (written != len)
+      {
          printf("Write failed: wrote %u of %u bytes\n", written, len);
-      } else {
+      }
+      else
+      {
          printf("Successfully wrote %u bytes\n", written);
          // Update directory entry with new size and cluster
          FAT_UpdateEntry(&partition, fd);
       }
       FAT_Close(fd);
-   } else {
+   }
+   else
+   {
       printf("Failed to open /test/test.txt\n");
    }
 
    // Test 2: Create /write.txt with content (in root directory)
    printf("\nTest 2: Create /write.txt\n");
    FAT_File *newFile = FAT_Create(&partition, "write.txt");
-   if (newFile) {
+   if (newFile)
+   {
       char *fileContent = "This is content in a newly created file";
       uint32_t contentLen = strlen(fileContent);
-      uint32_t written = FAT_Write(&partition, newFile, contentLen, fileContent);
-      
-      if (written != contentLen) {
+      uint32_t written =
+          FAT_Write(&partition, newFile, contentLen, fileContent);
+
+      if (written != contentLen)
+      {
          printf("Write failed: wrote %u of %u bytes\n", written, contentLen);
-      } else {
+      }
+      else
+      {
          printf("Successfully created /write.txt with %u bytes\n", written);
          FAT_UpdateEntry(&partition, newFile);
       }
       FAT_Close(newFile);
-   } else {
+   }
+   else
+   {
       printf("Failed to create write.txt\n");
    }
 

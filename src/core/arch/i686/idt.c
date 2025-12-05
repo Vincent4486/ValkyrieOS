@@ -2,8 +2,8 @@
 
 #include "idt.h"
 #include <std/binary.h>
-#include <stdint.h>
 #include <std/stdio.h>
+#include <stdint.h>
 
 typedef struct
 {

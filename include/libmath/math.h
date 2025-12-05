@@ -3,9 +3,9 @@
 /**
  * @file math.h
  * @brief Math library header for ValkyrieOS kernel
- * 
- * Provides common mathematical functions for integer and floating-point arithmetic,
- * trigonometry, exponential/logarithmic operations, and rounding.
+ *
+ * Provides common mathematical functions for integer and floating-point
+ * arithmetic, trigonometry, exponential/logarithmic operations, and rounding.
  */
 
 #ifndef LIBMATH_MATH_H
@@ -13,14 +13,14 @@
 
 /* ===== Math Constants ===== */
 
-#define M_PI        3.14159265358979323846   /**< Pi (π) */
-#define M_E         2.71828182845904523536   /**< Euler's number (e) */
-#define M_LN2       0.69314718055994530942   /**< Natural log of 2 */
-#define M_LN10      2.30258509299404568402   /**< Natural log of 10 */
-#define M_SQRT2     1.41421356237309504880   /**< Square root of 2 */
+#define M_PI 3.14159265358979323846    /**< Pi (π) */
+#define M_E 2.71828182845904523536     /**< Euler's number (e) */
+#define M_LN2 0.69314718055994530942   /**< Natural log of 2 */
+#define M_LN10 2.30258509299404568402  /**< Natural log of 10 */
+#define M_SQRT2 1.41421356237309504880 /**< Square root of 2 */
 
-#define INFINITY    __builtin_inf()          /**< Positive infinity */
-#define NAN         __builtin_nanf("")       /**< Not-a-number */
+#define INFINITY __builtin_inf() /**< Positive infinity */
+#define NAN __builtin_nanf("")   /**< Not-a-number */
 
 /* ===== Integer Arithmetic ===== */
 
@@ -203,7 +203,7 @@ extern double round(double x);
  * @param y Second value
  * @return min(x, y)
  */
-extern float fminf(float x, float y)__attribute__((weak));
+extern float fminf(float x, float y) __attribute__((weak));
 
 extern double fmin(double x, double y);
 

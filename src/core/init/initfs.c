@@ -74,7 +74,8 @@ bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
       partition->partitionSize = disk->sectors;
    }
 
-   if(!Partition_ReadSectors(partition, 0, 1, MEMORY_FAT_ADDR)){
+   if (!Partition_ReadSectors(partition, 0, 1, MEMORY_FAT_ADDR))
+   {
       return -1;
    }
 

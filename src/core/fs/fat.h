@@ -27,7 +27,7 @@ typedef struct
    bool IsDirectory;
    uint32_t Position;
    uint32_t Size;
-   uint8_t Name[11];  // FAT name (11 bytes, space-padded)
+   uint8_t Name[11]; // FAT name (11 bytes, space-padded)
 } FAT_File;
 
 enum FAT_Attributes
@@ -82,4 +82,3 @@ FAT_File *FAT_Create(Partition *disk, const char *name);
 // Frees all clusters and marks the directory entry as deleted (0xE5).
 // Returns true on success.
 bool FAT_Delete(Partition *disk, const char *name);
-

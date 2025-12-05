@@ -104,7 +104,8 @@ static GlobalSymbolEntry global_symtab[DYLIB_MAX_GLOBAL_SYMBOLS];
 static int global_symtab_count = 0;
 
 // Forward declarations
-static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t size);
+static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
+                             uint32_t size);
 
 static dylib_register_symbols_t symbol_callback = NULL;
 
@@ -209,7 +210,8 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
 
    for (uint32_t i = 0; i < rel_count; i++)
    {
-      uint32_t r_offset = rel_table[i].r_offset; /* relocation target (usually absolute) */
+      uint32_t r_offset =
+          rel_table[i].r_offset; /* relocation target (usually absolute) */
       int type = ELF32_R_TYPE(rel_table[i].r_info);
       int symidx = ELF32_R_SYM(rel_table[i].r_info);
 
@@ -229,7 +231,8 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
       uint32_t allowed_high = base + 0x0100000; /* 1 MiB window */
       if (r_offset < allowed_low || r_offset > allowed_high)
       {
-         printf("[ERROR] Relocation[%d] target 0x%08x outside allowed range 0x%08x-0x%08x\n",
+         printf("[ERROR] Relocation[%d] target 0x%08x outside allowed range "
+                "0x%08x-0x%08x\n",
                 i, r_offset, allowed_low, allowed_high);
          return -1;
       }
@@ -252,7 +255,6 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
           */
          if (addend >= base && addend <= base + 0x00f00000)
          {
-         
          }
          else if (addend < 0x01000000)
          {
@@ -264,7 +266,8 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
          }
          else
          {
-            printf("[WARNING] R_386_RELATIVE at 0x%08x has unexpected value 0x%08x (skipping)\n",
+            printf("[WARNING] R_386_RELATIVE at 0x%08x has unexpected value "
+                   "0x%08x (skipping)\n",
                    r_offset, addend);
             continue;
          }
@@ -275,17 +278,21 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
          if (symidx > 0 && dynsym_addr > 0)
          {
             uint32_t sym_ent_offset = symidx * 16;
-            uint32_t st_name_offset = *(uint32_t *)(dynsym_addr + sym_ent_offset);
+            uint32_t st_name_offset =
+                *(uint32_t *)(dynsym_addr + sym_ent_offset);
             uint32_t st_value = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
 
             if (dynstr_addr > 0)
             {
-               const char *sym_name = (const char *)(dynstr_addr + st_name_offset);
+               const char *sym_name =
+                   (const char *)(dynstr_addr + st_name_offset);
 
                uint32_t sym_addr = dylib_lookup_global_symbol(sym_name);
                if (sym_addr == 0)
                {
-                  printf("[WARNING] Unresolved symbol in %s: %s (skipping relocation)\n", context, sym_name);
+                  printf("[WARNING] Unresolved symbol in %s: %s (skipping "
+                         "relocation)\n",
+                         context, sym_name);
                   /* Don't abort the whole relocation pass for an unresolved
                    * symbol - warn and continue so other relocations (in
                    * particular .rel.plt entries) can still be applied. */
@@ -351,8 +358,8 @@ int dylib_apply_kernel_relocations(void)
                 rel_count);
          uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
          uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
-         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr, dynstr_addr,
-                               "kernel .rel.dyn") != 0)
+         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr,
+                               dynstr_addr, "kernel .rel.dyn") != 0)
             return -1;
       }
    }
@@ -370,32 +377,32 @@ int dylib_apply_kernel_relocations(void)
                 rel_count);
          uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
          uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
-         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr, dynstr_addr,
-                               "kernel .rel.plt") != 0)
+         if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr,
+                               dynstr_addr, "kernel .rel.plt") != 0)
             return -1;
 
-            /* Diagnostic: print GOT entries for JMP_SLOT relocations so we can
-             * verify they point to the expected symbol addresses. */
-            printf("[DYLIB] Inspecting GOT entries for kernel .rel.plt...\n");
-            for (int ri = 0; ri < rel_count; ri++)
+         /* Diagnostic: print GOT entries for JMP_SLOT relocations so we can
+          * verify they point to the expected symbol addresses. */
+         printf("[DYLIB] Inspecting GOT entries for kernel .rel.plt...\n");
+         for (int ri = 0; ri < rel_count; ri++)
+         {
+            int rtype = ELF32_R_TYPE(rel[ri].r_info);
+            int rsym = ELF32_R_SYM(rel[ri].r_info);
+            if (rtype != R_386_JMP_SLOT) continue;
+
+            uint32_t where_addr = rel[ri].r_offset; /* already absolute */
+            uint32_t got_val = *(uint32_t *)where_addr;
+
+            const char *sym_name = "(unknown)";
+            uint32_t sym_addr = 0;
+            if (dynsym_addr && dynstr_addr && rsym > 0)
             {
-               int rtype = ELF32_R_TYPE(rel[ri].r_info);
-               int rsym = ELF32_R_SYM(rel[ri].r_info);
-               if (rtype != R_386_JMP_SLOT) continue;
-
-               uint32_t where_addr = rel[ri].r_offset; /* already absolute */
-               uint32_t got_val = *(uint32_t *)where_addr;
-
-               const char *sym_name = "(unknown)";
-               uint32_t sym_addr = 0;
-               if (dynsym_addr && dynstr_addr && rsym > 0)
-               {
-                  uint32_t sym_ent_offset = rsym * 16;
-                  uint32_t st_name = *(uint32_t *)(dynsym_addr + sym_ent_offset);
-                  sym_name = (const char *)(dynstr_addr + st_name);
-                  sym_addr = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
-               }
+               uint32_t sym_ent_offset = rsym * 16;
+               uint32_t st_name = *(uint32_t *)(dynsym_addr + sym_ent_offset);
+               sym_name = (const char *)(dynstr_addr + st_name);
+               sym_addr = *(uint32_t *)(dynsym_addr + sym_ent_offset + 4);
             }
+         }
       }
    }
 
@@ -668,12 +675,12 @@ int dylib_parse_symbols(LibRecord *lib)
    ExtendedLibData *ext = &extended_data[idx];
 
    // Parse ELF symbols from the pre-loaded library at its base address
-   printf("[DYLIB] Parsing symbols for pre-loaded library: %s at 0x%x\n", 
+   printf("[DYLIB] Parsing symbols for pre-loaded library: %s at 0x%x\n",
           lib->name, (unsigned int)lib->base);
-   
+
    parse_elf_symbols(ext, (uint32_t)lib->base, lib->size);
-   
-   ext->loaded = 1;  // Mark as loaded so symbol table is available
+
+   ext->loaded = 1; // Mark as loaded so symbol table is available
 
    return 0;
 }
@@ -750,29 +757,33 @@ int dylib_load(const char *name, const void *image, uint32_t size)
 }
 
 // Parse ELF header and extract dynamic symbols from a loaded library
-static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t size)
+static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
+                             uint32_t size)
 {
    // ELF header at the beginning of the loaded binary
    uint8_t *elf_data = (uint8_t *)base_addr;
-   
+
    // Check ELF magic number
-   if (elf_data[0] != 0x7f || elf_data[1] != 'E' || elf_data[2] != 'L' || elf_data[3] != 'F')
+   if (elf_data[0] != 0x7f || elf_data[1] != 'E' || elf_data[2] != 'L' ||
+       elf_data[3] != 'F')
    {
       printf("[ERROR] Not a valid ELF file\n");
       return -1;
    }
-   
+
    // Parse ELF32 header (little-endian)
-   uint32_t e_shoff = *(uint32_t *)(elf_data + 32);  // Section header offset (in file)
-   uint16_t e_shnum = *(uint16_t *)(elf_data + 48);  // Number of sections
-   uint16_t e_shentsize = *(uint16_t *)(elf_data + 46); // Section header entry size
-   
+   uint32_t e_shoff =
+       *(uint32_t *)(elf_data + 32); // Section header offset (in file)
+   uint16_t e_shnum = *(uint16_t *)(elf_data + 48); // Number of sections
+   uint16_t e_shentsize =
+       *(uint16_t *)(elf_data + 46); // Section header entry size
+
    if (e_shoff == 0 || e_shnum == 0 || e_shentsize == 0)
    {
       printf("[DYLIB] Invalid section headers\n");
       return 0;
    }
-   
+
    // Find the first PROGBITS section to determine the offset adjustment
    // When we load the ELF file, all sections keep their relative offsets
    // But the sections that need to be in memory are those with SHF_ALLOC flag
@@ -782,103 +793,121 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
    {
       Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
       // Find the first allocable section - this is where code actually starts
-      if (sh->sh_type == 1 && (sh->sh_flags & 0x2))  // PROGBITS with ALLOC
+      if (sh->sh_type == 1 && (sh->sh_flags & 0x2)) // PROGBITS with ALLOC
       {
          text_section_file_offset = sh->sh_offset;
-         printf("[DYLIB] First loadable section (.text) at file offset 0x%x\n", text_section_file_offset);
+         printf("[DYLIB] First loadable section (.text) at file offset 0x%x\n",
+                text_section_file_offset);
          break;
       }
    }
-   
-   // File offsets from base_addr need to be adjusted by the .text section offset
-   // Memory layout: base_addr points to start of loaded file (including ELF header)
-   // But symbols are addresses in the code section
-   // So: symbol_memory_address = base_addr + file_offset_of_section + offset_within_section
+
+   // File offsets from base_addr need to be adjusted by the .text section
+   // offset Memory layout: base_addr points to start of loaded file (including
+   // ELF header) But symbols are addresses in the code section So:
+   // symbol_memory_address = base_addr + file_offset_of_section +
+   // offset_within_section
    //                           = base_addr + st_value_offset
-   // where st_value_offset = st_value - original_base (offset from link address)
-   
+   // where st_value_offset = st_value - original_base (offset from link
+   // address)
+
    // Read ELF header fields for detecting original_base
-   uint32_t e_entry = *(uint32_t *)(elf_data + 24);     // Entry point address
-   uint32_t e_phoff = *(uint32_t *)(elf_data + 28);     // Program header offset
-   uint16_t e_phentsize = *(uint16_t *)(elf_data + 42); // Program header entry size
-   uint16_t e_phnum = *(uint16_t *)(elf_data + 44);     // Number of program headers
-   
-   // Detect original_base from the ELF entry point (e_entry) which is an absolute address
-   // in the linked image. For libmath linked at 0x05000000, e_entry will be something like
-   // 0x05001000. We can mask off the low bits to get the base.
-   uint32_t original_base = e_entry & 0xFFFF0000;  // Mask to get base (assumes 64KB alignment)
-   if (original_base == 0 && e_phoff != 0 && e_phnum != 0) {
+   uint32_t e_entry = *(uint32_t *)(elf_data + 24); // Entry point address
+   uint32_t e_phoff = *(uint32_t *)(elf_data + 28); // Program header offset
+   uint16_t e_phentsize =
+       *(uint16_t *)(elf_data + 42);                // Program header entry size
+   uint16_t e_phnum = *(uint16_t *)(elf_data + 44); // Number of program headers
+
+   // Detect original_base from the ELF entry point (e_entry) which is an
+   // absolute address in the linked image. For libmath linked at 0x05000000,
+   // e_entry will be something like 0x05001000. We can mask off the low bits to
+   // get the base.
+   uint32_t original_base =
+       e_entry & 0xFFFF0000; // Mask to get base (assumes 64KB alignment)
+   if (original_base == 0 && e_phoff != 0 && e_phnum != 0)
+   {
       // Fallback: scan program headers for first PT_LOAD segment
-      for (int i = 0; i < e_phnum; i++) {
+      for (int i = 0; i < e_phnum; i++)
+      {
          uint8_t *ph = elf_data + e_phoff + (i * e_phentsize);
          uint32_t p_type = *(uint32_t *)(ph + 0);
          uint32_t p_vaddr = *(uint32_t *)(ph + 8);
-         if (p_type == 1) {  // PT_LOAD
+         if (p_type == 1)
+         { // PT_LOAD
             original_base = p_vaddr & 0xFFFF0000;
             break;
          }
       }
    }
-   if (original_base == 0) {
-      original_base = 0x05000000;  // Default for our libmath
+   if (original_base == 0)
+   {
+      original_base = 0x05000000; // Default for our libmath
    }
-   printf("[DYLIB] Detected original_base = 0x%x (from e_entry=0x%x)\n", original_base, e_entry);
-   
+   printf("[DYLIB] Detected original_base = 0x%x (from e_entry=0x%x)\n",
+          original_base, e_entry);
+
    // Find .symtab and .strtab sections
    uint32_t symtab_addr = 0, symtab_size = 0, symtab_entsize = 0;
    uint32_t strtab_addr = 0, strtab_size = 0;
    int strtab_link = -1;
-   
+
    for (int i = 0; i < e_shnum; i++)
    {
       Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
-      
-      
+
       if (sh->sh_type == SHT_SYMTAB)
       {
-         // Found symbol table - address is file offset + base (since we loaded full file)
+         // Found symbol table - address is file offset + base (since we loaded
+         // full file)
          symtab_addr = base_addr + sh->sh_offset;
          symtab_size = sh->sh_size;
          symtab_entsize = sh->sh_entsize;
-         strtab_link = sh->sh_link;  // Index of associated string table
-         printf("[DYLIB] Found .symtab at file offset 0x%x, memory 0x%x, size=%d, entsize=%d, strtab_link=%d\n", 
-                sh->sh_offset, symtab_addr, symtab_size, symtab_entsize, strtab_link);
+         strtab_link = sh->sh_link; // Index of associated string table
+         printf("[DYLIB] Found .symtab at file offset 0x%x, memory 0x%x, "
+                "size=%d, entsize=%d, strtab_link=%d\n",
+                sh->sh_offset, symtab_addr, symtab_size, symtab_entsize,
+                strtab_link);
       }
    }
-   
+
    // Now find the associated string table
    if (strtab_link >= 0 && strtab_link < e_shnum)
    {
-      Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (strtab_link * e_shentsize));
+      Elf32_Shdr *sh =
+          (Elf32_Shdr *)(elf_data + e_shoff + (strtab_link * e_shentsize));
       if (sh->sh_type == SHT_STRTAB)
       {
          strtab_addr = base_addr + sh->sh_offset;
          strtab_size = sh->sh_size;
-         printf("[DYLIB] Found associated .strtab at file offset 0x%x, memory 0x%x, size=%d\n", 
+         printf("[DYLIB] Found associated .strtab at file offset 0x%x, memory "
+                "0x%x, size=%d\n",
                 sh->sh_offset, strtab_addr, strtab_size);
       }
    }
-   
+
    if (symtab_addr == 0 || strtab_addr == 0 || symtab_entsize == 0)
    {
-      printf("[DYLIB] Symbol table, string table, or entsize not found/invalid\n");
+      printf(
+          "[DYLIB] Symbol table, string table, or entsize not found/invalid\n");
       return 0;
    }
-   
+
    // Parse symbol entries
    uint32_t num_symbols = symtab_size / symtab_entsize;
    ext->symbol_count = 0;
-   
-   for (uint32_t i = 0; i < num_symbols && ext->symbol_count < DYLIB_MAX_SYMBOLS; i++)
+
+   for (uint32_t i = 0;
+        i < num_symbols && ext->symbol_count < DYLIB_MAX_SYMBOLS; i++)
    {
       Elf32_Sym *sym = (Elf32_Sym *)(symtab_addr + (i * symtab_entsize));
-      
+
       // Skip undefined and local symbols
       uint8_t st_bind = ELF32_ST_BIND(sym->st_info);
       uint8_t st_type = ELF32_ST_TYPE(sym->st_info);
-      
-      if (st_bind == 0 || sym->st_shndx == 0) continue;  // Skip local or undefined
-      
+
+      if (st_bind == 0 || sym->st_shndx == 0)
+         continue; // Skip local or undefined
+
       // Get symbol name from string table
       if (sym->st_name < strtab_size)
       {
@@ -888,59 +917,65 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
             // Add to symbol table
             strncpy(ext->symbols[ext->symbol_count].name, sym_name, 63);
             ext->symbols[ext->symbol_count].name[63] = '\0';
-            
+
             // Symbol address calculation:
-            // st_value is the absolute address in the linked image (e.g., 0x08000000 + offset)
-            // Offset from link base: st_value - original_base
-            // Actual address: base_addr (ELF file start in memory) + file_offset_of_section + offset_within_section
-            // But st_value is already relative to 0x08000000, which is 0x1000 bytes into the file (where .text starts)
-            // So: memory_addr = base_addr + text_section_file_offset + (st_value - original_base)
+            // st_value is the absolute address in the linked image (e.g.,
+            // 0x08000000 + offset) Offset from link base: st_value -
+            // original_base Actual address: base_addr (ELF file start in
+            // memory) + file_offset_of_section + offset_within_section But
+            // st_value is already relative to 0x08000000, which is 0x1000 bytes
+            // into the file (where .text starts) So: memory_addr = base_addr +
+            // text_section_file_offset + (st_value - original_base)
             //               = base_addr + 0x1000 + (st_value - 0x08000000)
             uint32_t symbol_offset_in_code = sym->st_value - original_base;
-            uint32_t symbol_addr = base_addr + text_section_file_offset + symbol_offset_in_code;
+            uint32_t symbol_addr =
+                base_addr + text_section_file_offset + symbol_offset_in_code;
             ext->symbols[ext->symbol_count].address = symbol_addr;
             ext->symbol_count++;
          }
       }
    }
-   
+
    printf("[DYLIB] Extracted %d symbols\n", ext->symbol_count);
-   
-   // NOTE: We previously had heuristic scanning that looked for embedded addresses
-   // matching original_base and patched them. However, this caused corruption of
-   // PIC code (position-independent code) which uses PC-relative addressing via
+
+   // NOTE: We previously had heuristic scanning that looked for embedded
+   // addresses matching original_base and patched them. However, this caused
+   // corruption of PIC code (position-independent code) which uses PC-relative
+   // addressing via
    // __x86.get_pc_thunk and doesn't need runtime patching. The heuristic was
    // finding false positives in instruction immediates and corrupting code.
    //
    // Since libmath is built with -fPIC, it doesn't need address patching.
    // If we later need to support non-PIC libraries, we should use formal
    // relocation sections (SHT_REL) instead of heuristic scanning.
-   
+
    printf("[DYLIB] Skipping heuristic address patching (library is PIC)\n");
-   
+
    // Now look for formal relocation sections (if they exist)
    printf("[DYLIB] Looking for formal relocation sections...\n");
    for (int i = 0; i < e_shnum; i++)
    {
       Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
-      
+
       // Look for .rel.dyn or .rel.text sections (type 9 = SHT_REL)
-      if (sh->sh_type == 9)  // SHT_REL
+      if (sh->sh_type == 9) // SHT_REL
       {
          uint32_t rel_addr = base_addr + sh->sh_offset;
          uint32_t rel_size = sh->sh_size;
          uint32_t rel_entsize = sh->sh_entsize;
          int rel_count = rel_size / rel_entsize;
-         
-         printf("[DYLIB]   Applying %d relocations from section %d\n", rel_count, i);
-         
+
+         printf("[DYLIB]   Applying %d relocations from section %d\n",
+                rel_count, i);
+
          for (int j = 0; j < rel_count; j++)
          {
             Elf32_Rel *rel = (Elf32_Rel *)(rel_addr + (j * rel_entsize));
             uint32_t *patch_addr = (uint32_t *)(base_addr + rel->r_offset);
             uint32_t type = ELF32_R_TYPE(rel->r_info);
-            
-            // For R_386_RELATIVE, just add the difference between load and original base
+
+            // For R_386_RELATIVE, just add the difference between load and
+            // original base
             if (type == R_386_RELATIVE)
             {
                uint32_t adjustment = base_addr - original_base;
@@ -949,7 +984,7 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr, uint32_t 
          }
       }
    }
-   
+
    return 0;
 }
 
@@ -1037,7 +1072,7 @@ int dylib_load_from_disk(Partition *partition, const char *name,
 
    if (symbol_callback)
    {
-       symbol_callback(name);
+      symbol_callback(name);
    }
 
    return 0;
@@ -1120,5 +1155,5 @@ void dylib_mem_stats(void)
 
 void dylib_register_callback(dylib_register_symbols_t callback)
 {
-    symbol_callback = callback;
+   symbol_callback = callback;
 }
