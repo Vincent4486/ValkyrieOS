@@ -48,8 +48,9 @@
 #define LDBL_MIN_10_EXP -4931 /**< Minimum decimal exponent (long double) */
 #define LDBL_MAX_10_EXP 4932  /**< Maximum decimal exponent (long double) */
 
-#define LDBL_MAX 1.1897314953572317646e+4932L /**< Maximum finite long double  \
-                                               */
+#define LDBL_MAX                                                               \
+   1.1897314953572317646e+4932L /**< Maximum finite long double                \
+                                 */
 #define LDBL_MIN                                                               \
    3.3621031431120935063e-4932L /**< Minimum positive long double */
 #define LDBL_EPSILON                                                           \

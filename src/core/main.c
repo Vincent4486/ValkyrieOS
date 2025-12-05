@@ -80,9 +80,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    }
 
    // Test 1: Write to existing file
-   printf("Test 1: Write to /test/test.txt\n");
+   printf("Test 1: Write to /test/write.txt\n");
    char *buff = "This is data writen to the file";
-   FAT_File *fd = FAT_Open(&partition, "/test/test.txt");
+   FAT_File *fd = FAT_Open(&partition, "/test/write.txt");
    if (fd)
    {
       FAT_Truncate(&partition, fd); // Clear file and free clusters
@@ -104,7 +104,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    }
    else
    {
-      printf("Failed to open /test/test.txt\n");
+      printf("Failed to open /test/write.txt\n");
    }
 
    // Test 2: Create /write.txt with content (in root directory)
