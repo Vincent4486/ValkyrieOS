@@ -15,8 +15,6 @@ from SCons.Environment import Environment
 
 from scripts.scons.utility import FindIndex, GlobRecursive, IsFileName
 
-Import('stage1')
-Import('stage2')
 Import('core')
 Import('kernel_libraries')
 
@@ -64,51 +62,6 @@ def find_symbol_in_map_file(map_file: str, symbol: str):
     return None
 
 
-def install_stage1(target: str, stage1: str, stage2_offset, stage2_size, offset=0):
-    # find stage1 map file
-    map_file = Path(stage1).with_suffix('.map')
-    if not map_file.exists():
-        raise ValueError("Can't find " + map_file)
-    
-    entry_offset = find_symbol_in_map_file(map_file, '__entry_start')
-    if entry_offset is None:
-        raise ValueError("Can't find __entry_start symbol in map file " + str(map_file))
-    entry_offset -= 0x7c00
-
-    stage2_start = find_symbol_in_map_file(map_file, 'stage2_location')
-    if stage2_start is None:
-        raise ValueError("Can't find stage2_location symbol in map file " + str(map_file))
-    stage2_start -= 0x7c00
-
-    with open(stage1, 'rb') as fstage1:
-        with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT), 'wb+') as ftarget:
-            ftarget.seek(offset * SECTOR_SIZE, SEEK_SET)
-
-            # write first 3 bytes jump instruction
-            ftarget.write(fstage1.read(3))
-
-            # write starting at entry_offset (end of header)
-            fstage1.seek(entry_offset - 3, SEEK_CUR)
-            ftarget.seek(entry_offset - 3, SEEK_CUR)
-            ftarget.write(fstage1.read())
-
-            # write location of stage2
-            ftarget.seek(offset * SECTOR_SIZE + stage2_start, SEEK_SET)
-            ftarget.write(stage2_offset.to_bytes(4, byteorder='little'))
-            ftarget.write(stage2_size.to_bytes(1, byteorder='little'))
-
-def mount_raw_fs(image: str, mount_dir: str):
-    print(f"    > associating raw image with a loop device...")
-    device = sh.sudo.losetup('-f', '--show', image).strip()
-
-    # Store the device path BEFORE mounting (in the parent directory on the host FS)
-    device_file = mount_dir + '.device'
-    with open(device_file, 'w') as f:
-        f.write(device)
-
-    print(f"    > mounting {device} to {mount_dir}...")
-    sh.sudo.mount(device, mount_dir)
-
 def install_grub(mount_dir: str):
 
     device_file = mount_dir + '.device'
@@ -125,12 +78,6 @@ def install_grub(mount_dir: str):
     # Run grub-install against the loop device. Use i386-pc (BIOS) target for
     # the project's boot layout. --recheck forces probe of device.
     sh.sudo('grub-install', '--target=i386-pc', f'--boot-directory={bootdir}', '--recheck', device)
-
-def install_stage2(target: str, stage2: str, offset=0, limit=None):
-    with open(stage2, 'rb') as fstage2:
-        with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT), 'wb+') as ftarget:
-            ftarget.seek(offset * SECTOR_SIZE, SEEK_SET)
-            ftarget.write(fstage2.read())
 
 def create_partition_table(target: str, align_start: int, filesystem: str = 'fat32'):
     """Create MBR partition table with correct filesystem type.
@@ -219,14 +166,10 @@ def unmount_fs(mount_dir: str):
     os.remove(device_file)
 
 
-def build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env):
+def build_disk(image, core_exe, kernel_libraries, files, env):
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     file_system = env['imageFS']
     partition_offset = 2048
- 
-    stage1_size = os.stat(stage1).st_size
-    stage2_size = os.stat(stage2).st_size
-    stage2_sectors = (stage2_size + SECTOR_SIZE - 1) // SECTOR_SIZE
 
     generate_image_file(image, size_sectors)
 
@@ -237,15 +180,6 @@ def build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env):
     # create file system
     print(f"> formatting file using {file_system}...")
     create_filesystem(image, file_system, offset=partition_offset)
-
-    if env.get('bootloader', 'default') == 'default':
-        # install stage1 at LBA 0 (MBR bootcode + BDB header)
-        print(f"> installing stage1...")
-        install_stage1(image, stage1, offset=partition_offset, stage2_offset=1, stage2_size=stage2_sectors)
- 
-        # install stage2 at LBA 1 (first-stage loader)
-        print(f"> installing stage2...")
-        install_stage2(image, stage2, offset=1, limit=partition_offset)
 
     # Create temp directory in the build folder (same directory as the image)
     tempdir = os.path.join(os.path.dirname(image), 'tmp_mount')
@@ -284,8 +218,7 @@ def build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env):
                 print('    ... copying', file_rel)
                 sh.sudo.cp(file_src, file_dst)
 
-        if env.get('bootloader', 'default') == 'grub':
-            install_grub(tempdir)
+        install_grub(tempdir)
 
     finally:
         print("> cleaning up...")
@@ -308,21 +241,39 @@ def build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env):
 
 
 def build_image(target, source, env):
-    stage1 = str(source[0])
-    stage2 = str(source[1])
-    # source[2] is core.elf, source[3:] are libraries + files
-    core_exe = str(source[2])  # main kernel executable
-    kernel_libraries = [str(src) for src in source[3:] if 'kernel' in str(src)]
-    files = [src for src in source[3:] if 'kernel' not in str(src)]
+    # Source list may contain many nodes; try to reliably find the kernel ELF
+    core_exe = None
+    for src in source:
+        p = str(src)
+        # prefer ELF/binary kernel artifacts
+        if p.endswith('.elf') or p.endswith('.bin') or p.endswith('.iso'):
+            core_exe = p
+            break
+    # fallback: use first "core" named artifact or the imported `core` variable
+    if core_exe is None:
+        for src in source:
+            p = os.path.basename(str(src))
+            if 'core' in p or 'kernel' in p or 'valkyrie' in p:
+                core_exe = str(src)
+                break
+    if core_exe is None:
+        # last resort: try env provided path
+        core_exe = env.get('CORE_EXE')
+    if core_exe is None:
+        raise RuntimeError("Core executable not found in build inputs")
+
+    # classify kernel libraries and other files robustly
+    kernel_libraries = [str(src) for src in source if 'kernel' in str(src) and str(src) != core_exe]
+    files = [src for src in source if str(src) != core_exe and str(src) not in kernel_libraries]
 
     image = str(target[0])
 
-    build_disk(image, stage1, stage2, core_exe, kernel_libraries, files, env)
+    build_disk(image, core_exe, kernel_libraries, files, env)
  
 # Setup image target
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
-inputs = [stage1, stage2, core] + kernel_libraries + root_content
+inputs = [core] + kernel_libraries + root_content
 
 output_fmt = env["outputFormat"]
 
