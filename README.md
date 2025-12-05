@@ -96,48 +96,12 @@ Or manually:
 ## Development
 Valkyrie OS is currently under development with the base system not finished. Please wait until the OS is released to find a fully working OS.
 
-### Project Structure
-
-```
-ValkyrieOS/
-├── src/
-│   ├── bootloader/          # Stage 1 and Stage 2 bootloaders
-│   │   ├── stage1/          # Boot sector code
-│   │   └── stage2/          # Extended bootloader
-│   └── kernel/              # Kernel implementation
-│       ├── arch/            # Architecture-specific code (i686)
-│       ├── display/         # Display and keyboard drivers
-│       ├── drivers/         # Device drivers (ATA, FDC, etc.)
-│       ├── fs/              # Filesystem implementations (FAT12, FAT32)
-│       ├── hal/             # Hardware abstraction layer
-│       ├── jvm/             # Java Virtual Machine
-│       ├── memory/          # Memory management
-│       └── std/             # Standard library functions
-├── image/                   # Disk image building scripts
-├── scripts/
-│   ├── base/                # Base utilities (qemu, gdb, toolchain)
-│   └── scons/               # SCons build system utilities
-└── SConstruct               # Main build configuration
-```
-
 ### Architecture
 
 - **Bootloader (Stage 1)**: Loads Stage 2 from disk
 - **Bootloader (Stage 2)**: Initializes hardware and loads the kernel
 - **Kernel**: Manages system resources, drivers, and JVM execution
 - **JVM**: Executes Java bytecode programs
-
-### Contributing
-
-To contribute to Valkyrie OS:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes
-4. Test your changes by building and running
-5. Commit your changes (`git commit -am 'Add my feature'`)
-6. Push to the branch (`git push origin feature/my-feature`)
-7. Create a Pull Request
 
 ### License
 
