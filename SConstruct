@@ -69,9 +69,9 @@ HOST_ENVIRONMENT = Environment(variables=VARS,
 )
 
 if HOST_ENVIRONMENT['config'] == 'debug':
-    HOST_ENVIRONMENT.Append(CCFLAGS = ['-O0'])
+    HOST_ENVIRONMENT.Append(CCFLAGS = ['-O0', '-DDEBUG'])
 else:
-    HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3'])
+    HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3', '-DRELEASE'])
 
 HOST_ENVIRONMENT.Replace(ASCOMSTR        = "Assembling [$SOURCE]",
                          CCCOMSTR        = "Compiling  [$SOURCE]",

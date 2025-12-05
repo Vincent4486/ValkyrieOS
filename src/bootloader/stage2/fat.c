@@ -133,7 +133,7 @@ bool FAT_Initialize(Partition *disk)
    // read boot sector
    if (!FAT_ReadBootSector(disk))
    {
-      printf("FAT: read boot sector failed\r\n");
+      printf("FAT: read boot sector failed\n");
       return false;
    }
 
@@ -190,7 +190,7 @@ bool FAT_Initialize(Partition *disk)
    if (!Partition_ReadSectors(disk, rootDirLba, 1,
                               g_Data->RootDirectory.Buffer))
    {
-      printf("FAT: read root directory failed\r\n");
+      printf("FAT: read root directory failed\n");
       return false;
    }
 
@@ -222,7 +222,7 @@ FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry)
    // out of handles
    if (handle < 0)
    {
-      printf("FAT: out of file handles\r\n");
+      printf("FAT: out of file handles\n");
       return false;
    }
 
@@ -333,7 +333,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
       fd->Public.Position += take;
       byteCount -= take;
 
-      // printf("leftInBuffer=%lu take=%lu\r\n", leftInBuffer, take);
+      // printf("leftInBuffer=%lu take=%lu\n", leftInBuffer, take);
       // See if we need to read more data
       if (leftInBuffer == take)
       {
@@ -345,7 +345,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
             // read next sector
             if (!Partition_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
             {
-               printf("FAT: read error!\r\n");
+               printf("FAT: read error!\n");
                break;
             }
          }
@@ -372,7 +372,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                                            fd->CurrentSectorInCluster,
                                        1, fd->Buffer))
             {
-               printf("FAT: read error!\r\n");
+               printf("FAT: read error!\n");
                break;
             }
          }
@@ -474,7 +474,7 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
          // check if directory
          if (!isLast && entry.Attributes & FAT_ATTRIBUTE_DIRECTORY == 0)
          {
-            printf("FAT: %s not a directory\r\n", name);
+            printf("FAT: %s not a directory\n", name);
             return NULL;
          }
 
@@ -485,7 +485,7 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
       {
          FAT_Close(current);
 
-         printf("FAT: %s not found\r\n", name);
+         printf("FAT: %s not found\n", name);
          return NULL;
       }
    }

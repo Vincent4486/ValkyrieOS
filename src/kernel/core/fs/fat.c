@@ -360,7 +360,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
       fd->Public.Position += take;
       byteCount -= take;
 
-      // printf("leftInBuffer=%lu take=%lu\r\n", leftInBuffer, take);
+      // printf("leftInBuffer=%lu take=%lu\n", leftInBuffer, take);
       // See if we need to read more data
       if (leftInBuffer == take)
       {
@@ -385,7 +385,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
             // read next sector
             if (!Partition_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
             {
-               printf("FAT: read error!\r\n");
+               printf("FAT: read error!\n");
                break;
             }
          }
@@ -416,7 +416,7 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                                            fd->CurrentSectorInCluster,
                                        1, fd->Buffer))
             {
-               printf("FAT: read error!\r\n");
+               printf("FAT: read error!\n");
                break;
             }
          }
@@ -449,33 +449,33 @@ void FAT_Close(FAT_File *file)
 bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
                   FAT_DirectoryEntry *entryOut)
 {
-   printf("FAT_FindFile: entry, name='%s'\r\n", name);
+   printf("FAT_FindFile: entry, name='%s'\n", name);
    
    char fatName[12];
    FAT_DirectoryEntry entry;
 
    // Reset directory position to start searching from the beginning
-   printf("FAT_FindFile: calling FAT_Seek\r\n");
+   printf("FAT_FindFile: calling FAT_Seek\n");
    FAT_Seek(disk, file, 0);
-   printf("FAT_FindFile: FAT_Seek done\r\n");
+   printf("FAT_FindFile: FAT_Seek done\n");
 
    // convert from name to fat name
    memset(fatName, ' ', sizeof(fatName));
    fatName[11] = '\0';
 
-   printf("FAT_FindFile: converting name\r\n");
+   printf("FAT_FindFile: converting name\n");
    const char *ext = strchr(name, '.');
    if (ext == NULL) 
       ext = name + strlen(name);  // Point to end of string if no extension
 
-   printf("FAT_FindFile: ext found\r\n");
+   printf("FAT_FindFile: ext found\n");
    // Copy basename (max 8 chars before extension)
    int nameLen = (ext - name > 8) ? 8 : (ext - name);
-   printf("FAT_FindFile: nameLen=%d, looping...\r\n", nameLen);
+   printf("FAT_FindFile: nameLen=%d, looping...\n", nameLen);
    for (int i = 0; i < nameLen && name[i] && name[i] != '.'; i++)
       fatName[i] = toupper(name[i]);
 
-   printf("FAT_FindFile: basename done\r\n");
+   printf("FAT_FindFile: basename done\n");
    // Copy extension (max 3 chars after the dot)
    if (ext != name + strlen(name) && *ext == '.')
    {
@@ -483,8 +483,8 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
          fatName[i + 8] = toupper(ext[i + 1]);
    }
 
-   printf("FAT_FindFile: name conversion done, fatName='%s'\r\n", fatName);
-   printf("FAT_FindFile: about to read entries\r\n");
+   printf("FAT_FindFile: name conversion done, fatName='%s'\n", fatName);
+   printf("FAT_FindFile: about to read entries\n");
 
    while (FAT_ReadEntry(disk, file, &entry))
    {
@@ -549,7 +549,7 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
          // check if directory
          if (!isLast && (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY) == 0)
          {
-            printf("FAT: %s not a directory\r\n", name);
+            printf("FAT: %s not a directory\n", name);
             return NULL;
          }
 
@@ -565,7 +565,7 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
             FAT_Close(previous);
          }
 
-         printf("FAT: %s not found\r\n", name);
+         printf("FAT: %s not found\n", name);
          return NULL;
       }
    }
@@ -598,7 +598,7 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
 
       if (!Partition_ReadSectors(disk, fd->CurrentCluster, 1, fd->Buffer))
       {
-         printf("FAT: seek read error (root)\r\n");
+         printf("FAT: seek read error (root)\n");
          return false;
       }
    }
@@ -631,7 +631,7 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
                                      fd->CurrentSectorInCluster,
                                  1, fd->Buffer))
       {
-         printf("FAT: seek read error (file)\r\n");
+         printf("FAT: seek read error (file)\n");
          return false;
       }
    }
@@ -651,7 +651,7 @@ bool FAT_WriteEntry(Partition *disk, FAT_File *file,
    // Only write to directory files
    if (!file->IsDirectory)
    {
-      printf("FAT: WriteEntry called on non-directory file\r\n");
+      printf("FAT: WriteEntry called on non-directory file\n");
       return false;
    }
 
@@ -673,7 +673,7 @@ bool FAT_WriteEntry(Partition *disk, FAT_File *file,
                                      fd->CurrentSectorInCluster,
                                  1, fd->Buffer))
       {
-         printf("FAT: WriteEntry read error\r\n");
+         printf("FAT: WriteEntry read error\n");
          return false;
       }
    }
@@ -687,7 +687,7 @@ bool FAT_WriteEntry(Partition *disk, FAT_File *file,
                                    fd->CurrentSectorInCluster,
                                1, fd->Buffer))
    {
-      printf("FAT: WriteEntry write error\r\n");
+      printf("FAT: WriteEntry write error\n");
       return false;
    }
 
@@ -707,7 +707,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
    if (!fd->Opened || file->Handle == ROOT_DIRECTORY_HANDLE ||
        (file->IsDirectory))
    {
-      printf("FAT: Write called on invalid file\r\n");
+      printf("FAT: Write called on invalid file\n");
       return 0;
    }
 
@@ -765,7 +765,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
             // Read first sector of new cluster
             if (!Partition_ReadSectors(disk, FAT_ClusterToLba(fd->CurrentCluster), 1, fd->Buffer))
             {
-               printf("FAT: Write - failed to read new cluster\r\n");
+               printf("FAT: Write - failed to read new cluster\n");
                return 0;
             }
             break;
@@ -775,7 +775,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
 
       if (fd->CurrentCluster == 0)
       {
-         printf("FAT: Write - no free clusters available\r\n");
+         printf("FAT: Write - no free clusters available\n");
          return 0;
       }
    }
@@ -800,7 +800,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                                         fd->CurrentSectorInCluster,
                                     1, fd->Buffer))
          {
-            printf("FAT: Write error at cluster=%u sector=%u\r\n",
+            printf("FAT: Write error at cluster=%u sector=%u\n",
                    fd->CurrentCluster, fd->CurrentSectorInCluster);
             return bytesWritten;
          }
@@ -827,7 +827,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                                                      : 0xFFFFFFF8;
             if (fd->CurrentCluster >= eofMarker)
             {
-               printf("FAT: Write reached end of cluster chain\r\n");
+               printf("FAT: Write reached end of cluster chain\n");
                return bytesWritten;
             }
          }
@@ -840,7 +840,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                                            fd->CurrentSectorInCluster,
                                        1, fd->Buffer))
             {
-               printf("FAT: Write read error\r\n");
+               printf("FAT: Write read error\n");
                return bytesWritten;
             }
          }
@@ -853,7 +853,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                                   fd->CurrentSectorInCluster,
                               1, fd->Buffer))
    {
-      printf("FAT: Write final flush error\r\n");
+      printf("FAT: Write final flush error\n");
       return bytesWritten;
    }
 
@@ -879,7 +879,7 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
 
    if (!fd->Opened || file->IsDirectory)
    {
-      printf("FAT: Truncate called on invalid file\r\n");
+      printf("FAT: Truncate called on invalid file\n");
       return false;
    }
 
@@ -924,7 +924,7 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
       // Read the FAT sector
       if (!Partition_ReadSectors(disk, fatSectorLba, 1, fatBuffer))
       {
-         printf("FAT: Truncate read error at cluster %u\r\n", currentCluster);
+         printf("FAT: Truncate read error at cluster %u\n", currentCluster);
          return false;
       }
 
@@ -953,7 +953,7 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
       // Validate nextCluster - if it's suspiciously large or invalid, treat as EOF
       if (nextCluster > 0x0FFFFFF || (nextCluster != 0 && nextCluster < 2))
       {
-         printf("FAT_Truncate: Invalid nextCluster value 0x%x, treating as EOF\r\n", nextCluster);
+         printf("FAT_Truncate: Invalid nextCluster value 0x%x, treating as EOF\n", nextCluster);
          nextCluster = eofMarker;
       }
 
@@ -977,7 +977,7 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
       // Write FAT sector back
       if (!Partition_WriteSectors(disk, fatSectorLba, 1, fatBuffer))
       {
-         printf("FAT: Truncate write FAT error at LBA %u\r\n", fatSectorLba);
+         printf("FAT: Truncate write FAT error at LBA %u\n", fatSectorLba);
          return false;
       }
 
@@ -1044,7 +1044,7 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
          uint8_t sectorBuffer[SECTOR_SIZE];
          if (!Partition_ReadSectors(disk, FAT_ClusterToLba(2) + sectorInDirectory, 1, sectorBuffer))
          {
-            printf("FAT: UpdateEntry read error\r\n");
+            printf("FAT: UpdateEntry read error\n");
             return false;
          }
 
@@ -1054,7 +1054,7 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
          // Write the sector back
          if (!Partition_WriteSectors(disk, FAT_ClusterToLba(2) + sectorInDirectory, 1, sectorBuffer))
          {
-            printf("FAT: UpdateEntry write error\r\n");
+            printf("FAT: UpdateEntry write error\n");
             return false;
          }
 
@@ -1062,13 +1062,13 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
       }
    }
 
-   printf("FAT: UpdateEntry - file not found in directory\r\n");
+   printf("FAT: UpdateEntry - file not found in directory\n");
    return false;
 }
 
 FAT_File *FAT_Create(Partition *disk, const char *name)
 {
-   printf("FAT_Create: called with name='%s'\r\n", name);
+   printf("FAT_Create: called with name='%s'\n", name);
    
    // Convert filename to FAT format (11-byte name)
    char fatName[12];
@@ -1093,19 +1093,19 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
 
    // Check if file already exists
    FAT_DirectoryEntry existingEntry;
-   printf("FAT_Create: checking if '%s' exists\r\n", name);
+   printf("FAT_Create: checking if '%s' exists\n", name);
    if (FAT_FindFile(disk, &g_Data->RootDirectory.Public, name, &existingEntry))
    {
-      printf("FAT_Create: file '%s' already exists\r\n", name);
+      printf("FAT_Create: file '%s' already exists\n", name);
       return NULL;
    }
-   printf("FAT_Create: file does not exist, proceeding\r\n");
+   printf("FAT_Create: file does not exist, proceeding\n");
 
    // Find first free cluster for the file
    uint32_t firstFreeCluster = 0;
    uint32_t maxClusters = (g_TotalSectors - g_DataSectionLba) /
                            g_Data->BS.BootSector.SectorsPerCluster;
-   printf("FAT_Create: max clusters = %u\r\n", maxClusters);
+   printf("FAT_Create: max clusters = %u\n", maxClusters);
 
    // Limit search to prevent excessive scanning
    uint32_t maxSearchClusters = (maxClusters > 1000) ? 1000 : maxClusters;
@@ -1116,14 +1116,14 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
       if (nextClusterVal == 0)
       {
          firstFreeCluster = testCluster;
-         printf("FAT_Create: found free cluster %u\r\n", firstFreeCluster);
+         printf("FAT_Create: found free cluster %u\n", firstFreeCluster);
          break;
       }
    }
 
    if (firstFreeCluster == 0)
    {
-      printf("FAT_Create: no free clusters available\r\n");
+      printf("FAT_Create: no free clusters available\n");
       return NULL;
    }
 
@@ -1143,7 +1143,7 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
    uint8_t fatBuffer[SECTOR_SIZE];
    if (!Partition_ReadSectors(disk, fatSectorLba, 1, fatBuffer))
    {
-      printf("FAT_Create: FAT read error\r\n");
+      printf("FAT_Create: FAT read error\n");
       return NULL;
    }
 
@@ -1162,7 +1162,7 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
 
    if (!Partition_WriteSectors(disk, fatSectorLba, 1, fatBuffer))
    {
-      printf("FAT_Create: FAT write error\r\n");
+      printf("FAT_Create: FAT write error\n");
       return NULL;
    }
 
@@ -1202,24 +1202,24 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
          // Write the new entry
          if (!FAT_WriteEntry(disk, root, &newEntry))
          {
-            printf("FAT_Create: failed to write directory entry\r\n");
+            printf("FAT_Create: failed to write directory entry\n");
             return NULL;
          }
 
          // Open the file
          FAT_File *file = FAT_OpenEntry(disk, &newEntry);
-         printf("FAT_Create: created file '%s' at cluster %u, opened: %s\r\n", 
+         printf("FAT_Create: created file '%s' at cluster %u, opened: %s\n", 
                 name, firstFreeCluster, file ? "yes" : "no");
          if (file != NULL)
          {
-            printf("FAT_Create: file handle = %d\r\n", file->Handle);
+            printf("FAT_Create: file handle = %d\n", file->Handle);
          }
          return file;
       }
       searchPosition = root->Position;
    }
 
-   printf("FAT_Create: no space in root directory (checked %u entries)\r\n", entryCount);
+   printf("FAT_Create: no space in root directory (checked %u entries)\n", entryCount);
    return NULL;
 }
 
@@ -1229,7 +1229,7 @@ bool FAT_Delete(Partition *disk, const char *name)
    FAT_DirectoryEntry entry;
    if (!FAT_FindFile(disk, &g_Data->RootDirectory.Public, name, &entry))
    {
-      printf("FAT_Delete: file '%s' not found\r\n", name);
+      printf("FAT_Delete: file '%s' not found\n", name);
       return false;
    }
 
@@ -1250,7 +1250,7 @@ bool FAT_Delete(Partition *disk, const char *name)
       FAT_File *dir = FAT_OpenEntry(disk, &dirEntry);
       if (!dir)
       {
-         printf("FAT_Delete: failed to open directory\r\n");
+         printf("FAT_Delete: failed to open directory\n");
          return false;
       }
       
@@ -1271,7 +1271,7 @@ bool FAT_Delete(Partition *disk, const char *name)
          {
             if (!FAT_Delete(disk, (const char *)subEntry.Name))
             {
-               printf("FAT_Delete: failed to delete subdirectory\r\n");
+               printf("FAT_Delete: failed to delete subdirectory\n");
                FAT_Close(dir);
                return false;
             }
@@ -1309,7 +1309,7 @@ bool FAT_Delete(Partition *disk, const char *name)
 
       if (!Partition_ReadSectors(disk, fatSectorLba, 1, fatBuffer))
       {
-         printf("FAT_Delete: FAT read error at cluster %u\r\n", currentCluster);
+         printf("FAT_Delete: FAT read error at cluster %u\n", currentCluster);
          return false;
       }
 
@@ -1350,7 +1350,7 @@ bool FAT_Delete(Partition *disk, const char *name)
 
       if (!Partition_WriteSectors(disk, fatSectorLba, 1, fatBuffer))
       {
-         printf("FAT_Delete: FAT write error at LBA %u\r\n", fatSectorLba);
+         printf("FAT_Delete: FAT write error at LBA %u\n", fatSectorLba);
          return false;
       }
 
@@ -1380,7 +1380,7 @@ bool FAT_Delete(Partition *disk, const char *name)
          uint8_t sectorBuffer[SECTOR_SIZE];
          if (!Partition_ReadSectors(disk, FAT_ClusterToLba(2) + sectorInDirectory, 1, sectorBuffer))
          {
-            printf("FAT_Delete: read error\r\n");
+            printf("FAT_Delete: read error\n");
             return false;
          }
 
@@ -1389,16 +1389,16 @@ bool FAT_Delete(Partition *disk, const char *name)
 
          if (!Partition_WriteSectors(disk, FAT_ClusterToLba(2) + sectorInDirectory, 1, sectorBuffer))
          {
-            printf("FAT_Delete: write error\r\n");
+            printf("FAT_Delete: write error\n");
             return false;
          }
 
-         printf("FAT_Delete: deleted file '%s'\r\n", name);
+         printf("FAT_Delete: deleted file '%s'\n", name);
          return true;
       }
    }
 
-   printf("FAT_Delete: entry not found in directory\r\n");
+   printf("FAT_Delete: entry not found in directory\n");
    return false;
 }
 

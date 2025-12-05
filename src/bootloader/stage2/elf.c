@@ -54,14 +54,14 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
    FAT_File *hdr_file = FAT_Open(disk, filepath);
    if (!hdr_file)
    {
-      printf("ELF: failed to open file for header\r\n");
+      printf("ELF: failed to open file for header\n");
       return false;
    }
 
    Elf32_Ehdr ehdr;
    if (FAT_Read(disk, hdr_file, sizeof(ehdr), &ehdr) != sizeof(ehdr))
    {
-      printf("ELF: read header failed\r\n");
+      printf("ELF: read header failed\n");
       FAT_Close(hdr_file);
       return false;
    }
@@ -71,26 +71,26 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
    if (ehdr.e_ident[EI_MAG0] != ELFMAG0 || ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
        ehdr.e_ident[EI_MAG2] != ELFMAG2 || ehdr.e_ident[EI_MAG3] != ELFMAG3)
    {
-      printf("ELF: bad magic\r\n");
+      printf("ELF: bad magic\n");
       return false;
    }
 
    if (ehdr.e_ident[4] != ELFCLASS32 || ehdr.e_ident[5] != ELFDATA2LSB)
    {
-      printf("ELF: unsupported ELF class or endian\r\n");
+      printf("ELF: unsupported ELF class or endian\n");
       return false;
    }
 
    if (ehdr.e_machine != EM_386)
    {
-      printf("ELF: unsupported machine\r\n");
+      printf("ELF: unsupported machine\n");
       return false;
    }
 
    // read program headers
    if (ehdr.e_phnum == 0 || ehdr.e_phentsize != sizeof(Elf32_Phdr))
    {
-      printf("ELF: no program headers or unexpected phentsize\r\n");
+      printf("ELF: no program headers or unexpected phentsize\n");
       return false;
    }
 
@@ -105,7 +105,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
       FAT_File *phdr_file = FAT_Open(disk, filepath);
       if (!phdr_file)
       {
-         printf("ELF: failed to open file for phdr %u\r\n", i);
+         printf("ELF: failed to open file for phdr %u\n", i);
          return false;
       }
 
@@ -118,7 +118,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
          uint32_t got = FAT_Read(disk, phdr_file, to_skip, skip_buf);
          if (got == 0)
          {
-            printf("ELF: failed to skip to phdr %u\r\n", i);
+            printf("ELF: failed to skip to phdr %u\n", i);
             FAT_Close(phdr_file);
             return false;
          }
@@ -127,7 +127,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
 
       if (FAT_Read(disk, phdr_file, sizeof(phdr), &phdr) != sizeof(phdr))
       {
-         printf("ELF: read phdr %u failed\r\n", i);
+         printf("ELF: read phdr %u failed\n", i);
          FAT_Close(phdr_file);
          return false;
       }
@@ -143,7 +143,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
       FAT_File *seg_file = FAT_Open(disk, filepath);
       if (!seg_file)
       {
-         printf("ELF: failed to open file for segment data\r\n");
+         printf("ELF: failed to open file for segment data\n");
          return false;
       }
 
@@ -155,7 +155,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
          uint32_t got = FAT_Read(disk, seg_file, to_skip, skip_buf);
          if (got == 0)
          {
-            printf("ELF: failed to skip to segment data\r\n");
+            printf("ELF: failed to skip to segment data\n");
             FAT_Close(seg_file);
             return false;
          }
@@ -172,7 +172,7 @@ bool ELF_Load(Partition *disk, const char *filepath, void **entryOut)
          uint32_t got = FAT_Read(disk, seg_file, toRead, dest);
          if (got == 0)
          {
-            printf("ELF: short read for segment\r\n");
+            printf("ELF: short read for segment\n");
             FAT_Close(seg_file);
             return false;
          }

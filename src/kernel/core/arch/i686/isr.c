@@ -48,7 +48,9 @@ void i686_ISR_Initialize()
 {
    i686_ISR_InitializeGates();
    for (int i = 0; i < 256; i++) i686_IDT_EnableGate(i);
-
+#ifdef DEBUG
+   printf("ISR initialize...\n");
+#endif
 }
 
 void __attribute__((cdecl)) i686_ISR_Handler(Registers *regs)

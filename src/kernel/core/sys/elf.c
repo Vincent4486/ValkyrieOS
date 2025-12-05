@@ -23,14 +23,14 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    // read ELF header
    if (!FAT_Seek(disk, file, 0))
    {
-      printf("ELF: seek header failed\r\n");
+      printf("ELF: seek header failed\n");
       return false;
    }
 
    Elf32_Ehdr ehdr;
    if (FAT_Read(disk, file, sizeof(ehdr), &ehdr) != sizeof(ehdr))
    {
-      printf("ELF: read header failed\r\n");
+      printf("ELF: read header failed\n");
       return false;
    }
 
@@ -38,26 +38,26 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    if (ehdr.e_ident[EI_MAG0] != ELFMAG0 || ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
        ehdr.e_ident[EI_MAG2] != ELFMAG2 || ehdr.e_ident[EI_MAG3] != ELFMAG3)
    {
-      printf("ELF: bad magic\r\n");
+      printf("ELF: bad magic\n");
       return false;
    }
 
    if (ehdr.e_ident[4] != ELFCLASS32 || ehdr.e_ident[5] != ELFDATA2LSB)
    {
-      printf("ELF: unsupported ELF class or endian\r\n");
+      printf("ELF: unsupported ELF class or endian\n");
       return false;
    }
 
    if (ehdr.e_machine != EM_386)
    {
-      printf("ELF: unsupported machine\r\n");
+      printf("ELF: unsupported machine\n");
       return false;
    }
 
    // read program headers
    if (ehdr.e_phnum == 0 || ehdr.e_phentsize != sizeof(Elf32_Phdr))
    {
-      printf("ELF: no program headers or unexpected phentsize\r\n");
+      printf("ELF: no program headers or unexpected phentsize\n");
       return false;
    }
 
@@ -69,13 +69,13 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
       uint32_t phoff = ehdr.e_phoff + i * ehdr.e_phentsize;
       if (!FAT_Seek(disk, file, phoff))
       {
-         printf("ELF: seek phdr %u failed\r\n", i);
+         printf("ELF: seek phdr %u failed\n", i);
          return false;
       }
 
       if (FAT_Read(disk, file, sizeof(phdr), &phdr) != sizeof(phdr))
       {
-         printf("ELF: read phdr %u failed\r\n", i);
+         printf("ELF: read phdr %u failed\n", i);
          return false;
       }
 
@@ -95,7 +95,7 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
       {
          if (!FAT_Seek(disk, file, fileOffset))
          {
-            printf("ELF: seek segment data failed\r\n");
+            printf("ELF: seek segment data failed\n");
             return false;
          }
 
@@ -105,7 +105,7 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
             uint32_t got = FAT_Read(disk, file, toRead, dest);
             if (got == 0)
             {
-               printf("ELF: short read for segment\r\n");
+               printf("ELF: short read for segment\n");
                return false;
             }
 

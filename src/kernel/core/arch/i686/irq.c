@@ -34,6 +34,9 @@ void i686_IRQ_Handler(Registers *regs)
 
 void i686_IRQ_Initialize()
 {
+#ifdef DEBUG
+   printf("IRQ initialized...\n");
+#endif
    const PICDriver *drivers[] = {
        i8259_GetDriver(),
    };

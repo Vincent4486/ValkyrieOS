@@ -80,7 +80,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    }
 
    // Test 1: Write to existing file
-   printf("Test 1: Write to /test.txt\n");
+   printf("Test 1: Write to /test/test.txt\n");
    char *buff = "This is data writen to the file";
    FAT_File *fd = FAT_Open(&partition, "/test/test.txt");
    if (fd) {
@@ -97,7 +97,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       }
       FAT_Close(fd);
    } else {
-      printf("Failed to open /test.txt\n");
+      printf("Failed to open /test/test.txt\n");
    }
 
    // Test 2: Create /write.txt with content (in root directory)

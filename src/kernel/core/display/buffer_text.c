@@ -11,8 +11,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define BUFFER_LINES 1024
-#define BUFFER_BASE_ADDR 0x00900000
+#define BUFFER_LINES 2048
+#define BUFFER_BASE_ADDR 0x00800000
 
 /* declare setcursor (defined in stdio.c) to avoid implicit declaration */
 extern void setcursor(int x, int y);

@@ -24,7 +24,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
    DISK disk;
    if (!DISK_Initialize(&disk, bootDrive))
    {
-      printf("Disk init error\r\n");
+      printf("Disk init error\n");
       goto end;
    }
 
@@ -33,7 +33,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
 
    if (!FAT_Initialize(&part))
    {
-      printf("FAT init error\r\n");
+      printf("FAT init error\n");
       goto end;
    }
 
@@ -41,7 +41,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive, void *partition)
    void *entry = NULL;
    if (!ELF_Load(&part, "/boot/core.elf", &entry))
    {
-      printf("ELF: load failed\r\n");
+      printf("ELF: load failed\n");
       goto end;
    }
 

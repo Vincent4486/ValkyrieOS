@@ -2,6 +2,7 @@
 
 #include "gdt.h"
 #include <stdint.h>
+#include <std/stdio.h>
 
 typedef struct
 {
@@ -90,4 +91,7 @@ void i686_GDT_Initialize()
 {
    i686_GDT_Load(&g_GDTDescriptor, i686_GDT_CODE_SEGMENT,
                  i686_GDT_DATA_SEGMENT);
+#ifdef DEBUG
+   printf("GDT initialized...\n");
+#endif
 }
