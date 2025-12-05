@@ -13,7 +13,7 @@ TARGET_ENVIRONMENT: Environment
 env = TARGET_ENVIRONMENT.Clone()
 
 # Get source directory
-src_dir = Dir('#src/kernel/libdisplay').abspath
+src_dir = Dir('#src/libdisplay').abspath
 
 env.Append(
     # Build static library for display helpers (no PIC needed)

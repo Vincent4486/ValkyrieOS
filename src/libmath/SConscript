@@ -13,7 +13,7 @@ TARGET_ENVIRONMENT: Environment
 env = TARGET_ENVIRONMENT.Clone()
 
 # Get source directory
-src_dir = Dir('#src/kernel/libmath').abspath
+src_dir = Dir('#src/libmath').abspath
 
 env.Append(
     # Absolute code with explicit relocations that we'll patch at load time

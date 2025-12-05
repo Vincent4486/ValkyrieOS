@@ -23,11 +23,6 @@ VARS.AddVariables(
                  help="Type of image",
                  default="fat32",
                  allowed_values=("fat12", "fat16", "fat32", "ext2")),
-    
-    EnumVariable("bootloader",
-                 help="The bootloader used to load the OS",
-                 default="default",
-                 allowed_values=("default", "grub")),
     )
 VARS.Add("imageSize", 
          help="The size of the image, will be rounded up to the nearest multiple of 512. " +
@@ -151,11 +146,8 @@ Export('HOST_ENVIRONMENT')
 Export('TARGET_ENVIRONMENT')
 
 variantDir = 'build/{0}_{1}'.format(TARGET_ENVIRONMENT['arch'], TARGET_ENVIRONMENT['config'])
-variantDirStage1 = variantDir + '/stage1_{0}'.format(TARGET_ENVIRONMENT['imageFS'])
 
-SConscript('src/bootloader/stage1/SConscript', variant_dir=variantDirStage1, duplicate=0)
-SConscript('src/bootloader/stage2/SConscript', variant_dir=variantDir + '/stage2', duplicate=0)
-SConscript('src/kernel/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
+SConscript('src/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 Import('image')

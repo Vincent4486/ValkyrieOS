@@ -13,10 +13,10 @@ TARGET_ENVIRONMENT: Environment
 
 env = TARGET_ENVIRONMENT.Clone()
 # With variant_dir and duplicate=0, we need to explicitly reference the source files
-# The build root is at '#' (where SConstruct is), so src/kernel/core is at src/kernel/core
-src_dir = Dir('#src/kernel/core').abspath
+# The build root is at '#' (where SConstruct is), so src/core is at src/core
+src_dir = Dir('#src/core').abspath
 # Node (relative) to pass into GlobRecursive so it searches the actual source
-src_node = '#src/kernel/core'
+src_node = '#src/core'
 
 env.Append(
     # Enable position-independent code for dynamic linking support
