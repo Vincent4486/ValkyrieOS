@@ -78,8 +78,9 @@ int dylib_call_symbol(const char *libname, const char *symname);
 // List all symbols exported by a library
 void dylib_list_symbols(const char *name);
 
-// Parse symbols from a pre-loaded library (already in memory via bootloader registration)
-// Call this when a library is already registered in LibRecord but symbols haven't been parsed yet
+// Parse symbols from a pre-loaded library (already in memory via bootloader
+// registration) Call this when a library is already registered in LibRecord but
+// symbols haven't been parsed yet
 int dylib_parse_symbols(LibRecord *lib);
 
 // Global symbol table management functions
@@ -140,16 +141,17 @@ void dylib_register_callback(dylib_register_symbols_t callback);
 // ============================================================================
 // Helper macro for loading function symbols from a library
 // Usage: DYLIB_LOAD_SYMBOL(libname, funcname, functype);
-// 
+//
 // Example:
 //   typedef int (*math_op_t)(int, int);
 //   DYLIB_LOAD_SYMBOL("libmath", add, math_op_t);
 //   result = add(9, 9);
 // ============================================================================
 
-#define DYLIB_LOAD_SYMBOL(libname, funcname, functype) \
-   functype funcname = (functype)dylib_find_symbol(libname, #funcname); \
-   if (!funcname) { \
-      printf("[!] Failed to resolve: " #libname "::" #funcname "\n"); \
-      goto end; \
+#define DYLIB_LOAD_SYMBOL(libname, funcname, functype)                         \
+   functype funcname = (functype)dylib_find_symbol(libname, #funcname);        \
+   if (!funcname)                                                              \
+   {                                                                           \
+      printf("[!] Failed to resolve: " #libname "::" #funcname "\n");          \
+      goto end;                                                                \
    }

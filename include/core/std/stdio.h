@@ -13,7 +13,8 @@ extern "C"
    extern void putc(char c);
    extern void puts(const char *str);
    extern void printf(const char *fmt, ...);
-   extern void print_buffer(const char *msg, const void *buffer, uint32_t count);
+   extern void print_buffer(const char *msg, const void *buffer,
+                            uint32_t count);
    extern void setcursor(int x, int y);
    extern int snprintf(char *buffer, size_t buf_size, const char *format, ...);
 
