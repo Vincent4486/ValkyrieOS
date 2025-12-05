@@ -10,12 +10,9 @@ DEPS_DEBIAN=(
     libmpc-dev
     gcc
     nasm
-    mtools
     python3
-    python3-scons
+    scons
     python3-sh
-    python3-pyparted
-    libguestfs-tools
     dosfstools
 )
 
@@ -27,12 +24,9 @@ DEPS_FEDORA=(
     libmpc-devel
     gcc
     nasm
-    mtools
     python3
-    python3-scons
+    scons
     python3-sh
-    python3-pyparted
-    libguestfs-tools
     dosfstools
 )
 
@@ -44,12 +38,9 @@ DEPS_ARCH=(
     mpc
     gcc
     nasm
-    mtools
     python3
     scons
-    python-sh
-    python-pyparted
-    libguestfs
+    python3-sh
     dosfstools
 )
 
@@ -61,12 +52,9 @@ DEPS_SUSE=(
     libmpc-devel
     gcc
     nasm
-    mtools
     python3
-    python3-scons
+    scons
     python3-sh
-    python3-pyparted
-    libguestfs
     dosfstools
 )
 

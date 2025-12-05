@@ -15,21 +15,16 @@ Before building Valkyrie OS, ensure you have the following installed:
 
 #### Always needed:
 ```
-# dependencies for building GCC
 bison
 flex
 mpfr
 gmp
 mpc
 gcc
-
-# other dependencies
 nasm              # compiling assembly code
 python3           # base python for scons
-python3-scons     # scons for build
-python3-sh        # shell library 
-python3-pyparted  # pyparted library
-libguestfs  	   # for guestmount
+scons             # scons for build
+python3-sh        # shell library
 dosfstools        # mkfs.fat for creating disk
 ```
 
@@ -50,7 +45,7 @@ These tools are for extra utilities such as autorun for development and build do
 1. **Install dependencies** (Ubuntu/Debian):
    ```bash
    sudo apt-get update
-   sudo apt-get install -y bison flex libmpfr-dev libgmp-dev libmpc-dev nasm mtools gcc qemu python3 python3-scons python3-sh python3-pyparted
+   sudo apt-get install -y bison flex libmpfr-dev libgmp-dev libmpc-dev gcc nasm scons python3 python3-sh dosfstools
    ```
 
 2. **Build the cross-toolchain** (this may take a while):
