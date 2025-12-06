@@ -14,3 +14,5 @@ int strcmp(const char *a, const char *b);
 
 // Compare strings for equality. Returns 1 if equal, 0 otherwise.
 int str_eq(const char *a, const char *b);
+
+char *strrchr(const char *s, int c);

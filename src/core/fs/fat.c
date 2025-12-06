@@ -603,6 +603,14 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
 {
    printf("FAT_FindFile: entry, name='%s'\n", name);
 
+   // Reject paths; this helper expects a single 8.3 component
+   if (strchr(name, '/'))
+   {
+      printf("FAT_FindFile: received path '%s', expected single component\n",
+             name);
+      return false;
+   }
+
    char fatName[12];
    FAT_DirectoryEntry entry;
 
@@ -943,8 +951,8 @@ bool FAT_WriteEntry(Partition *disk, FAT_File *file,
       return false;
    }
 
-   // Advance position
-   file->Position++;
+   // Advance position by one directory entry (bytes)
+   file->Position += sizeof(FAT_DirectoryEntry);
    return true;
 }
 
@@ -1410,7 +1418,7 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
    FAT_Seek(disk, root, 0);
 
    FAT_DirectoryEntry dirEntry;
-   uint32_t searchPosition = 0;
+   uint32_t entryPos = 0;
    int entryCount = 0;
    // For FAT32 DirEntryCount is 0; allow scanning until EOF with safety cap.
    int maxEntries = (g_Data->BS.BootSector.DirEntryCount > 0)
@@ -1420,11 +1428,12 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
    while (FAT_ReadEntry(disk, root, &dirEntry) && entryCount < maxEntries)
    {
       entryCount++;
+      entryPos = root->Position - sizeof(FAT_DirectoryEntry);
       // Found empty slot (first byte is 0x00) or deleted entry (0xE5)
       if (dirEntry.Name[0] == 0x00 || (uint8_t)dirEntry.Name[0] == 0xE5)
       {
          // Go back to this position
-         FAT_Seek(disk, root, searchPosition);
+         FAT_Seek(disk, root, entryPos);
 
          // Write the new entry
          if (!FAT_WriteEntry(disk, root, &newEntry))
@@ -1443,7 +1452,6 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
          }
          return file;
       }
-      searchPosition = root->Position;
    }
 
    printf("FAT_Create: no space in root directory (checked %u entries)\n",
@@ -1453,69 +1461,86 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
 
 bool FAT_Delete(Partition *disk, const char *name)
 {
-   // Find the file to delete
-   FAT_DirectoryEntry entry;
-   if (!FAT_FindFile(disk, &g_Data->RootDirectory.Public, name, &entry))
+   if (!name) return false;
+
+   // Normalize path and split into parent + basename
+   if (name[0] == '/') name++;
+
+   char parentPath[MAX_PATH_SIZE];
+   char baseName[MAX_PATH_SIZE];
+   const char *lastSlash = strrchr(name, '/');
+   if (lastSlash)
    {
-      printf("FAT_Delete: file '%s' not found\n", name);
+      size_t parentLen = lastSlash - name;
+      if (parentLen >= sizeof(parentPath)) parentLen = sizeof(parentPath) - 1;
+      memcpy(parentPath, name, parentLen);
+      parentPath[parentLen] = '\0';
+      strncpy(baseName, lastSlash + 1, sizeof(baseName) - 1);
+      baseName[sizeof(baseName) - 1] = '\0';
+   }
+   else
+   {
+      parentPath[0] = '\0';
+      strncpy(baseName, name, sizeof(baseName) - 1);
+      baseName[sizeof(baseName) - 1] = '\0';
+   }
+
+   if (baseName[0] == '\0')
+   {
+      printf("FAT_Delete: empty basename in path\n");
       return false;
    }
 
-   // Get cluster info from entry
+   FAT_File *parentDir = (parentPath[0] == '\0')
+                             ? &g_Data->RootDirectory.Public
+                             : FAT_Open(disk, parentPath);
+   if (!parentDir || !parentDir->IsDirectory)
+   {
+      printf("FAT_Delete: parent directory '%s' not found\n", parentPath);
+      return false;
+   }
+
+   FAT_DirectoryEntry entry;
+   if (!FAT_FindFile(disk, parentDir, baseName, &entry))
+   {
+      printf("FAT_Delete: file '%s' not found in '%s'\n", baseName,
+             parentPath[0] ? parentPath : "/");
+      return false;
+   }
+
    uint32_t firstCluster =
        entry.FirstClusterLow + ((uint32_t)entry.FirstClusterHigh << 16);
 
-   // If it's a directory, recursively delete its contents first
+   // If it's a directory, delete its contents best-effort
    if (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY)
    {
-      // Open the directory for reading
-      FAT_DirectoryEntry dirEntry;
-      dirEntry.FirstClusterLow = firstCluster & 0xFFFF;
-      dirEntry.FirstClusterHigh = (firstCluster >> 16) & 0xFFFF;
-      dirEntry.Size = 0;
-      dirEntry.Attributes = FAT_ATTRIBUTE_DIRECTORY;
-      memcpy(dirEntry.Name, entry.Name, 11);
+      FAT_FileData *parentData =
+          (parentDir->Handle == ROOT_DIRECTORY_HANDLE)
+              ? &g_Data->RootDirectory
+              : &g_Data->OpenedFiles[parentDir->Handle];
 
-      // Parent of subEntry is the current directory (the one we are deleting)
-      FAT_FileData *parentData = &g_Data->RootDirectory;
-      if (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY)
+      FAT_File *dir = FAT_OpenEntry(disk, &entry, parentData);
+      if (dir)
       {
-         parentData = &g_Data->RootDirectory; // best effort; not critical for delete
-      }
-      FAT_File *dir = FAT_OpenEntry(disk, &dirEntry, parentData);
-      if (!dir)
-      {
-         printf("FAT_Delete: failed to open directory\n");
-         return false;
-      }
-
-      FAT_DirectoryEntry subEntry;
-      while (FAT_ReadEntry(disk, dir, &subEntry))
-      {
-         // Skip empty entries and LFN entries
-         if ((subEntry.Attributes & 0x0F) == 0x0F || subEntry.Name[0] == 0x00 ||
-             (uint8_t)subEntry.Name[0] == 0xE5)
-            continue;
-
-         // Skip . and .. entries
-         if ((subEntry.Name[0] == '.' && subEntry.Name[1] == ' ') ||
-             (subEntry.Name[0] == '.' && subEntry.Name[1] == '.' &&
-              subEntry.Name[2] == ' '))
-            continue;
-
-         // Recursively delete subdirectory/file
-         if (subEntry.Attributes & FAT_ATTRIBUTE_DIRECTORY)
+         FAT_DirectoryEntry subEntry;
+         while (FAT_ReadEntry(disk, dir, &subEntry))
          {
-            if (!FAT_Delete(disk, (const char *)subEntry.Name))
-            {
-               printf("FAT_Delete: failed to delete subdirectory\n");
-               FAT_Close(dir);
-               return false;
-            }
-         }
-      }
+            if ((subEntry.Attributes & 0x0F) == 0x0F || subEntry.Name[0] == 0x00 ||
+                (uint8_t)subEntry.Name[0] == 0xE5)
+               continue;
 
-      FAT_Close(dir);
+            if ((subEntry.Name[0] == '.' && subEntry.Name[1] == ' ') ||
+                (subEntry.Name[0] == '.' && subEntry.Name[1] == '.' &&
+                 subEntry.Name[2] == ' '))
+               continue;
+
+            char tempName[12];
+            memcpy(tempName, subEntry.Name, 11);
+            tempName[11] = '\0';
+            FAT_Delete(disk, tempName);
+         }
+         FAT_Close(dir);
+      }
    }
 
    // Free all clusters in the chain
@@ -1525,29 +1550,22 @@ bool FAT_Delete(Partition *disk, const char *name)
                                             : 0x0FFFFFF8;
    const uint32_t largeClusterThreshold = 0x0FFFFF00;
 
-   // Validate FAT parameters to avoid divide-by-zero
    if (g_Data->BS.BootSector.SectorsPerCluster == 0 ||
        g_Data->BS.BootSector.BytesPerSector == 0)
    {
       printf("FAT_Delete: invalid FAT parameters, skipping cluster free\n");
-      goto mark_deleted;
+      currentCluster = 0;
    }
 
-   const bool validCluster = currentCluster >= 2 &&
-                             currentCluster < eofMarker &&
-                             currentCluster < largeClusterThreshold;
    uint8_t fatBuffer[SECTOR_SIZE];
    int clusterCount = 0;
-
-   if (validCluster)
+   if (currentCluster >= 2 && currentCluster < eofMarker && currentCluster < largeClusterThreshold)
    {
-      while (currentCluster < eofMarker &&
-             currentCluster < largeClusterThreshold &&
-             clusterCount < 1000) // safety limit
+      while (currentCluster < eofMarker && currentCluster < largeClusterThreshold &&
+             clusterCount < 10000)
       {
          clusterCount++;
 
-         // Calculate FAT entry offset
          uint32_t fatByteOffset;
          if (g_FatType == 12)
             fatByteOffset = currentCluster * 3 / 2;
@@ -1563,21 +1581,17 @@ bool FAT_Delete(Partition *disk, const char *name)
 
          if (!Partition_ReadSectors(disk, fatSectorLba, 1, fatBuffer))
          {
-            printf("FAT_Delete: FAT read error at cluster %u\n",
-                   currentCluster);
-            return false;
+            printf("FAT_Delete: FAT read error at cluster %u\n", currentCluster);
+            break;
          }
 
-         // Get next cluster
          uint32_t nextCluster;
          if (g_FatType == 12)
          {
             if (currentCluster % 2 == 0)
-               nextCluster =
-                   (*(uint16_t *)(fatBuffer + fatByteOffsetInSector)) & 0x0fff;
+               nextCluster = (*(uint16_t *)(fatBuffer + fatByteOffsetInSector)) & 0x0fff;
             else
-               nextCluster =
-                   (*(uint16_t *)(fatBuffer + fatByteOffsetInSector)) >> 4;
+               nextCluster = (*(uint16_t *)(fatBuffer + fatByteOffsetInSector)) >> 4;
 
             if (nextCluster >= 0xff8) nextCluster |= 0xfffff000;
          }
@@ -1604,63 +1618,74 @@ bool FAT_Delete(Partition *disk, const char *name)
          else
             *(uint32_t *)(fatBuffer + fatByteOffsetInSector) = 0x00000000;
 
-         if (!Partition_WriteSectors(disk, fatSectorLba, 1, fatBuffer))
-         {
-            printf("FAT_Delete: FAT write error at LBA %u\n", fatSectorLba);
-            return false;
-         }
+         Partition_WriteSectors(disk, fatSectorLba, 1, fatBuffer);
 
          currentCluster = nextCluster;
       }
    }
 
-mark_deleted:
-   // Mark directory entry as deleted (set first byte to 0xE5)
-   FAT_File *root = &g_Data->RootDirectory.Public;
-   FAT_Seek(disk, root, 0);
+   // Mark directory entry as deleted within the parent directory
+   FAT_FileData *parentData = (parentDir->Handle == ROOT_DIRECTORY_HANDLE)
+                                  ? &g_Data->RootDirectory
+                                  : &g_Data->OpenedFiles[parentDir->Handle];
 
-   FAT_DirectoryEntry dirEntry;
-   uint32_t entryPosition = 0;
-
-   while (FAT_ReadEntry(disk, root, &dirEntry))
+   uint32_t sectorsPerCluster = g_Data->BS.BootSector.SectorsPerCluster;
+   if (parentData == &g_Data->RootDirectory && g_FatType != 32)
    {
-      entryPosition = root->Position - sizeof(FAT_DirectoryEntry);
-
-      if ((dirEntry.Attributes & 0x0F) == 0x0F || dirEntry.Name[0] == 0x00)
-         continue;
-
-      if (memcmp(dirEntry.Name, entry.Name, 11) == 0)
+      for (uint32_t s = 0; s < g_RootDirSectors; s++)
       {
-         // Found the entry. Read its sector, mark as deleted, write back
-         uint32_t sectorInDirectory = entryPosition / SECTOR_SIZE;
-         uint32_t offsetInSector = entryPosition % SECTOR_SIZE;
-
          uint8_t sectorBuffer[SECTOR_SIZE];
-         if (!Partition_ReadSectors(disk,
-                                    FAT_ClusterToLba(2) + sectorInDirectory, 1,
-                                    sectorBuffer))
+         uint32_t lba = g_RootDirLba + s;
+         if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer)) continue;
+         for (uint32_t off = 0; off < SECTOR_SIZE; off += sizeof(FAT_DirectoryEntry))
          {
-            printf("FAT_Delete: read error\n");
-            return false;
+            FAT_DirectoryEntry *e = (FAT_DirectoryEntry *)(sectorBuffer + off);
+            if ((e->Attributes & 0x0F) == 0x0F) continue;
+            if (e->Name[0] == 0x00) break;
+            if (memcmp(e->Name, entry.Name, 11) == 0)
+            {
+               sectorBuffer[off] = 0xE5;
+               Partition_WriteSectors(disk, lba, 1, sectorBuffer);
+               printf("FAT_Delete: deleted '%s'\n", name);
+               return true;
+            }
          }
-
-         // Mark as deleted (0xE5 in first byte of name)
-         sectorBuffer[offsetInSector] = 0xE5;
-
-         if (!Partition_WriteSectors(disk,
-                                     FAT_ClusterToLba(2) + sectorInDirectory, 1,
-                                     sectorBuffer))
+      }
+   }
+   else
+   {
+      uint32_t cluster = parentData->FirstCluster;
+      uint32_t eofMarkerDel = (g_FatType == 12)   ? 0xFF8
+                            : (g_FatType == 16) ? 0xFFF8
+                                                : 0x0FFFFFF8;
+      uint32_t scanned = 0;
+      while (cluster < eofMarkerDel && scanned < 10000)
+      {
+         for (uint32_t sec = 0; sec < sectorsPerCluster; sec++)
          {
-            printf("FAT_Delete: write error\n");
-            return false;
+            uint8_t sectorBuffer[SECTOR_SIZE];
+            uint32_t lba = FAT_ClusterToLba(cluster) + sec;
+            if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer)) continue;
+            for (uint32_t off = 0; off < SECTOR_SIZE; off += sizeof(FAT_DirectoryEntry))
+            {
+               FAT_DirectoryEntry *e = (FAT_DirectoryEntry *)(sectorBuffer + off);
+               if ((e->Attributes & 0x0F) == 0x0F) continue;
+               if (e->Name[0] == 0x00) break;
+               if (memcmp(e->Name, entry.Name, 11) == 0)
+               {
+                  sectorBuffer[off] = 0xE5;
+                  Partition_WriteSectors(disk, lba, 1, sectorBuffer);
+                  printf("FAT_Delete: deleted '%s'\n", name);
+                  return true;
+               }
+            }
          }
-
-         printf("FAT_Delete: deleted file '%s'\n", name);
-         return true;
+         cluster = FAT_NextCluster(disk, cluster);
+         scanned++;
       }
    }
 
-   printf("FAT_Delete: entry not found in directory\n");
+   printf("FAT_Delete: entry not found during mark phase for '%s'\n", name);
    return false;
 }
 
