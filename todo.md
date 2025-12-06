@@ -10,7 +10,7 @@
 - [ ] Page tables and MMU setup
 
 ### Process Management
-- [ ] Process Control Block (PCB) structure
+- [x] Process Control Block (PCB) structure
 - [ ] Process creation (fork/execve syscalls)
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)

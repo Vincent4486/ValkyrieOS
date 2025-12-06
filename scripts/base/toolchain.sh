@@ -4,11 +4,13 @@
 
 BINUTILS_VERSION=2.37
 GCC_VERSION=15.2.0
+NEWLIB_VERSION=4.4.0
 
 TARGET=i686-elf
 
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
+NEWLIB_URL="https://sourceware.org/pub/newlib/newlib-${NEWLIB_VERSION}.tar.gz"
 
 # ---------------------------
 
@@ -77,6 +79,24 @@ if [ "$OPERATION" = "build" ]; then
             --without-headers
     make -j8 all-gcc all-target-libgcc
     make install-gcc install-target-libgcc
+
+    cd ..
+
+    # Download and build newlib
+    NEWLIB_SRC="newlib-${NEWLIB_VERSION}"
+    NEWLIB_BUILD="newlib-build-${NEWLIB_VERSION}"
+
+    wget ${NEWLIB_URL}
+    tar -xf newlib-${NEWLIB_VERSION}.tar.gz
+    mkdir -p ${NEWLIB_BUILD}
+    cd ${NEWLIB_BUILD}
+    CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS=
+    ../newlib-${NEWLIB_VERSION}/configure \
+            --prefix="${TOOLCHAIN_PREFIX}" \
+            --target=${TARGET} \
+            --disable-newlib-supplied-syscalls
+    make -j8
+    make install
 
 elif [ "$OPERATION" = "clean" ]; then
 	rm -rf *
