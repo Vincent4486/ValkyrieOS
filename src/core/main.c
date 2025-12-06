@@ -79,36 +79,10 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   // Test 1: Write to existing file
-   printf("Test 1: Write to /test/write.txt\n");
-   char *buff = "This is data writen to the file";
-   FAT_File *fd = FAT_Open(&partition, "/test/write.txt");
-   if (fd)
-   {
-      FAT_Truncate(&partition, fd); // Clear file and free clusters
-      uint32_t len = strlen(buff);
-      uint32_t written =
-          FAT_Write(&partition, fd, len, buff); // Will allocate new cluster
-      if (written != len)
-      {
-         printf("Write failed: wrote %u of %u bytes\n", written, len);
-      }
-      else
-      {
-         printf("Successfully wrote %u bytes\n", written);
-         // Update directory entry with new size and cluster
-         FAT_UpdateEntry(&partition, fd);
-      }
-      FAT_Close(fd);
-   }
-   else
-   {
-      printf("Failed to open /test/write.txt\n");
-   }
-
    // Test 2: Create /multi.txt with multi-cluster content
-   printf("\nTest 2: Create /multi.txt (Multi-cluster test)\n");
-   FAT_File *newFile = FAT_Create(&partition, "multi.txt");
+   const char *test1File = "/test/multi.txt";
+   printf("\nTest 2: Create %s (Multi-cluster test)\n", test1File);
+   FAT_File *newFile = FAT_Create(&partition, test1File);
    if (newFile)
    {
       // Create a pattern buffer (1KB)
@@ -141,23 +115,6 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    {
       printf("Failed to create multi.txt\n");
    }
-
-   // Test 3: Create and Delete /delete_me.txt
-   /*printf("\nTest 3: Create and Delete /delete_me.txt\n");
-   FAT_File *delFile = FAT_Create(&partition, "delete_me.txt");
-   if (delFile)
-   {
-      FAT_Write(&partition, delFile, 12, "Delete me!");
-      FAT_Close(delFile);
-      if (FAT_Delete(&partition, "delete_me.txt"))
-         printf("Successfully deleted /delete_me.txt\n");
-      else
-         printf("Failed to delete /delete_me.txt\n");
-   }
-   else
-   {
-      printf("Failed to create /delete_me.txt\n");
-   }*/
 
 end:
    for (;;);

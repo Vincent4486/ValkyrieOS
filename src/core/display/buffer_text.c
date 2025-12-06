@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/* Minimal scrollback text buffer implementation for VGA text mode.
- * Exports the functions declared in text/buffer_text.h.
- *
- * Buffer is stored at fixed memory location 0x00900000 (80 KiB)
- * to prevent overwriting by kernel heap/data.
- */
 #include "buffer_text.h"
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <std/string.h>
+#include <sys/memory.h>
 
 #define BUFFER_LINES 2048
 #define BUFFER_BASE_ADDR 0x00800000
@@ -28,17 +24,57 @@ int s_cursor_y = 0; /* cursor within visible area (0..SCREEN_HEIGHT-1) */
 static uint32_t s_scroll =
     0; /* number of lines scrolled away from bottom (0 = at bottom) */
 
+static int s_dirty_row_start = SCREEN_HEIGHT;
+static int s_dirty_row_end = -1;
+
+static inline void mark_row_dirty(int row)
+{
+   if (row < 0 || row >= SCREEN_HEIGHT) return;
+   if (row < s_dirty_row_start) s_dirty_row_start = row;
+   if (row > s_dirty_row_end) s_dirty_row_end = row;
+}
+
+static inline void mark_dirty_range(int start, int end)
+{
+   if (start < 0) start = 0;
+   if (end >= SCREEN_HEIGHT) end = SCREEN_HEIGHT - 1;
+   if (start > end) return;
+   if (start < s_dirty_row_start) s_dirty_row_start = start;
+   if (end > s_dirty_row_end) s_dirty_row_end = end;
+}
+
+static inline void mark_visible_range_from_row(int row)
+{
+   if (row < 0) row = 0;
+   if (row >= SCREEN_HEIGHT) return;
+   mark_dirty_range(row, SCREEN_HEIGHT - 1);
+}
+
+static inline void mark_all_rows_dirty(void)
+{
+   s_dirty_row_start = 0;
+   s_dirty_row_end = SCREEN_HEIGHT - 1;
+}
+
+static inline void reset_dirty_rows(void)
+{
+   s_dirty_row_start = SCREEN_HEIGHT;
+   s_dirty_row_end = -1;
+}
+
+static void finalize_putc_repaint(int prev_visible_start);
+
 void buffer_init(void) { buffer_clear(); }
 
 void buffer_clear(void)
 {
-   for (uint32_t i = 0; i < BUFFER_LINES; i++)
-      for (int j = 0; j < SCREEN_WIDTH; j++) s_buffer[i][j] = '\0';
+   memset((char *)s_buffer, 0, BUFFER_LINES * SCREEN_WIDTH);
    s_head = 0;
    s_lines_used = 0;
    s_cursor_x = 0;
    s_cursor_y = 0;
    s_scroll = 0;
+   mark_all_rows_dirty();
    buffer_repaint();
 }
 
@@ -73,11 +109,10 @@ static void buffer_remove_line_at_rel(uint32_t rel_pos)
    {
       uint32_t dst = (s_head + i) % BUFFER_LINES;
       uint32_t src = (s_head + i + 1) % BUFFER_LINES;
-      for (int c = 0; c < SCREEN_WIDTH; c++)
-         s_buffer[dst][c] = s_buffer[src][c];
+      memcpy(s_buffer[dst], s_buffer[src], SCREEN_WIDTH);
    }
    uint32_t last = (s_head + s_lines_used - 1) % BUFFER_LINES;
-   for (int c = 0; c < SCREEN_WIDTH; c++) s_buffer[last][c] = '\0';
+   memset(s_buffer[last], 0, SCREEN_WIDTH);
    s_lines_used--;
    if (s_lines_used == 0) s_head = 0;
 }
@@ -88,7 +123,7 @@ static void push_newline_at_tail(void)
    if (s_lines_used < BUFFER_LINES)
    {
       uint32_t idx = (s_head + s_lines_used) % BUFFER_LINES;
-      for (int i = 0; i < SCREEN_WIDTH; i++) s_buffer[idx][i] = '\0';
+      memset(s_buffer[idx], 0, SCREEN_WIDTH);
       s_lines_used++;
    }
    else
@@ -96,7 +131,7 @@ static void push_newline_at_tail(void)
       /* drop oldest line */
       s_head = (s_head + 1) % BUFFER_LINES;
       uint32_t idx = (s_head + s_lines_used - 1) % BUFFER_LINES;
-      for (int i = 0; i < SCREEN_WIDTH; i++) s_buffer[idx][i] = '\0';
+      memset(s_buffer[idx], 0, SCREEN_WIDTH);
    }
    /* When a new logical line is appended programmatically, we prefer to
       preserve the user's scroll position unless they were already at the
@@ -135,11 +170,10 @@ static void buffer_insert_empty_line_at_rel(uint32_t rel_pos)
       {
          uint32_t dst = (s_head + i) % BUFFER_LINES;
          uint32_t src = (s_head + i - 1) % BUFFER_LINES;
-         for (int c = 0; c < SCREEN_WIDTH; c++)
-            s_buffer[dst][c] = s_buffer[src][c];
+         memmove(s_buffer[dst], s_buffer[src], SCREEN_WIDTH);
       }
       uint32_t idx = (s_head + rel_pos) % BUFFER_LINES;
-      for (int c = 0; c < SCREEN_WIDTH; c++) s_buffer[idx][c] = '\0';
+      memset(s_buffer[idx], 0, SCREEN_WIDTH);
       s_lines_used++;
    }
    else
@@ -151,11 +185,10 @@ static void buffer_insert_empty_line_at_rel(uint32_t rel_pos)
       {
          uint32_t dst = (s_head + i) % BUFFER_LINES;
          uint32_t src = (s_head + i - 1) % BUFFER_LINES;
-         for (int c = 0; c < SCREEN_WIDTH; c++)
-            s_buffer[dst][c] = s_buffer[src][c];
+         memmove(s_buffer[dst], s_buffer[src], SCREEN_WIDTH);
       }
       uint32_t idx = (s_head + rel_pos) % BUFFER_LINES;
-      for (int c = 0; c < SCREEN_WIDTH; c++) s_buffer[idx][c] = '\0';
+      memset(s_buffer[idx], 0, SCREEN_WIDTH);
       /* s_lines_used remains BUFFER_LINES */
    }
 }
@@ -163,86 +196,48 @@ static void buffer_insert_empty_line_at_rel(uint32_t rel_pos)
 void buffer_putc(char c)
 {
    ensure_line_exists();
+   int prev_visible_start = compute_visible_start();
+   int prev_cursor_row = s_cursor_y;
 
-   /* visible_start is the relative index (from head) of the first visible
-      logical line. Use helper to compute it (considers s_scroll). */
-   int visible_start = compute_visible_start();
-   /* target logical relative index */
+   int visible_start = prev_visible_start;
    uint32_t rel_pos = (uint32_t)visible_start + (uint32_t)s_cursor_y;
-
-   /* Do NOT eagerly create lines here. Creation is done lazily when a printable
-      character is inserted. This prevents creating a trailing empty logical
-      line when the last character printed is a '\n'. */
-
    uint32_t idx = (s_head + (rel_pos < s_lines_used
                                  ? rel_pos
                                  : (s_lines_used ? s_lines_used - 1 : 0))) %
                   BUFFER_LINES;
 
-   /* Control characters */
    if (c == '\n')
    {
-      /* split line: create a new empty line after rel_pos and move cursor there
-       */
-      /* Move cursor to the start of the next visible line. Do not create a
-         new logical line here; a printable character will allocate it when
-         needed. This avoids leaving an extra empty logical line after
-         printing a trailing '\n'. */
-      /* Move view to next visible line. When newlines are produced we want to
-         show the bottom by default (reset scroll). */
-      /* Split the current logical line at cursor position: move characters
-         after s_cursor_x into a new line inserted after the current one. */
-      /* Reset scroll to show the bottom. Use the logical line the cursor
-         originally referred to (rel_pos) as the split point. Recomputing
-         the visible start after clearing scroll would map s_cursor_y to a
-         different logical line and cause an extra blank line to appear. */
       s_scroll = 0;
 
       uint32_t rel = rel_pos;
       if (rel >= s_lines_used) rel = s_lines_used - 1;
       uint32_t idx_cur = (s_head + rel) % BUFFER_LINES;
 
-      /* compute length */
       int len = 0;
       while (len < SCREEN_WIDTH && s_buffer[idx_cur][len]) len++;
 
-      /* If cursor is not at end, move tail text to new line */
       if (s_cursor_x < len)
       {
-         /* insert a new empty logical line after rel */
          buffer_insert_empty_line_at_rel(rel + 1);
-         /* destination index for new line */
          uint32_t idx_new = (s_head + rel + 1) % BUFFER_LINES;
          int move = len - s_cursor_x;
-         for (int i = 0; i < move; i++)
-         {
-            s_buffer[idx_new][i] = s_buffer[idx_cur][s_cursor_x + i];
-         }
-         for (int i = move; i < SCREEN_WIDTH; i++) s_buffer[idx_new][i] = '\0';
-         /* truncate current line at cursor */
-         for (int i = s_cursor_x; i < SCREEN_WIDTH; i++)
-            s_buffer[idx_cur][i] = '\0';
+         memcpy(s_buffer[idx_new], &s_buffer[idx_cur][s_cursor_x], move);
+         memset(s_buffer[idx_new] + move, 0, SCREEN_WIDTH - move);
+         memset(s_buffer[idx_cur] + s_cursor_x, 0, SCREEN_WIDTH - s_cursor_x);
       }
       else
       {
-         /* cursor at end: just insert empty line after current */
          buffer_insert_empty_line_at_rel(rel + 1);
       }
 
-      /* Move cursor to the start of the next logical line we just created
-         and update the visible offset to match the new bottom view. After
-         resetting s_scroll we must recompute the visible start and place the
-         cursor at the visible row corresponding to the inserted line. */
       {
          uint32_t new_logical = rel + 1;
-         /* recompute visible start after insertion (s_scroll is 0 now) */
          int new_start = compute_visible_start();
          int new_y = (int)new_logical - new_start;
          if (new_y < 0) new_y = 0;
          if (new_y >= SCREEN_HEIGHT)
          {
-            /* inserted line is below the visible window: advance head so the
-               tail is visible (keep behavior consistent with previous code) */
             if (s_lines_used > SCREEN_HEIGHT)
                s_head = (s_head + 1) % BUFFER_LINES;
             new_y = SCREEN_HEIGHT - 1;
@@ -251,14 +246,16 @@ void buffer_putc(char c)
       }
 
       s_cursor_x = 0;
-      buffer_repaint();
-      return;
+      mark_row_dirty(prev_cursor_row);
+      mark_row_dirty(prev_cursor_row + 1);
+      mark_row_dirty(s_cursor_y);
+      goto repaint;
    }
 
    if (c == '\r')
    {
       s_cursor_x = 0;
-      buffer_repaint();
+      setcursor(s_cursor_x, s_cursor_y);
       return;
    }
 
@@ -271,48 +268,41 @@ void buffer_putc(char c)
 
    if (c == '\b')
    {
-      /* backspace */
       if (s_cursor_x > 0)
       {
-         /* shift left within line */
-         for (int i = s_cursor_x - 1; i < SCREEN_WIDTH - 1; i++)
-            s_buffer[idx][i] = s_buffer[idx][i + 1];
+         memmove(&s_buffer[idx][s_cursor_x - 1], &s_buffer[idx][s_cursor_x],
+                 SCREEN_WIDTH - s_cursor_x);
          s_buffer[idx][SCREEN_WIDTH - 1] = '\0';
          s_cursor_x--;
-         buffer_repaint();
-         return;
+         mark_row_dirty(prev_cursor_row);
+         goto repaint;
       }
 
-      /* at column 0: if previous logical line exists, merge */
       if (rel_pos > 0)
       {
          uint32_t prev_rel = rel_pos - 1;
          uint32_t prev_idx = (s_head + prev_rel) % BUFFER_LINES;
-         /* compute lengths */
          int len_prev = 0, len_curr = 0;
          while (len_prev < SCREEN_WIDTH && s_buffer[prev_idx][len_prev])
             len_prev++;
-         while (len_curr < SCREEN_WIDTH && s_buffer[idx][len_curr]) len_curr++;
+         while (len_curr < SCREEN_WIDTH && s_buffer[idx][len_curr])
+            len_curr++;
          int orig_prev_len = len_prev;
          int can_move = SCREEN_WIDTH - len_prev;
          int move = (len_curr < can_move) ? len_curr : can_move;
-         for (int i = 0; i < move; i++)
-            s_buffer[prev_idx][len_prev + i] = s_buffer[idx][i];
+         memcpy(&s_buffer[prev_idx][len_prev], s_buffer[idx], move);
 
          if (move < len_curr)
          {
             int leftover = len_curr - move;
-            for (int i = 0; i < leftover; i++)
-               s_buffer[idx][i] = s_buffer[idx][move + i];
-            for (int i = leftover; i < SCREEN_WIDTH; i++)
-               s_buffer[idx][i] = '\0';
+            memmove(s_buffer[idx], s_buffer[idx] + move, leftover);
+            memset(s_buffer[idx] + leftover, 0, SCREEN_WIDTH - leftover);
          }
          else
          {
-            for (int i = 0; i < SCREEN_WIDTH; i++) s_buffer[idx][i] = '\0';
+            memset(s_buffer[idx], 0, SCREEN_WIDTH);
          }
 
-         /* if current line now empty, remove it */
          int empty = 1;
          for (int i = 0; i < SCREEN_WIDTH; i++)
             if (s_buffer[idx][i])
@@ -323,15 +313,11 @@ void buffer_putc(char c)
          if (empty)
          {
             buffer_remove_line_at_rel(rel_pos);
-            /* set cursor to end of prev line (adjust visible start) */
             int visible_off = (int)((s_lines_used > SCREEN_HEIGHT)
                                         ? (s_lines_used - SCREEN_HEIGHT)
                                         : 0);
             s_cursor_y = (int)prev_rel - visible_off;
             if (s_cursor_y < 0) s_cursor_y = 0;
-            /* Place the cursor at the start of the inserted text (the old end
-               of the previous line), not at the end of the newly merged
-               content. */
             int new_len = orig_prev_len;
             if (new_len > SCREEN_WIDTH - 1) new_len = SCREEN_WIDTH - 1;
             s_cursor_x = new_len;
@@ -340,20 +326,17 @@ void buffer_putc(char c)
          {
             s_cursor_x = 0;
          }
-         buffer_repaint();
-         return;
+         mark_visible_range_from_row(prev_cursor_row > 0 ? prev_cursor_row - 1 : 0);
+         mark_row_dirty(s_cursor_y);
+         goto repaint;
       }
 
-      /* backspace modifies content; reset scroll to show bottom */
       s_scroll = 0;
-      buffer_repaint();
-      return;
+      mark_all_rows_dirty();
+      goto repaint;
    }
 
-   /* Printable character: insert at cursor position in the target line. */
    {
-      /* recompute visible_start (consider scroll) because s_lines_used might
-       * have changed */
       visible_start = compute_visible_start();
       rel_pos = (uint32_t)visible_start + (uint32_t)s_cursor_y;
       while (rel_pos >= s_lines_used) push_newline_at_tail();
@@ -365,29 +348,27 @@ void buffer_putc(char c)
 
       if (len < SCREEN_WIDTH)
       {
-         for (int i = len; i > s_cursor_x; i--)
-            s_buffer[idx][i] = s_buffer[idx][i - 1];
+         memmove(&s_buffer[idx][s_cursor_x + 1], &s_buffer[idx][s_cursor_x],
+                 (size_t)(len - s_cursor_x));
          s_buffer[idx][s_cursor_x] = c;
       }
       else
       {
-         /* move last char to next line (prepend) */
          char last = s_buffer[idx][SCREEN_WIDTH - 1];
          if (rel_pos + 1 >= s_lines_used)
          {
             push_newline_at_tail();
          }
          uint32_t next_idx = (s_head + rel_pos + 1) % BUFFER_LINES;
-         for (int i = SCREEN_WIDTH - 1; i > 0; i--)
-            s_buffer[next_idx][i] = s_buffer[next_idx][i - 1];
+         memmove(&s_buffer[next_idx][1], s_buffer[next_idx],
+                 SCREEN_WIDTH - 1);
          s_buffer[next_idx][0] = last;
-         for (int i = SCREEN_WIDTH - 1; i > s_cursor_x; i--)
-            s_buffer[idx][i] = s_buffer[idx][i - 1];
+         memmove(&s_buffer[idx][s_cursor_x + 1], &s_buffer[idx][s_cursor_x],
+                 SCREEN_WIDTH - 1 - s_cursor_x);
          s_buffer[idx][s_cursor_x] = c;
       }
 
       s_cursor_x++;
-      /* After inserting printable characters we want to follow the tail. */
       s_scroll = 0;
       if (s_cursor_x >= SCREEN_WIDTH)
       {
@@ -397,9 +378,20 @@ void buffer_putc(char c)
          else if (s_lines_used > SCREEN_HEIGHT)
             s_head = (s_head + 1) % BUFFER_LINES;
       }
-      buffer_repaint();
-      return;
+      mark_row_dirty(prev_cursor_row);
+      mark_row_dirty(s_cursor_y);
+      goto repaint;
    }
+
+repaint:
+   finalize_putc_repaint(prev_visible_start);
+}
+
+static void finalize_putc_repaint(int prev_visible_start)
+{
+   if (compute_visible_start() != prev_visible_start)
+      mark_all_rows_dirty();
+   buffer_repaint();
 }
 
 void buffer_puts(const char *s)
@@ -422,6 +414,7 @@ void buffer_scroll(int lines)
    if (new_scroll < 0) new_scroll = 0;
    if (new_scroll > max_scroll) new_scroll = max_scroll;
    s_scroll = (uint32_t)new_scroll;
+   mark_all_rows_dirty();
    buffer_repaint();
 }
 
@@ -473,24 +466,25 @@ uint32_t buffer_get_visible_start(void)
 
 void buffer_repaint(void)
 {
-   /* determine start of visible window (last SCREEN_HEIGHT lines) then apply
-    * scroll */
    int start = compute_visible_start();
-
-   uint8_t *vga = (uint8_t *)0xB8000;
-   const uint8_t def_color = 0x7;
-
-   for (uint32_t row = 0; row < SCREEN_HEIGHT; row++)
+   if (s_dirty_row_start > s_dirty_row_end)
    {
-      uint32_t logical_line = (uint32_t)start + row;
+      setcursor(s_cursor_x, s_cursor_y);
+      return;
+   }
+
+   uint16_t *vga = (uint16_t *)0xB8000;
+   const uint8_t def_color = 0x7;
+   uint16_t attr = ((uint16_t)(s_color ? s_color : def_color)) << 8;
+
+   for (int row = s_dirty_row_start; row <= s_dirty_row_end; row++)
+   {
+      uint32_t logical_line = (uint32_t)start + (uint32_t)row;
+      uint16_t *dest = &vga[row * SCREEN_WIDTH];
       if (logical_line >= s_lines_used)
       {
-         /* no logical line here: clear the row with spaces */
-         for (uint32_t col = 0; col < SCREEN_WIDTH; col++)
-         {
-            vga[2 * (row * SCREEN_WIDTH + col)] = ' ';
-            vga[2 * (row * SCREEN_WIDTH + col) + 1] = def_color;
-         }
+         uint16_t fill = attr | ' ';
+         for (uint32_t col = 0; col < SCREEN_WIDTH; col++) dest[col] = fill;
       }
       else
       {
@@ -499,12 +493,11 @@ void buffer_repaint(void)
          {
             char ch = s_buffer[src][col];
             if (!ch) ch = ' ';
-            vga[2 * (row * SCREEN_WIDTH + col)] = ch;
-            vga[2 * (row * SCREEN_WIDTH + col) + 1] =
-                s_color ? s_color : def_color;
+            dest[col] = attr | (uint8_t)ch;
          }
       }
    }
 
+   reset_dirty_rows();
    setcursor(s_cursor_x, s_cursor_y);
 }

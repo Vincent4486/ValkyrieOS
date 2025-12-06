@@ -510,6 +510,10 @@ uint32_t FAT_NextCluster(Partition *disk, uint32_t currentCluster)
    else if (g_FatType == 32)
    {
       nextCluster = *(uint32_t *)(g_Data->FatCache + fatIndex);
+      // FAT32 stores only 28 meaningful bits; mask off high bits to avoid
+      // bogus cluster values that can produce invalid chains and host I/O
+      // errors.
+      nextCluster &= 0x0FFFFFFF;
    }
    return nextCluster;
 }
@@ -947,7 +951,7 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
          c = FAT_NextCluster(disk, c);
          uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
                               : (g_FatType == 16) ? 0xFFF8
-                                                  : 0xFFFFFFF8;
+                                                  : 0x0FFFFFF8;
          if (c >= eofMarker)
          {
             // invalid / end of chain
@@ -1258,6 +1262,27 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
    // Determine where the parent directory starts
    bool parentIsRoot = fd->ParentIsRoot;
    uint32_t parentCluster = fd->ParentCluster;
+
+   // Guard against bogus parent cluster values (e.g., EOF markers)
+   uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
+                        : (g_FatType == 16) ? 0xFFF8
+                                            : 0x0FFFFFF8;
+   if (parentCluster >= eofMarker)
+   {
+      printf("FAT_UpdateEntry: invalid parent cluster %u\n", parentCluster);
+      return false;
+   }
+
+   // If parentCluster got overwritten with an EOF marker (common when chain
+   // handling was wrong), bail out early to avoid wild LBAs.
+   uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
+                        : (g_FatType == 16) ? 0xFFF8
+                                            : 0x0FFFFFF8;
+   if (parentCluster >= eofMarker)
+   {
+      printf("FAT_UpdateEntry: invalid parent cluster %u\n", parentCluster);
+      return false;
+   }
 
    // Safety caps to avoid runaway loops
    const uint32_t maxSectorsToScan = 4096; // ~2MB of directory entries
