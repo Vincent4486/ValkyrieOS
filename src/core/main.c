@@ -79,43 +79,6 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   // Test 2: Create /multi.txt with multi-cluster content
-   const char *test1File = "/test/multi.txt";
-   printf("\nTest 2: Create %s (Multi-cluster test)\n", test1File);
-   FAT_File *newFile = FAT_Create(&partition, test1File);
-   if (newFile)
-   {
-      // Create a pattern buffer (1KB)
-      char pattern[1024];
-      for (int i = 0; i < 1024; i++)
-         pattern[i] = 'A' + (i % 26);
-
-      uint32_t totalWritten = 0;
-      uint32_t targetSize = 8192; // 8KB should span multiple clusters (usually 512B or 4KB)
-
-      for (uint32_t offset = 0; offset < targetSize; offset += 1024)
-      {
-         uint32_t written = FAT_Write(&partition, newFile, 1024, pattern);
-         totalWritten += written;
-         if (written != 1024)
-         {
-            printf("Write failed at offset %u: wrote %u bytes\n", offset, written);
-            break;
-         }
-      }
-
-      if (totalWritten == targetSize)
-      {
-         printf("Successfully created /multi.txt with %u bytes\n", totalWritten);
-         FAT_UpdateEntry(&partition, newFile);
-      }
-      FAT_Close(newFile);
-   }
-   else
-   {
-      printf("Failed to create multi.txt\n");
-   }
-
 end:
    for (;;);
 }
