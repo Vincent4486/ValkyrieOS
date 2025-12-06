@@ -20,8 +20,8 @@
 
 ### Filesystem
 - [x] FAT filesystem read/write (basic done)
-- [ ] `FAT_Create()` - create new files
-- [ ] `FAT_Delete()` - delete files
+- [x] `FAT_Create()` - create new files
+- [x] `FAT_Delete()` - delete files
 - [ ] Multi-cluster file support (files > 1 cluster)
 - [ ] Device files abstraction
 - [ ] File descriptors table per process

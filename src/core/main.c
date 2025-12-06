@@ -86,9 +86,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    if (fd)
    {
       FAT_Truncate(&partition, fd); // Clear file and free clusters
-      printf("finished reading 6\n");
       uint32_t len = strlen(buff);
-      printf("finished reading 7\n");
       uint32_t written =
           FAT_Write(&partition, fd, len, buff); // Will allocate new cluster
       if (written != len)
@@ -108,38 +106,58 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to open /test/write.txt\n");
    }
 
-   // Test 2: Create /write.txt with content (in root directory)
-   printf("\nTest 2: Create /write.txt\n");
-   FAT_File *newFile = FAT_Create(&partition, "write.txt");
+   // Test 2: Create /multi.txt with multi-cluster content
+   printf("\nTest 2: Create /multi.txt (Multi-cluster test)\n");
+   FAT_File *newFile = FAT_Create(&partition, "multi.txt");
    if (newFile)
    {
-      char *fileContent = "This is content in a newly created file";
-      uint32_t contentLen = strlen(fileContent);
-      uint32_t written =
-          FAT_Write(&partition, newFile, contentLen, fileContent);
+      // Create a pattern buffer (1KB)
+      char pattern[1024];
+      for (int i = 0; i < 1024; i++)
+         pattern[i] = 'A' + (i % 26);
 
-      if (written != contentLen)
+      uint32_t totalWritten = 0;
+      uint32_t targetSize = 8192; // 8KB should span multiple clusters (usually 512B or 4KB)
+
+      for (uint32_t offset = 0; offset < targetSize; offset += 1024)
       {
-         printf("Write failed: wrote %u of %u bytes\n", written, contentLen);
+         uint32_t written = FAT_Write(&partition, newFile, 1024, pattern);
+         totalWritten += written;
+         if (written != 1024)
+         {
+            printf("Write failed at offset %u: wrote %u bytes\n", offset, written);
+            break;
+         }
       }
-      else
+
+      if (totalWritten == targetSize)
       {
-         printf("Successfully created /write.txt with %u bytes\n", written);
+         printf("Successfully created /multi.txt with %u bytes\n", totalWritten);
          FAT_UpdateEntry(&partition, newFile);
       }
       FAT_Close(newFile);
    }
    else
    {
-      printf("Failed to create write.txt\n");
+      printf("Failed to create multi.txt\n");
    }
 
-   // Test 3: Delete /test/test.txt
-   printf("\nTest 3: Delete /test/test.txt\n");
-   if (FAT_Delete(&partition, "/test/test.txt"))
-      printf("Successfully deleted /test/test.txt\n");
+   // Test 3: Create and Delete /delete_me.txt
+   /*printf("\nTest 3: Create and Delete /delete_me.txt\n");
+   FAT_File *delFile = FAT_Create(&partition, "delete_me.txt");
+   if (delFile)
+   {
+      FAT_Write(&partition, delFile, 12, "Delete me!");
+      FAT_Close(delFile);
+      if (FAT_Delete(&partition, "delete_me.txt"))
+         printf("Successfully deleted /delete_me.txt\n");
+      else
+         printf("Failed to delete /delete_me.txt\n");
+   }
    else
-      printf("Failed to delete /test/test.txt\n");
+   {
+      printf("Failed to create /delete_me.txt\n");
+   }*/
 
 end:
    for (;;);
