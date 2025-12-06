@@ -9,8 +9,8 @@
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
-#include <sys/memdefs.h>
-#include <sys/memory.h>
+#include <mem/memdefs.h>
+#include <mem/memory.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256

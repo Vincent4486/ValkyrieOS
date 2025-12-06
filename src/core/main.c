@@ -10,7 +10,7 @@
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
-#include <sys/memory.h>
+#include <mem/memory.h>
 
 #include <libdisplay/startscreen.h>
 #include <libmath/math.h>

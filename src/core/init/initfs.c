@@ -5,7 +5,7 @@
 #include <fs/fat.h>
 #include <fs/partition.h>
 #include <stdint.h>
-#include <sys/memdefs.h>
+#include <mem/memdefs.h>
 
 /**
  * Initialize storage system: disk detection, partition detection, and FAT

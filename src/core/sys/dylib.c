@@ -7,7 +7,7 @@
  */
 
 #include "dylib.h"
-#include "memory.h"
+#include <mem/memory.h>
 #include <fs/fat.h>
 #include <std/stdio.h>
 #include <std/string.h>

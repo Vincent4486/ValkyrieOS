@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <std/string.h>
-#include <sys/memory.h>
+#include <mem/memory.h>
 
 #define BUFFER_LINES 2048
 #define BUFFER_BASE_ADDR 0x00800000
