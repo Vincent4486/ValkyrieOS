@@ -134,6 +134,13 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to create write.txt\n");
    }
 
+   // Test 3: Delete /test/test.txt
+   printf("\nTest 3: Delete /test/test.txt\n");
+   if (FAT_Delete(&partition, "/test/test.txt"))
+      printf("Successfully deleted /test/test.txt\n");
+   else
+      printf("Failed to delete /test/test.txt\n");
+
 end:
    for (;;);
 }

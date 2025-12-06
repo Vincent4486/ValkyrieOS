@@ -74,6 +74,10 @@ typedef struct
    uint32_t CurrentCluster;
    uint32_t CurrentSectorInCluster;
 
+   // Track parent directory so we can update the owning directory entry.
+   uint32_t ParentCluster;
+   bool ParentIsRoot;
+
 } FAT_FileData;
 
 typedef struct
@@ -255,6 +259,8 @@ bool FAT_Initialize(Partition *disk)
       g_Data->RootDirectory.Public.Size =
           sizeof(FAT_DirectoryEntry) * g_Data->BS.BootSector.DirEntryCount;
    g_Data->RootDirectory.Opened = true;
+   g_Data->RootDirectory.ParentCluster = g_Data->RootDirectory.FirstCluster;
+   g_Data->RootDirectory.ParentIsRoot = true;
    if (isFat32)
    {
       // For FAT32 we keep cluster numbers for root directory
@@ -297,7 +303,8 @@ uint32_t FAT_ClusterToLba(uint32_t cluster)
    return lba;
 }
 
-FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry)
+FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry,
+                        FAT_FileData *parent)
 {
    // find empty handle
    int handle = -1;
@@ -321,6 +328,19 @@ FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry)
    memcpy(fd->Public.Name, entry->Name, 11); // Save the name
    fd->FirstCluster =
        entry->FirstClusterLow + ((uint32_t)entry->FirstClusterHigh << 16);
+
+   // Record parent directory information for later updates
+   if (parent != NULL)
+   {
+      fd->ParentCluster = parent->FirstCluster;
+      fd->ParentIsRoot = (parent == &g_Data->RootDirectory);
+   }
+   else
+   {
+      // Fallback: assume root
+      fd->ParentCluster = g_Data->RootDirectory.FirstCluster;
+      fd->ParentIsRoot = true;
+   }
    printf("FAT_OpenEntry: Size=%u, FirstClusterLow=0x%x, FirstClusterHigh=0x%x, FirstCluster=0x%x\n",
           entry->Size, entry->FirstClusterLow, entry->FirstClusterHigh, fd->FirstCluster);
    fd->CurrentCluster = fd->FirstCluster;
@@ -462,8 +482,16 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                    g_Data->BS.BootSector.SectorsPerCluster)
                {
                   fd->CurrentSectorInCluster = 0;
-                  fd->CurrentCluster =
-                      FAT_NextCluster(disk, fd->CurrentCluster);
+                  uint32_t next = FAT_NextCluster(disk, fd->CurrentCluster);
+
+                  // Treat 0 as end-of-chain to avoid scanning free space
+                  if (next < 2)
+                  {
+                     fd->Public.Size = fd->Public.Position;
+                     break;
+                  }
+
+                  fd->CurrentCluster = next;
                }
 
                // Check for end-of-chain
@@ -509,7 +537,16 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                 g_Data->BS.BootSector.SectorsPerCluster)
             {
                fd->CurrentSectorInCluster = 0;
-               fd->CurrentCluster = FAT_NextCluster(disk, fd->CurrentCluster);
+               uint32_t next = FAT_NextCluster(disk, fd->CurrentCluster);
+
+               // Treat 0 (free) or invalid as EOF to avoid looping into free space
+               if (next < 2)
+               {
+                  fd->Public.Size = fd->Public.Position;
+                  break;
+               }
+
+               fd->CurrentCluster = next;
             }
 
             // Check for end-of-chain based on FAT type
@@ -607,6 +644,9 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
    {
       printf("FAT_FindFile: read entry at Position=%u, Name='%.11s', Attributes=0x%02x\n", 
              file->Position - 32, entry.Name, entry.Attributes);
+      // FAT end marker: empty entry means end of directory
+      if (entry.Name[0] == 0x00) break;
+
       // Skip LFN entries (attribute 0x0F)
       if ((entry.Attributes & 0x0F) == 0x0F) continue;
 
@@ -678,7 +718,13 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
 
          // open new directory entry
          previous = current;
-         current = FAT_OpenEntry(disk, &entry);
+
+         // Determine parent file data so we can record it on the opened entry
+         FAT_FileData *parentData = (current->Handle == ROOT_DIRECTORY_HANDLE)
+                                        ? &g_Data->RootDirectory
+                                        : &g_Data->OpenedFiles[current->Handle];
+
+         current = FAT_OpenEntry(disk, &entry, parentData);
          printf("FAT_Open: opened '%s', new Handle=%d, path next char='%c'\n", name, current->Handle, *path);
       }
       else
@@ -1150,110 +1196,94 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
 
 bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
 {
-   // Search for the file in root directory to find and update its entry
-   FAT_File *root = &g_Data->RootDirectory.Public;
-   FAT_Seek(disk, root, 0); // Start from beginning of root
-
-   FAT_DirectoryEntry entry;
-   uint32_t entryPosition = 0;
-
-   // Validate file handle and get file data
+   // Update the directory entry in the *parent* directory of this file.
    if (!file) return false;
+
    FAT_FileData *fd = (file->Handle == ROOT_DIRECTORY_HANDLE)
                           ? &g_Data->RootDirectory
                           : &g_Data->OpenedFiles[file->Handle];
+
    if (file->Handle != ROOT_DIRECTORY_HANDLE)
    {
       if (file->Handle < 0 || file->Handle >= MAX_FILE_HANDLES) return false;
       if (!fd->Opened) return false;
    }
 
-   int entryCount = 0;
-   // Limit search to first cluster of root only (usually sufficient for most files)
-   // This prevents infinite scanning of large root directories
-   int maxEntries = (g_Data->BS.BootSector.SectorsPerCluster * SECTOR_SIZE) / sizeof(FAT_DirectoryEntry);
+   // Determine where the parent directory starts
+   bool parentIsRoot = fd->ParentIsRoot;
+   uint32_t parentCluster = fd->ParentCluster;
 
-   while (FAT_ReadEntry(disk, root, &entry) && entryCount < maxEntries)
+   // Safety caps to avoid runaway loops
+   const uint32_t maxSectorsToScan = 4096; // ~2MB of directory entries
+   uint32_t sectorsScanned = 0;
+
+   // Iterate over the parent directory sectors
+   if (parentIsRoot && g_FatType != 32)
    {
-      entryCount++;
-      entryPosition = root->Position - sizeof(FAT_DirectoryEntry);
-
-      // Skip LFN entries and empty entries
-      if ((entry.Attributes & 0x0F) == 0x0F || entry.Name[0] == 0x00) continue;
-
-      if (entryCount <= 5 || entryCount % 1000 == 0)
+      // Legacy FAT12/16 fixed root directory
+      for (uint32_t s = 0; s < g_RootDirSectors && sectorsScanned < maxSectorsToScan; s++, sectorsScanned++)
       {
-         printf("FAT_UpdateEntry: checking entry %d, Name='%.11s', seeking='%.11s'\n",
-                entryCount, entry.Name, fd->Public.Name);
-      }
+         uint8_t sectorBuffer[SECTOR_SIZE];
+         uint32_t lba = g_RootDirLba + s;
+         if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer))
+            return false;
 
-      // Check if this is our file (match by name)
-      if (memcmp(entry.Name, fd->Public.Name, 11) == 0)
-      {
-         // Found it! Update the entry
-         entry.Size = fd->Public.Size;
-         entry.FirstClusterLow = fd->FirstCluster & 0xFFFF;
-         entry.FirstClusterHigh = (fd->FirstCluster >> 16) & 0xFFFF;
-
-         // Figure out which sector contains this entry
-         uint32_t sectorInDirectory = entryPosition / SECTOR_SIZE;
-         uint32_t offsetInSector = entryPosition % SECTOR_SIZE;
-         uint32_t targetLba = 0;
-
-         if (g_FatType == 32)
+         for (uint32_t i = 0; i < SECTOR_SIZE; i += sizeof(FAT_DirectoryEntry))
          {
-            // For FAT32, walk the cluster chain to find the right cluster
-            uint32_t sectorsPerCluster =
-                g_Data->BS.BootSector.SectorsPerCluster;
-            uint32_t clusterIndex = sectorInDirectory / sectorsPerCluster;
-            uint32_t sectorInCluster = sectorInDirectory % sectorsPerCluster;
-            
-            // Walk cluster chain from first cluster
-            uint32_t cluster = g_Data->RootDirectory.FirstCluster;
-            for (uint32_t i = 0; i < clusterIndex; i++)
+            FAT_DirectoryEntry *entry = (FAT_DirectoryEntry *)(sectorBuffer + i);
+            if ((entry->Attributes & 0x0F) == 0x0F || entry->Name[0] == 0x00)
+               continue;
+            if (memcmp(entry->Name, fd->Public.Name, 11) == 0)
             {
-               cluster = FAT_NextCluster(disk, cluster);
-               uint32_t eofMarker = 0xFFFFFFF8;
-               if (cluster >= eofMarker)
+               FAT_DirectoryEntry updated = *entry;
+               updated.Size = fd->Public.Size;
+               updated.FirstClusterLow = fd->FirstCluster & 0xFFFF;
+               updated.FirstClusterHigh = (fd->FirstCluster >> 16) & 0xFFFF;
+               memcpy(sectorBuffer + i, &updated, sizeof(FAT_DirectoryEntry));
+               return Partition_WriteSectors(disk, lba, 1, sectorBuffer);
+            }
+         }
+      }
+   }
+   else
+   {
+      // Cluster-based directory (FAT32 root or any subdirectory)
+      uint32_t cluster = parentCluster;
+      uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
+                  : (g_FatType == 16) ? 0xFFF8
+                             : 0x0FFFFFF8;
+
+      while (cluster < eofMarker && sectorsScanned < maxSectorsToScan)
+      {
+         for (uint32_t sec = 0; sec < g_Data->BS.BootSector.SectorsPerCluster && sectorsScanned < maxSectorsToScan; sec++, sectorsScanned++)
+         {
+            uint8_t sectorBuffer[SECTOR_SIZE];
+            uint32_t lba = FAT_ClusterToLba(cluster) + sec;
+            if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer))
+               return false;
+
+            for (uint32_t i = 0; i < SECTOR_SIZE; i += sizeof(FAT_DirectoryEntry))
+            {
+               FAT_DirectoryEntry *entry = (FAT_DirectoryEntry *)(sectorBuffer + i);
+               if ((entry->Attributes & 0x0F) == 0x0F || entry->Name[0] == 0x00)
+                  continue;
+               if (memcmp(entry->Name, fd->Public.Name, 11) == 0)
                {
-                  printf("FAT_UpdateEntry: cluster chain ended prematurely\n");
-                  return false;
+                  FAT_DirectoryEntry updated = *entry;
+                  updated.Size = fd->Public.Size;
+                  updated.FirstClusterLow = fd->FirstCluster & 0xFFFF;
+                  updated.FirstClusterHigh = (fd->FirstCluster >> 16) & 0xFFFF;
+                  memcpy(sectorBuffer + i, &updated, sizeof(FAT_DirectoryEntry));
+                  return Partition_WriteSectors(disk, lba, 1, sectorBuffer);
                }
             }
-            
-            targetLba = FAT_ClusterToLba(cluster) + sectorInCluster;
-         }
-         else
-         {
-            // legacy root area
-            targetLba = g_RootDirLba + sectorInDirectory;
          }
 
-         uint8_t sectorBuffer[SECTOR_SIZE];
-         if (!Partition_ReadSectors(disk, targetLba, 1, sectorBuffer))
-         {
-            printf("FAT: UpdateEntry read error\n");
-            return false;
-         }
-
-         memcpy(&sectorBuffer[offsetInSector], &entry,
-                sizeof(FAT_DirectoryEntry));
-
-         if (!Partition_WriteSectors(disk, targetLba, 1, sectorBuffer))
-         {
-            printf("FAT: UpdateEntry write error\n");
-            return false;
-         }
-
-         return true;
+         cluster = FAT_NextCluster(disk, cluster);
       }
    }
 
-   if (entryCount >= maxEntries)
-   {
-      printf("FAT_UpdateEntry: hit entry limit without finding file\n");
-   }
-   printf("FAT: UpdateEntry - file not found in directory (scanned %d entries)\n", entryCount);
+   printf("FAT: UpdateEntry - file not found in parent directory\n");
    return false;
 }
 
@@ -1298,8 +1328,9 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
                           g_Data->BS.BootSector.SectorsPerCluster;
    printf("FAT_Create: max clusters = %u\n", maxClusters);
 
-   // Limit search to prevent excessive scanning
-   uint32_t maxSearchClusters = (maxClusters > 1000) ? 1000 : maxClusters;
+   // Search all clusters (was previously limited to 1000 and could miss free
+   // space on larger images)
+   uint32_t maxSearchClusters = maxClusters;
 
    for (uint32_t testCluster = 2; testCluster < maxSearchClusters;
         testCluster++)
@@ -1402,8 +1433,8 @@ FAT_File *FAT_Create(Partition *disk, const char *name)
             return NULL;
          }
 
-         // Open the file
-         FAT_File *file = FAT_OpenEntry(disk, &newEntry);
+         // Open the file (parent is root)
+         FAT_File *file = FAT_OpenEntry(disk, &newEntry, &g_Data->RootDirectory);
          printf("FAT_Create: created file '%s' at cluster %u, opened: %s\n",
                 name, firstFreeCluster, file ? "yes" : "no");
          if (file != NULL)
@@ -1445,7 +1476,13 @@ bool FAT_Delete(Partition *disk, const char *name)
       dirEntry.Attributes = FAT_ATTRIBUTE_DIRECTORY;
       memcpy(dirEntry.Name, entry.Name, 11);
 
-      FAT_File *dir = FAT_OpenEntry(disk, &dirEntry);
+      // Parent of subEntry is the current directory (the one we are deleting)
+      FAT_FileData *parentData = &g_Data->RootDirectory;
+      if (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY)
+      {
+         parentData = &g_Data->RootDirectory; // best effort; not critical for delete
+      }
+      FAT_File *dir = FAT_OpenEntry(disk, &dirEntry, parentData);
       if (!dir)
       {
          printf("FAT_Delete: failed to open directory\n");
