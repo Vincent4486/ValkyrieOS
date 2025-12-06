@@ -86,8 +86,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    if (fd)
    {
       FAT_Truncate(&partition, fd); // Clear file and free clusters
-
+      printf("finished reading 6\n");
       uint32_t len = strlen(buff);
+      printf("finished reading 7\n");
       uint32_t written =
           FAT_Write(&partition, fd, len, buff); // Will allocate new cluster
       if (written != len)
