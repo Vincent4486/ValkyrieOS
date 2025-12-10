@@ -1,99 +1,70 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
-import glob
+import subprocess
 
 from SCons.Environment import Environment
+from SCons.Script import Dir, Export
+from scripts.scons.utility import GlobRecursive, FindIndex, IsFileName
 
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
 
-# Build libmath and libdisplay libraries first so core can link them statically
-SConscript('libmath/SConscript', variant_dir='libmath_build', duplicate=0)
-SConscript('libdisplay/SConscript', variant_dir='libdisplay_build', duplicate=0)
+env = TARGET_ENVIRONMENT.Clone()
+# With variant_dir and duplicate=0, we need to explicitly reference the source files
+# The build root is at '#' (where SConstruct is), so src/core is at src/core
+src_dir = Dir('#kernel').abspath
+# Node (relative) to pass into GlobRecursive so it searches the actual source
+src_node = '#kernel'
 
-# Build the core kernel executable from core/ directory (after libs)
-SConscript('core/SConscript', variant_dir='core_build', duplicate=0)
+env.Append(
+    # Enable position-independent code for dynamic linking support
+    # Use PIC so object files generate GOT/PLT entries for dynamic linking.
+    CCFLAGS = ['-fPIC'],
+    LINKFLAGS = [
+        '-Wl,-T', os.path.join(src_dir, 'arch', TARGET_ENVIRONMENT['arch'], 'boot', 'linker.ld'),
+        '-Wl,-Map=' + env.File('core.map').path,
+        # Create relocation records for undefined symbols (GOT/PLT)
+        # The linker will generate R_386_GLOB_DAT and R_386_JMP_SLOT relocations
+        '-Wl,-z,notext',  # Allow relocations in text segment
+        '-Wl,--unresolved-symbols=ignore-all',  # Allow undefined symbols - will be resolved at runtime
+        '-Wl,--as-needed',
+        '-Wl,--export-dynamic',
+        '-pie',
+    ],
+    CPATH = [ src_dir, '#include' ],
+    CPPPATH = [ src_dir, '#include' ],
+    # Include source directory for assembly files (nasm -I flag for include paths)
+    # Use list format so each item becomes a separate argument
+    ASFLAGS = [ '-I', os.path.join(src_dir, 'arch', TARGET_ENVIRONMENT['arch']) + '/', '-f', 'elf' ]
+)
 
-# Build optional kernel modules/libraries from other top-level directories
-# Each directory under kernel/ (except core/) becomes a separate shared library
-import glob
-kernel_modules = []
+# Glob files directly from the source directory using os.walk
+# This is necessary because we're in a variant_dir and GlobRecursive looks in the build dir
+sources = []
+for root, dirs, files in os.walk(src_dir):
+    for file in files:
+        full_path = os.path.join(root, file)
+        # Include C, C++, assembly and Rust source files
+        if file.endswith(('.c', '.cpp', '.asm')):
+            # Make path relative to src_dir so SCons puts objects in build dir
+            rel_path = os.path.relpath(full_path, src_dir)
+            # Use File() with the relative path - SCons will resolve it relative to variant_dir
+            sources.append(rel_path)
 
-for module_dir in glob.glob('*/'):
-    # Skip core/ as it's handled separately above
-    if module_dir.startswith('core'):
-        continue
-    
-    # Skip if not a directory with source files
-    if not os.path.isdir(module_dir):
-        continue
-    
-    # Check if directory has any source files
-    has_sources = (
-        len(glob.glob(f'{module_dir}/*.c')) > 0 or
-        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
-        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
-    )
-    
-    if has_sources:
-        module_name = module_dir.rstrip('/')
-        SConscript(
-            f'{module_name}/SConscript',
-            variant_dir=f'{module_name}_build',
-            duplicate=0
-        )
+objects = env.Object(sources)
+obj_crti = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crti.o')))
+obj_crtn = objects.pop(FindIndex(objects, lambda item: IsFileName(item, 'crtn.o')))
 
-# Import core executable
-Import('core')
+objects = [
+    obj_crti,
+    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtbegin.o'),
+    *objects,
+    os.path.join(env["TOOLCHAIN_LIBGCC"], 'crtend.o'),
+    obj_crtn
+]
 
-# Import libmath library
-Import('libmath_module')
-
-# Collect kernel libraries into a separate array
-kernel_libraries = [libmath_module]
-
-# Import any module libraries that were built
-for module_dir in glob.glob('*/'):
-    if module_dir.startswith('core'):
-        continue
-    if not os.path.isdir(module_dir):
-        continue
-    
-    has_sources = (
-        len(glob.glob(f'{module_dir}/*.c')) > 0 or
-        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
-        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
-    )
-    
-    if has_sources:
-        module_name = module_dir.rstrip('/')
-        try:
-            Import(f'{module_name}_module')
-            kernel_libraries.append(locals()[f'{module_name}_module'])
-        except:
-            pass
-
-# Ensure `core` depends on built libraries so they are built first.
-# This makes SCons schedule libmath/libdisplay (and other modules)
-# before building the `core` target.
-try:
-    for lib in kernel_libraries:
-        try:
-            Depends(core, lib)
-        except Exception:
-            # If `Depends` or the node isn't usable here, ignore and continue
-            pass
-except Exception:
-    # If something unexpected occurs, don't break the SConscript evaluation.
-    pass
+core = env.Program('core.elf', objects)
 
 Export('core')
-Export('kernel_libraries')

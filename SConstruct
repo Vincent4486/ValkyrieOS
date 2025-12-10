@@ -147,7 +147,8 @@ Export('TARGET_ENVIRONMENT')
 
 variantDir = 'build/{0}_{1}'.format(TARGET_ENVIRONMENT['arch'], TARGET_ENVIRONMENT['config'])
 
-SConscript('src/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
+SConscript('usr/SConscript', variant_dir=variantDir + '/usr', duplicate=0)
+SConscript('kernel/SConscript', variant_dir=variantDir + '/kernel', duplicate=0)
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 Import('image')
