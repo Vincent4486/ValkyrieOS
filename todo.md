@@ -10,7 +10,7 @@
 - [ ] Page tables and MMU setup
 
 ### Process Management
-- [ ] Process Control Block (PCB) structure
+- [x] Process Control Block (PCB) structure
 - [ ] Process creation (fork/execve syscalls)
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)
@@ -20,9 +20,9 @@
 
 ### Filesystem
 - [x] FAT filesystem read/write (basic done)
-- [ ] `FAT_Create()` - create new files
-- [ ] `FAT_Delete()` - delete files
-- [ ] Multi-cluster file support (files > 1 cluster)
+- [x] `FAT_Create()` - create new files
+- [x] `FAT_Delete()` - delete files
+- [x] Multi-cluster file support (files > 1 cluster)
 - [ ] Device files abstraction
 - [ ] File descriptors table per process
 - [ ] `FAT_Stat()` - file metadata

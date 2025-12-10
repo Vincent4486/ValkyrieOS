@@ -148,3 +148,26 @@ void *realloc(void *ptr, size_t size)
    memcpy(n, ptr, size);
    return n;
 }
+
+void *memmove(void *dest, const void *src, size_t n) {
+    char *d = (char *)dest;
+    const char *s = (const char *)src;
+
+    if (d == s || n == 0) {
+        return dest; // No copy needed if same or zero bytes
+    }
+
+    if (d < s) {
+        // Destination is before source, copy forwards
+        for (size_t i = 0; i < n; ++i) {
+            d[i] = s[i];
+        }
+    } else {
+        // Destination is after source, or overlaps in a way that requires
+        // copying backwards to avoid overwriting source data before it's read.
+        for (size_t i = n; i > 0; --i) {
+            d[i - 1] = s[i - 1];
+        }
+    }
+    return dest;
+}

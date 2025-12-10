@@ -7,7 +7,7 @@
 
 #include <fs/partition.h>
 #include <stdint.h>
-#include <sys/memdefs.h>
+#include <mem/memdefs.h>
 
 // Maximum dependencies per library
 #define DYLIB_MAX_DEPS 16

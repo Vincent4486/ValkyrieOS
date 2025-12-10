@@ -10,7 +10,7 @@
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
-#include <sys/memory.h>
+#include <mem/memory.h>
 
 #include <libdisplay/startscreen.h>
 #include <libmath/math.h>
@@ -77,60 +77,6 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    {
       printf("Failed to load dynamic libraries...");
       goto end;
-   }
-
-   // Test 1: Write to existing file
-   printf("Test 1: Write to /test/write.txt\n");
-   char *buff = "This is data writen to the file";
-   FAT_File *fd = FAT_Open(&partition, "/test/write.txt");
-   if (fd)
-   {
-      FAT_Truncate(&partition, fd); // Clear file and free clusters
-
-      uint32_t len = strlen(buff);
-      uint32_t written =
-          FAT_Write(&partition, fd, len, buff); // Will allocate new cluster
-      if (written != len)
-      {
-         printf("Write failed: wrote %u of %u bytes\n", written, len);
-      }
-      else
-      {
-         printf("Successfully wrote %u bytes\n", written);
-         // Update directory entry with new size and cluster
-         FAT_UpdateEntry(&partition, fd);
-      }
-      FAT_Close(fd);
-   }
-   else
-   {
-      printf("Failed to open /test/write.txt\n");
-   }
-
-   // Test 2: Create /write.txt with content (in root directory)
-   printf("\nTest 2: Create /write.txt\n");
-   FAT_File *newFile = FAT_Create(&partition, "write.txt");
-   if (newFile)
-   {
-      char *fileContent = "This is content in a newly created file";
-      uint32_t contentLen = strlen(fileContent);
-      uint32_t written =
-          FAT_Write(&partition, newFile, contentLen, fileContent);
-
-      if (written != contentLen)
-      {
-         printf("Write failed: wrote %u of %u bytes\n", written, contentLen);
-      }
-      else
-      {
-         printf("Successfully created /write.txt with %u bytes\n", written);
-         FAT_UpdateEntry(&partition, newFile);
-      }
-      FAT_Close(newFile);
-   }
-   else
-   {
-      printf("Failed to create write.txt\n");
    }
 
 end:

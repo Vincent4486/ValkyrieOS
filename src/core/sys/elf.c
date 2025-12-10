@@ -2,8 +2,8 @@
 #include "elf.h"
 #include <std/stdio.h>
 #include <std/string.h>
-#include <sys/memdefs.h>
-#include <sys/memory.h>
+#include <mem/memdefs.h>
+#include <mem/memory.h>
 
 #define EI_MAG0 0
 #define EI_MAG1 1

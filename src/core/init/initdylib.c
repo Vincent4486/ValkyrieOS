@@ -4,7 +4,7 @@
 #include <std/stdio.h>
 #include <stddef.h>
 #include <sys/dylib.h>
-#include <sys/memdefs.h>
+#include <mem/memdefs.h>
 
 static int load_libmath(Partition *partition)
 {
