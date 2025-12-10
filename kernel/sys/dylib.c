@@ -8,7 +8,7 @@
 
 #include "dylib.h"
 #include <mem/memory.h>
-#include <fs/fat.h>
+#include <fs/fat/fat.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>

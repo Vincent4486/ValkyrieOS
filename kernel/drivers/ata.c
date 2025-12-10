@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "ata.h"
-#include <arch/i686/io.h>
+#include <arch/i686/io/io.h>
 #include <stdint.h>
 
 // ATA register offsets from base port
