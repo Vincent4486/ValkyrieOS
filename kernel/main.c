@@ -13,6 +13,8 @@
 #include <sys/dylib.h>
 #include <mem/memory.h>
 #include <mem/heap.h>
+#include <mem/pmm.h>
+#include <mem/vmm.h>
 
 #include <display/startscreen.h>
 #include <libmath/math.h>
@@ -61,9 +63,16 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
    heap_init();
-   // heap_self_test();
+   heap_self_test();
    paging_init();
-	 paging_self_test();
+   paging_self_test();
+   
+   // Initialize physical and virtual memory managers
+   pmm_init(256 * 1024 * 1024); // 256 MiB
+   pmm_self_test();
+   vmm_init();
+   vmm_self_test();
+   
    HAL_Initialize();
    set_iopl_level_3();
 
@@ -83,7 +92,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
-	 heap_self_test();
+	 
 end:
    for (;;);
 }
