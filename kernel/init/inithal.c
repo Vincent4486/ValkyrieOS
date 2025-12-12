@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "init.h"
-#include <arch/i686/gdt.h>
-#include <arch/i686/idt.h>
-#include <arch/i686/irq.h>
-#include <arch/i686/isr.h>
+#include <arch/i686/cpu/gdt.h>
+#include <arch/i686/cpu/idt.h>
+#include <arch/i686/cpu/irq.h>
+#include <arch/i686/cpu/isr.h>
 
 void HAL_Initialize()
 {

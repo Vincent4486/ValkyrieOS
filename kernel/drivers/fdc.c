@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "fdc.h"
-#include <arch/i686/io.h>
-#include <arch/i686/irq.h>
+#include <arch/i686/io/io.h>
+#include <arch/i686/cpu/irq.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

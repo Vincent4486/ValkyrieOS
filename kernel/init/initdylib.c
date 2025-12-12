@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <fs/partition.h>
+#include <fs/disk/partition.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <sys/dylib.h>

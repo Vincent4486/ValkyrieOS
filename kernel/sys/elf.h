@@ -3,9 +3,9 @@
 // Simple ELF32 loader for stage2 bootloader
 #pragma once
 
-#include <fs/disk.h>
-#include <fs/fat.h>
-#include <fs/partition.h>
+#include <fs/disk/disk.h>
+#include <fs/fat/fat.h>
+#include <fs/disk/partition.h>
 #include <stdbool.h>
 #include <stdint.h>
 

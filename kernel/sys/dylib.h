@@ -5,7 +5,7 @@
 // ld.so.
 #pragma once
 
-#include <fs/partition.h>
+#include <fs/disk/partition.h>
 #include <stdint.h>
 #include <mem/memdefs.h>
 
