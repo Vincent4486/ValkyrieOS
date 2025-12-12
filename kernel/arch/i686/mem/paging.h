@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <stdint.h>
+#include <stdbool.h>
+
+// Page flag helpers
+#define PAGE_PRESENT 0x001
+#define PAGE_RW      0x002
+#define PAGE_USER    0x004
 
 // Page table initialization
 void paging_init(void);
@@ -32,3 +38,6 @@ void* get_current_page_directory(void);
 // Memory region allocation
 void* allocate_kernel_pages(int page_count);
 void free_kernel_pages(void* addr, int page_count);
+
+// Simple built-in self-test
+void paging_self_test(void);

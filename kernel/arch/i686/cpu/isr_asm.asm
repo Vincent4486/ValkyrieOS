@@ -25,7 +25,7 @@ i686_ISR%1:
 
 %endmacro
 
-%include "arch/i686/isrs_gen.inc"
+%include "kernel/arch/i686/cpu/isrs_gen.inc"
 
 
 isr_common:

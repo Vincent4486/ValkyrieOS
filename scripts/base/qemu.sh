@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-QEMU_ARGS='-debugcon stdio -m 32 -machine pc'
+QEMU_ARGS='-debugcon stdio -m 4G -machine pc'
 
 if [ "$#" -le 1 ]; then
     echo "Usage: $0 <image_type> <image>"

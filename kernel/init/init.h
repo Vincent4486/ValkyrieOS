@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <fs/disk.h>
-#include <fs/partition.h>
+#include <fs/disk/disk.h>
+#include <fs/disk/partition.h>
 #include <stdbool.h>
 #include <stdint.h>
 

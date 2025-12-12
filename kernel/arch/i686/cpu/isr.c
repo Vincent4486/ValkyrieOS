@@ -3,7 +3,7 @@
 #include "isr.h"
 #include "gdt.h"
 #include "idt.h"
-#include "io.h"
+#include <arch/i686/io/io.h>
 #include <std/stdio.h>
 #include <stddef.h>
 

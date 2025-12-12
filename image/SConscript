@@ -12,6 +12,7 @@ import sh
 from SCons.Action import Action
 from SCons.Builder import Builder
 from SCons.Environment import Environment
+from SCons.Script import Flatten
 
 from scripts.scons.utility import FindIndex, GlobRecursive, IsFileName
 
@@ -262,13 +263,23 @@ def build_image(target, source, env):
     if core_exe is None:
         raise RuntimeError("Core executable not found in build inputs")
 
-    # classify kernel libraries and other files robustly
-    kernel_libraries = [str(src) for src in source if 'kernel' in str(src) and str(src) != core_exe]
-    files = [src for src in source if str(src) != core_exe and str(src) not in kernel_libraries]
+    # Flatten the library list and normalize paths for copying
+    lib_nodes = Flatten(kernel_libraries)
+    libs = []
+    lib_compare = set()
+    for lib in lib_nodes:
+        try:
+            path = lib.get_abspath()
+        except Exception:
+            path = str(lib)
+        libs.append(path)
+        lib_compare.add(str(lib))
+
+    files = [src for src in source if str(src) != core_exe and str(src) not in lib_compare]
 
     image = str(target[0])
 
-    build_disk(image, core_exe, kernel_libraries, files, env)
+    build_disk(image, core_exe, libs, files, env)
  
 # Setup image target
 root = env.Dir('root')

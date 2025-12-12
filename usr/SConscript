@@ -13,38 +13,6 @@ TARGET_ENVIRONMENT: Environment
 # Build libmath and libdisplay libraries first so core can link them statically
 SConscript('libmath/SConscript', variant_dir='libmath_build', duplicate=0)
 
-# Build optional kernel modules/libraries from other top-level directories
-# Each directory under kernel/ (except core/) becomes a separate shared library
-import glob
-kernel_modules = []
-
-for module_dir in glob.glob('*/'):
-    # Skip core/ as it's handled separately above
-    if module_dir.startswith('core'):
-        continue
-    
-    # Skip if not a directory with source files
-    if not os.path.isdir(module_dir):
-        continue
-    
-    # Check if directory has any source files
-    has_sources = (
-        len(glob.glob(f'{module_dir}/*.c')) > 0 or
-        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
-        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
-    )
-    
-    if has_sources:
-        module_name = module_dir.rstrip('/')
-        SConscript(
-            f'{module_name}/SConscript',
-            variant_dir=f'{module_name}_build',
-            duplicate=0
-        )
-
 # Import libmath library
 Import('libmath_module')
 

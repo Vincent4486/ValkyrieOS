@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <arch/i686/irq.h>
+#include <arch/i686/cpu/irq.h>
 #include <drivers/ata.h>
-#include <fs/disk.h>
-#include <fs/fat.h>
-#include <fs/partition.h>
+#include <fs/disk/disk.h>
+#include <fs/fat/fat.h>
+#include <fs/disk/partition.h>
 #include <init/init.h>
+#include <arch/i686/mem/paging.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
 #include <mem/memory.h>
+#include <mem/heap.h>
 
-#include <libdisplay/startscreen.h>
+#include <display/startscreen.h>
 #include <libmath/math.h>
 
 extern uint8_t __bss_start;
@@ -58,7 +60,10 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    // Init system
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
-   mem_init();
+   heap_init();
+   // heap_self_test();
+   paging_init();
+	 paging_self_test();
    HAL_Initialize();
    set_iopl_level_3();
 
@@ -78,7 +83,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
-
+	 heap_self_test();
 end:
    for (;;);
 }

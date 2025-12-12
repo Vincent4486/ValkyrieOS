@@ -2,7 +2,7 @@
 
 #include "irq.h"
 #include "i8259.h"
-#include "io.h"
+#include <arch/i686/io/io.h>
 #include "pic.h"
 #include <display/keyboard.h>
 #include <std/arrays.h>

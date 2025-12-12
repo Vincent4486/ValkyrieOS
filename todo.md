@@ -3,8 +3,8 @@
 ## Phase 1: Core OS Infrastructure (Current)
 
 ### Memory Management
-- [ ] Virtual memory / paging (per-process address spaces)
-- [ ] Heap management (brk/sbrk syscalls for malloc)
+- [x] Virtual memory / paging (per-process address spaces)
+- [x] Heap management (brk/sbrk syscalls for malloc)
 - [ ] Stack management (per-process user stacks)
 - [ ] Memory protection (read/write/execute permissions)
 - [ ] Page tables and MMU setup
