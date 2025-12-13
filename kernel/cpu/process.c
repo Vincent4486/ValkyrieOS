@@ -120,7 +120,12 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
           .current = stack_top,
           .data = (uint8_t *)stack_bottom,
       };
-      Stack_SetupProcess(&tmp_stack, entry_point);
+        // Switch to process page directory so the user stack VA is mapped while we write to it
+        void *kernel_pd = VMM_GetPageDirectory();
+        switch_page_directory(proc->page_directory);
+        Stack_SetupProcess(&tmp_stack, entry_point);
+        // Switch back to kernel page directory
+        switch_page_directory(kernel_pd);
 
       // Record initial ESP/EBP after setup
       proc->esp = tmp_stack.current;

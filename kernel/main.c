@@ -100,8 +100,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
-   
-   ELF_LoadProcess(&partition, "/usr/bin/sh", true);
+
+   ELF_LoadProcess(&partition, "/usr/bin/sh", false);
 
 end:
    for (;;);
