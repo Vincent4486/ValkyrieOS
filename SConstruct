@@ -52,7 +52,6 @@ DEPS = {
 
 HOST_ENVIRONMENT = Environment(variables=VARS,
     ENV = os.environ,
-    # AS = 'as',
     CFLAGS = ['-std=c99'],
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
@@ -67,16 +66,6 @@ if HOST_ENVIRONMENT['config'] == 'debug':
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O0', '-DDEBUG'])
 else:
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3', '-DRELEASE'])
-
-HOST_ENVIRONMENT.Replace(ASCOMSTR        = "AS         $SOURCE",
-                         ASPPCOMSTR      = "AS         $SOURCE",
-                         CCCOMSTR        = "CC         $SOURCE",
-                         CXXCOMSTR       = "CXX        $SOURCE",
-                         SHCCCOMSTR      = "CC         $SOURCE",
-                         SHCXXCOMSTR     = "CXX        $SOURCE",
-                         LINKCOMSTR      = "LD         $TARGET",
-                         ARCOMSTR        = "AR         $TARGET",
-                         RANLIBCOMSTR    = "RANLIB     $TARGET")
 
 #
 # ***  Target environment ***
