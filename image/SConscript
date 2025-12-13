@@ -75,7 +75,6 @@ def install_grub(mount_dir: str):
     bootdir = os.path.join(mount_dir, 'boot')
     sh.sudo.mkdir('-p', bootdir)
 
-    print(f"    > installing GRUB on device {device} with boot-directory {bootdir}...")
     # Run grub-install against the loop device. Use i386-pc (BIOS) target for
     # the project's boot layout. --recheck forces probe of device.
     sh.sudo('grub-install', '--target=i386-pc', f'--boot-directory={bootdir}', '--recheck', device)
@@ -111,7 +110,6 @@ def mount_fs(image: str, mount_dir: str):
     import time
     import subprocess
     
-    print("    > associating image with a loop device...")
     device = sh.sudo.losetup('-fP', '--show', image).strip()
     
     # Wait for loop device to be set up and partitions to appear
@@ -140,13 +138,12 @@ def mount_fs(image: str, mount_dir: str):
     with open(device_file, 'w') as f:
         f.write(device)
     
-    print(f"    > mounting {partition} to {mount_dir}...")
+    print(f"   MOUNT {partition} {mount_dir}")
     sh.sudo.mount(partition, mount_dir)
 
 def unmount_fs(mount_dir: str):
     import sh
     import time
-    print("Waiting for disk to be clear...")
     time.sleep(2)
     
     # Read the device path from the host FS (not inside the mount)
@@ -160,7 +157,6 @@ def unmount_fs(mount_dir: str):
         device = f.read().strip()
         
     # Detach the loop device. Requires root.
-    print(f"    > detaching loop device {device}...")
     sh.sudo.losetup('-d', device)
     
     # Clean up the device file
@@ -175,11 +171,11 @@ def build_disk(image, core_exe, kernel_libraries, files, env):
     generate_image_file(image, size_sectors)
 
     # create partition table
-    print(f"> creating partition table...")
+    print(f"   PARTITIONING")
     create_partition_table(image, partition_offset)
 
     # create file system
-    print(f"> formatting file using {file_system}...")
+    print(f"   FORMATING DISK")
     create_filesystem(image, file_system, offset=partition_offset)
 
     # Create temp directory in the build folder (same directory as the image)
@@ -188,11 +184,10 @@ def build_disk(image, core_exe, kernel_libraries, files, env):
         # mount
         os.makedirs(tempdir, exist_ok=True)
 
-        print(f"> mounting image to {tempdir}...")
         mount_fs(image, tempdir)
 
         # copy kernel core
-        print(f"> copying kernel...")
+        print(f"   CP {os.path.basename(core_exe)}")
         bootdir = os.path.join(tempdir, 'boot')
         sh.sudo.mkdir('-p', bootdir)
         sh.sudo.cp(core_exe, bootdir)
@@ -201,29 +196,28 @@ def build_disk(image, core_exe, kernel_libraries, files, env):
         libdir = os.path.join(tempdir, 'usr', 'lib')
         sh.sudo.mkdir('-p', libdir)
         for library in kernel_libraries:
-            print(f"    ... copying {os.path.basename(library)} to /usr/lib")
+            print(f"   CP {os.path.basename(library)} /usr/lib")
             sh.sudo.cp(library, libdir)
 
         # copy rest of files
         src_root = env['BASEDIR']
-        print(f"> copying files...")
         for file in files:
             file_src = file.srcnode().path
             file_rel = os.path.relpath(file_src, src_root)
             file_dst = os.path.join(tempdir, file_rel)
 
             if os.path.isdir(file_src):
-                print('    ... creating directory', file_rel)
+                print('   MKDIR', file_rel)
                 sh.sudo.mkdir('-p', file_dst)
             else:
-                print('    ... copying', file_rel)
+                print('   CP', file_rel)
                 sh.sudo.cp(file_src, file_dst)
 
         install_grub(tempdir)
 
     finally:
-        print("> cleaning up...")
         try:
+            print(f"   UMOUNT {tempdir}")
             unmount_fs(tempdir)
             # Change ownership of temp directory back to the user before deleting
             # Remove the entire directory tree
@@ -235,9 +229,9 @@ def build_disk(image, core_exe, kernel_libraries, files, env):
     
     # Change ownership of the final image file to the current user
     username=os.getlogin()
-    print(f"> changing ownership of {image} to {username}...")
+    print(f"   CHOWN {username} {image}")
     sh.sudo.chown(f'{username}:{username}', image)
-    print(f"> changing all build files to owned by {username}")
+
     sh.sudo.chown('-R', f'{username}:{username}', 'build/')
 
 
@@ -291,7 +285,7 @@ output_fmt = env["outputFormat"]
 output = f'{env["outputFile"]}.{output_fmt}'
 
 image = env.Command(output, inputs,
-                    action=Action(build_image, 'Creating disk image...'), 
+                    action=Action(build_image, '   CREATING DISK'), 
                     BASEDIR=root.srcnode().path)
 
 Export('image')
