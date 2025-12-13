@@ -17,150 +17,154 @@ static uint8_t *page_bitmap = NULL;
 static uint32_t total_pages = 0;
 static uint32_t allocated_count = 0;
 
-static void bitmap_set(uint32_t page_idx) {
-    uint32_t byte_idx = page_idx / BITS_PER_BYTE;
-    uint32_t bit_idx = page_idx % BITS_PER_BYTE;
-    page_bitmap[byte_idx] |= (1u << bit_idx);
-    allocated_count++;
-}
-
-static void bitmap_clear(uint32_t page_idx) {
-    uint32_t byte_idx = page_idx / BITS_PER_BYTE;
-    uint32_t bit_idx = page_idx % BITS_PER_BYTE;
-    page_bitmap[byte_idx] &= ~(1u << bit_idx);
-    if (allocated_count > 0) allocated_count--;
-}
-
-static bool bitmap_is_set(uint32_t page_idx) {
-    uint32_t byte_idx = page_idx / BITS_PER_BYTE;
-    uint32_t bit_idx = page_idx % BITS_PER_BYTE;
-    return (page_bitmap[byte_idx] & (1u << bit_idx)) != 0;
-}
-
-void pmm_init(uint32_t total_mem_bytes)
+static void bitmap_set(uint32_t page_idx)
 {
-    // Calculate number of pages
-    total_pages = (total_mem_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
-    
-    // Bitmap size in bytes
-    uint32_t bitmap_bytes = (total_pages + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
-    
-    // Allocate bitmap from lower memory (identity-mapped)
-    // For now, use a static buffer to avoid chicken-and-egg
-    // In a real system, you'd place this in a reserved region
-    static uint8_t bitmap_storage[16384]; // max ~131K pages (512 MiB)
-    page_bitmap = bitmap_storage;
-    
-    if (bitmap_bytes > sizeof(bitmap_storage)) {
-        printf("[pmm] WARNING: bitmap too small for %u pages\n", total_pages);
-        total_pages = sizeof(bitmap_storage) * BITS_PER_BYTE;
-    }
-    
-    // Initially all pages are free (bitmap = 0)
-    memset(page_bitmap, 0, bitmap_bytes);
-    allocated_count = 0;
-    
-    // Reserve pages 0-2 MiB for kernel/boot (0x00000 - 0x200000)
-    uint32_t reserved_pages = (2 * 1024 * 1024) / PAGE_SIZE;
-    for (uint32_t i = 0; i < reserved_pages && i < total_pages; ++i) {
-        bitmap_set(i);
-    }
-    
-    printf("[pmm] init: total=%u pages, reserved=%u, free=%u\n",
-           total_pages, reserved_pages, total_pages - allocated_count);
+   uint32_t byte_idx = page_idx / BITS_PER_BYTE;
+   uint32_t bit_idx = page_idx % BITS_PER_BYTE;
+   page_bitmap[byte_idx] |= (1u << bit_idx);
+   allocated_count++;
 }
 
-uint32_t alloc_physical_page(void)
+static void bitmap_clear(uint32_t page_idx)
 {
-    if (!page_bitmap) return 0;
-    
-    // Simple linear search for a free page
-    for (uint32_t i = 0; i < total_pages; ++i) {
-        if (!bitmap_is_set(i)) {
-            bitmap_set(i);
-            return i * PAGE_SIZE;
-        }
-    }
-    
-    printf("[pmm] alloc_physical_page: out of memory\n");
-    return 0;
+   uint32_t byte_idx = page_idx / BITS_PER_BYTE;
+   uint32_t bit_idx = page_idx % BITS_PER_BYTE;
+   page_bitmap[byte_idx] &= ~(1u << bit_idx);
+   if (allocated_count > 0) allocated_count--;
 }
 
-void free_physical_page(uint32_t addr)
+static bool bitmap_is_set(uint32_t page_idx)
 {
-    if (!page_bitmap || (addr % PAGE_SIZE) != 0) return;
-    
-    uint32_t page_idx = addr / PAGE_SIZE;
-    if (page_idx >= total_pages) return;
-    
-    if (bitmap_is_set(page_idx)) {
-        bitmap_clear(page_idx);
-    }
+   uint32_t byte_idx = page_idx / BITS_PER_BYTE;
+   uint32_t bit_idx = page_idx % BITS_PER_BYTE;
+   return (page_bitmap[byte_idx] & (1u << bit_idx)) != 0;
 }
 
-bool is_physical_page_free(uint32_t addr)
+void PMM_Initialize(uint32_t total_mem_bytes)
 {
-    if (!page_bitmap || (addr % PAGE_SIZE) != 0) return false;
-    
-    uint32_t page_idx = addr / PAGE_SIZE;
-    if (page_idx >= total_pages) return false;
-    
-    return !bitmap_is_set(page_idx);
+   // Calculate number of pages
+   total_pages = (total_mem_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
+
+   // Bitmap size in bytes
+   uint32_t bitmap_bytes = (total_pages + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+
+   // Allocate bitmap from lower memory (identity-mapped)
+   // For now, use a static buffer to avoid chicken-and-egg
+   // In a real system, you'd place this in a reserved region
+   static uint8_t bitmap_storage[16384]; // max ~131K pages (512 MiB)
+   page_bitmap = bitmap_storage;
+
+   if (bitmap_bytes > sizeof(bitmap_storage))
+   {
+      printf("[pmm] WARNING: bitmap too small for %u pages\n", total_pages);
+      total_pages = sizeof(bitmap_storage) * BITS_PER_BYTE;
+   }
+
+   // Initially all pages are free (bitmap = 0)
+   memset(page_bitmap, 0, bitmap_bytes);
+   allocated_count = 0;
+
+   // Reserve pages 0-2 MiB for kernel/boot (0x00000 - 0x200000)
+   uint32_t reserved_pages = (2 * 1024 * 1024) / PAGE_SIZE;
+   for (uint32_t i = 0; i < reserved_pages && i < total_pages; ++i)
+   {
+      bitmap_set(i);
+   }
+
+   printf("[pmm] init: total=%u pages, reserved=%u, free=%u\n", total_pages,
+          reserved_pages, total_pages - allocated_count);
 }
 
-uint32_t pmm_total_memory(void)
+uint32_t PMM_AllocatePhysicalPage(void)
 {
-    return total_pages * PAGE_SIZE;
+   if (!page_bitmap) return 0;
+
+   // Simple linear search for a free page
+   for (uint32_t i = 0; i < total_pages; ++i)
+   {
+      if (!bitmap_is_set(i))
+      {
+         bitmap_set(i);
+         return i * PAGE_SIZE;
+      }
+   }
+
+   printf("[pmm] PMM_AllocatePhysicalPage: out of memory\n");
+   return 0;
 }
 
-uint32_t pmm_free_pages(void)
+void PMM_FreePhysicalPage(uint32_t addr)
 {
-    return total_pages - allocated_count;
+   if (!page_bitmap || (addr % PAGE_SIZE) != 0) return;
+
+   uint32_t page_idx = addr / PAGE_SIZE;
+   if (page_idx >= total_pages) return;
+
+   if (bitmap_is_set(page_idx))
+   {
+      bitmap_clear(page_idx);
+   }
 }
 
-uint32_t pmm_allocated_pages(void)
+bool PMM_IsPhysicalPageFree(uint32_t addr)
 {
-    return allocated_count;
+   if (!page_bitmap || (addr % PAGE_SIZE) != 0) return false;
+
+   uint32_t page_idx = addr / PAGE_SIZE;
+   if (page_idx >= total_pages) return false;
+
+   return !bitmap_is_set(page_idx);
 }
+
+uint32_t PMM_TotalMemory(void) { return total_pages * PAGE_SIZE; }
+
+uint32_t PMM_FreePages(void) { return total_pages - allocated_count; }
+
+uint32_t PMM_AllocatedPages(void) { return allocated_count; }
 
 void pmm_self_test(void)
 {
-    printf("[pmm] self-test: starting\n");
-    
-    // Allocate a few pages
-    uint32_t p1 = alloc_physical_page();
-    uint32_t p2 = alloc_physical_page();
-    uint32_t p3 = alloc_physical_page();
-    
-    if (!p1 || !p2 || !p3) {
-        printf("[pmm] self-test: FAIL (alloc returned 0)\n");
-        return;
-    }
-    
-    // Check they're page-aligned and different
-    if ((p1 % PAGE_SIZE) || (p2 % PAGE_SIZE) || (p3 % PAGE_SIZE)) {
-        printf("[pmm] self-test: FAIL (not page-aligned)\n");
-        return;
-    }
-    
-    if (p1 == p2 || p2 == p3 || p1 == p3) {
-        printf("[pmm] self-test: FAIL (pages are same)\n");
-        return;
-    }
-    
-    // Free and check
-    free_physical_page(p2);
-    if (!is_physical_page_free(p2)) {
-        printf("[pmm] self-test: FAIL (free didn't work)\n");
-        return;
-    }
-    
-    // Reallocate should get p2 back
-    uint32_t p2_new = alloc_physical_page();
-    if (p2_new != p2) {
-        printf("[pmm] self-test: FAIL (realloc didn't get same page)\n");
-        return;
-    }
-    
-    printf("[pmm] self-test: PASS (allocated %u, freed, reallocated)\n", p1);
+   printf("[pmm] self-test: starting\n");
+
+   // Allocate a few pages
+   uint32_t p1 = PMM_AllocatePhysicalPage();
+   uint32_t p2 = PMM_AllocatePhysicalPage();
+   uint32_t p3 = PMM_AllocatePhysicalPage();
+
+   if (!p1 || !p2 || !p3)
+   {
+      printf("[pmm] self-test: FAIL (alloc returned 0)\n");
+      return;
+   }
+
+   // Check they're page-aligned and different
+   if ((p1 % PAGE_SIZE) || (p2 % PAGE_SIZE) || (p3 % PAGE_SIZE))
+   {
+      printf("[pmm] self-test: FAIL (not page-aligned)\n");
+      return;
+   }
+
+   if (p1 == p2 || p2 == p3 || p1 == p3)
+   {
+      printf("[pmm] self-test: FAIL (pages are same)\n");
+      return;
+   }
+
+   // Free and check
+   PMM_FreePhysicalPage(p2);
+   if (!PMM_IsPhysicalPageFree(p2))
+   {
+      printf("[pmm] self-test: FAIL (free didn't work)\n");
+      return;
+   }
+
+   // Reallocate should get p2 back
+   uint32_t p2_new = PMM_AllocatePhysicalPage();
+   if (p2_new != p2)
+   {
+      printf("[pmm] self-test: FAIL (realloc didn't get same page)\n");
+      return;
+   }
+
+   printf("[pmm] self-test: PASS (allocated %u, freed, reallocated)\n", p1);
 }

@@ -4,13 +4,13 @@
 #include <drivers/ata.h>
 #include <drivers/fdc.h>
 #include <fs/disk/partition.h>
+#include <mem/memdefs.h>
+#include <mem/memory.h>
 #include <std/ctype.h>
 #include <std/minmax.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
-#include <mem/memdefs.h>
-#include <mem/memory.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
@@ -170,7 +170,7 @@ bool FAT_Initialize(Partition *disk)
    memcpy(g_Data->BS.BootSectorBytes, preloaded_boot, SECTOR_SIZE);
 
    // Debug: print BPB values
-   printf("FAT_Initialize: BPB BytesPerSector=%u, SectorsPerCluster=%u\n",
+   printf("[FAT] BPB BytesPerSector=%u, SectorsPerCluster=%u\n",
           g_Data->BS.BootSector.BytesPerSector,
           g_Data->BS.BootSector.SectorsPerCluster);
 
@@ -178,7 +178,7 @@ bool FAT_Initialize(Partition *disk)
    if (g_Data->BS.BootSector.BytesPerSector == 0 ||
        g_Data->BS.BootSector.SectorsPerCluster == 0)
    {
-      printf("FAT_Initialize: Invalid BPB (BytesPerSector=%u, "
+      printf("[FAT] Invalid BPB (BytesPerSector=%u, "
              "SectorsPerCluster=%u)\n",
              g_Data->BS.BootSector.BytesPerSector,
              g_Data->BS.BootSector.SectorsPerCluster);
@@ -216,9 +216,10 @@ bool FAT_Initialize(Partition *disk)
       g_DataSectionLba = g_Data->BS.BootSector.ReservedSectors +
                          g_SectorsPerFat * g_Data->BS.BootSector.FatCount;
 
-      printf("FAT_Initialize (FAT32): ReservedSectors=%u, SectorsPerFat=%u, FatCount=%u\n",
-             g_Data->BS.BootSector.ReservedSectors, g_SectorsPerFat, g_Data->BS.BootSector.FatCount);
-      printf("FAT_Initialize: g_DataSectionLba=%u\n", g_DataSectionLba);
+      printf("[FAT] ReservedSectors=%u, SectorsPerFat=%u, FatCount=%u\n",
+             g_Data->BS.BootSector.ReservedSectors, g_SectorsPerFat,
+             g_Data->BS.BootSector.FatCount);
+      printf("[FAT] g_DataSectionLba=%u\n", g_DataSectionLba);
 
       // For FAT32 the root directory is a normal cluster chain starting at
       // RootDirectoryCluster. Keep cluster number in
@@ -298,16 +299,13 @@ uint32_t FAT_ClusterToLba(uint32_t cluster)
 {
    uint32_t lba = g_DataSectionLba +
                   (cluster - 2) * g_Data->BS.BootSector.SectorsPerCluster;
-   printf("FAT_ClusterToLba: cluster=%u, g_DataSectionLba=%u, SectorsPerCluster=%u, result=%u\n",
-   cluster, g_DataSectionLba, g_Data->BS.BootSector.SectorsPerCluster, lba);
    return lba;
 }
 
 // Write a FAT entry for the given cluster across all FAT copies and update the
 // in-memory cache if it covers the written sector. Value should be masked to
 // the appropriate width by caller (e.g., EOF marker or 0 for free).
-static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
-                              uint32_t value)
+static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster, uint32_t value)
 {
    uint32_t fatByteOffset;
    if (g_FatType == 12)
@@ -330,10 +328,12 @@ static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
       if (!Partition_ReadSectors(disk, fatSectorLba, 1, fatBuffer))
          return false;
 
-      bool crossBoundary = (g_FatType == 12 && fatByteOffsetInSector == SECTOR_SIZE - 1);
+      bool crossBoundary =
+          (g_FatType == 12 && fatByteOffsetInSector == SECTOR_SIZE - 1);
       if (crossBoundary)
       {
-         if (!Partition_ReadSectors(disk, fatSectorLba + 1, 1, fatBuffer + SECTOR_SIZE))
+         if (!Partition_ReadSectors(disk, fatSectorLba + 1, 1,
+                                    fatBuffer + SECTOR_SIZE))
             return false;
       }
 
@@ -357,8 +357,10 @@ static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
          *entry = (*entry & 0xF0000000) | (value & 0x0FFFFFFF);
          if (cluster >= 9564 && cluster <= 9580)
          {
-            printf("FAT_WriteFatEntry: cluster=%u, oldValue=0x%08x, newValue=0x%08x, LBA=%u, offset=%u\n",
-                   cluster, oldValue, *entry, fatSectorLba, fatByteOffsetInSector);
+            printf("FAT_WriteFatEntry: cluster=%u, oldValue=0x%08x, "
+                   "newValue=0x%08x, LBA=%u, offset=%u\n",
+                   cluster, oldValue, *entry, fatSectorLba,
+                   fatByteOffsetInSector);
          }
       }
 
@@ -367,7 +369,8 @@ static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
 
       if (crossBoundary)
       {
-         if (!Partition_WriteSectors(disk, fatSectorLba + 1, 1, fatBuffer + SECTOR_SIZE))
+         if (!Partition_WriteSectors(disk, fatSectorLba + 1, 1,
+                                     fatBuffer + SECTOR_SIZE))
             return false;
       }
    }
@@ -387,9 +390,10 @@ static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
             // Note: This is unsafe if crossing boundary of the CACHE buffer.
             // But FatCache is 5 sectors. If fatByteOffsetInSector is 511,
             // we access cache[511] and cache[512].
-            // If fatSectorOffset is the last sector of cache, cache[512] is out of bounds.
-            // However, we can just invalidate the cache to be safe and simple.
-            g_Data->FatCachePos = 0xFFFFFFFF; 
+            // If fatSectorOffset is the last sector of cache, cache[512] is out
+            // of bounds. However, we can just invalidate the cache to be safe
+            // and simple.
+            g_Data->FatCachePos = 0xFFFFFFFF;
          }
          else if (g_FatType == 16)
          {
@@ -402,11 +406,10 @@ static bool FAT_WriteFatEntry(Partition *disk, uint32_t cluster,
             *entry = (*entry & 0xF0000000) | (value & 0x0FFFFFFF);
          }
       }
-      
+
       // If we crossed boundary, we might have touched the next sector too.
       // Simpler to just invalidate cache for FAT12 to avoid complexity.
-      if (g_FatType == 12)
-         g_Data->FatCachePos = 0xFFFFFFFF;
+      if (g_FatType == 12) g_Data->FatCachePos = 0xFFFFFFFF;
    }
 
    return true;
@@ -450,15 +453,12 @@ FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry,
       fd->ParentCluster = g_Data->RootDirectory.FirstCluster;
       fd->ParentIsRoot = true;
    }
-   printf("FAT_OpenEntry: Size=%u, FirstClusterLow=0x%x, FirstClusterHigh=0x%x, FirstCluster=0x%x\n",
-          entry->Size, entry->FirstClusterLow, entry->FirstClusterHigh, fd->FirstCluster);
+
    fd->CurrentCluster = fd->FirstCluster;
    fd->CurrentSectorInCluster = 0;
 
-   printf("FAT_OpenEntry: attempting to read cluster %u for handle %d\n", fd->CurrentCluster, handle);
    uint32_t lba = FAT_ClusterToLba(fd->CurrentCluster);
-   printf("FAT_OpenEntry: LBA=%u\n", lba);
-   
+
    if (!Partition_ReadSectors(disk, lba, 1, fd->Buffer))
    {
       printf("FAT: open entry failed - read error cluster=%u lba=%u\n",
@@ -474,7 +474,6 @@ FAT_File *FAT_OpenEntry(Partition *disk, FAT_DirectoryEntry *entry,
       return &fd->Public;
    }
 
-   printf("FAT_OpenEntry: successfully read, Handle=%d\n", handle);
    fd->Opened = true;
    return &fd->Public;
 }
@@ -538,7 +537,9 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
    // For regular files (not directories), don't read empty files
    if (fd->Public.Size == 0 && !fd->Public.IsDirectory)
    {
-      printf("FAT_Read: file is empty (Size=0), returning 0 bytes, IsDirectory=%u\n", fd->Public.IsDirectory);
+      printf("FAT_Read: file is empty (Size=0), returning 0 bytes, "
+             "IsDirectory=%u\n",
+             fd->Public.IsDirectory);
       return 0;
    }
 
@@ -549,7 +550,8 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
    // For root directory in FAT32, limit reading to a reasonable max size
    if (fd->Public.Handle == ROOT_DIRECTORY_HANDLE && g_FatType == 32)
    {
-      // Root dir should not exceed a few clusters, limit to prevent infinite reads
+      // Root dir should not exceed a few clusters, limit to prevent infinite
+      // reads
       uint32_t maxRootSize = 0x1000000; // 16 MiB max (as set in FAT_Initialize)
       if (fd->Public.Position + byteCount > maxRootSize)
       {
@@ -568,8 +570,10 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
       byteCount -= take;
 
       // printf("leftInBuffer=%lu take=%lu\n", leftInBuffer, take);
-      // See if we need to read more data - either when buffer exhausted OR at sector boundary
-      if (leftInBuffer == take || (fd->Public.Position > 0 && fd->Public.Position % SECTOR_SIZE == 0))
+      // See if we need to read more data - either when buffer exhausted OR at
+      // sector boundary
+      if (leftInBuffer == take ||
+          (fd->Public.Position > 0 && fd->Public.Position % SECTOR_SIZE == 0))
       {
          // Prevent infinite loops - safety check
          static uint32_t loop_counter = 0;
@@ -648,7 +652,8 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
                fd->CurrentSectorInCluster = 0;
                uint32_t next = FAT_NextCluster(disk, fd->CurrentCluster);
 
-               // Treat 0 (free) or invalid as EOF to avoid looping into free space
+               // Treat 0 (free) or invalid as EOF to avoid looping into free
+               // space
                if (next < 2)
                {
                   fd->Public.Size = fd->Public.Position;
@@ -688,11 +693,8 @@ uint32_t FAT_Read(Partition *disk, FAT_File *file, uint32_t byteCount,
 bool FAT_ReadEntry(Partition *disk, FAT_File *file,
                    FAT_DirectoryEntry *dirEntry)
 {
-   printf("FAT_ReadEntry: file Handle=%d, Position=%u, Size=%u\n", file->Handle, file->Position, file->Size);
-   uint32_t bytes_read = FAT_Read(disk, file, sizeof(FAT_DirectoryEntry), dirEntry);
-   printf("FAT_ReadEntry: read %u bytes, Name='%s', Attributes=0x%02x, FirstCluster=0x%x\n", 
-          bytes_read, dirEntry->Name, dirEntry->Attributes,
-          dirEntry->FirstClusterLow | ((uint32_t)dirEntry->FirstClusterHigh << 16));
+   uint32_t bytes_read =
+       FAT_Read(disk, file, sizeof(FAT_DirectoryEntry), dirEntry);
    return bytes_read == sizeof(FAT_DirectoryEntry);
 }
 
@@ -712,8 +714,6 @@ void FAT_Close(FAT_File *file)
 bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
                   FAT_DirectoryEntry *entryOut)
 {
-   printf("FAT_FindFile: entry, name='%s'\n", name);
-
    // Reject paths; this helper expects a single 8.3 component
    if (strchr(name, '/'))
    {
@@ -726,27 +726,22 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
    FAT_DirectoryEntry entry;
 
    // Reset directory position to start searching from the beginning
-   printf("FAT_FindFile: calling FAT_Seek\n");
    FAT_Seek(disk, file, 0);
-   printf("FAT_FindFile: FAT_Seek done\n");
 
    // convert from name to fat name
    memset(fatName, ' ', sizeof(fatName));
    fatName[11] = '\0';
 
-   printf("FAT_FindFile: converting name\n");
    const char *ext = strchr(name, '.');
    if (ext == NULL)
       ext = name + strlen(name); // Point to end of string if no extension
 
-   printf("FAT_FindFile: ext found\n");
    // Copy basename (max 8 chars before extension)
    int nameLen = (ext - name > 8) ? 8 : (ext - name);
-   printf("FAT_FindFile: nameLen=%d, looping...\n", nameLen);
+
    for (int i = 0; i < nameLen && name[i] && name[i] != '.'; i++)
       fatName[i] = toupper(name[i]);
 
-   printf("FAT_FindFile: basename done\n");
    // Copy extension (max 3 chars after the dot)
    if (ext != name + strlen(name) && *ext == '.')
    {
@@ -754,15 +749,8 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
          fatName[i + 8] = toupper(ext[i + 1]);
    }
 
-   printf("FAT_FindFile: name conversion done, fatName='%s'\n", fatName);
-   printf("FAT_FindFile: about to read entries\n");
-   printf("FAT_FindFile: file SectorPerCluster at this point=%u\n",
-          g_Data->BS.BootSector.SectorsPerCluster);
-
    while (FAT_ReadEntry(disk, file, &entry))
    {
-      printf("FAT_FindFile: read entry at Position=%u, Name='%s', Attributes=0x%02x\n", 
-             file->Position - 32, entry.Name, entry.Attributes);
       // FAT end marker: empty entry means end of directory
       if (entry.Name[0] == 0x00) break;
 
@@ -774,12 +762,9 @@ bool FAT_FindFile(Partition *disk, FAT_File *file, const char *name,
          uint32_t cluster =
              entry.FirstClusterLow + ((uint32_t)entry.FirstClusterHigh << 16);
          *entryOut = entry;
-         printf("FAT_FindFile: FOUND MATCH for '%s'\n", fatName);
          return true;
       }
    }
-
-   printf("FAT_FindFile: no match found for '%s'\n", fatName);
    return false;
 }
 
@@ -817,11 +802,9 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
       }
 
       // find directory entry in current directory
-      printf("FAT_Open: searching for '%s' in Handle=%d\n", name, current->Handle);
       FAT_DirectoryEntry entry;
       if (FAT_FindFile(disk, current, name, &entry))
       {
-         printf("FAT_Open: found '%s', Attributes=0x%02x, isLast=%d\n", name, entry.Attributes, isLast);
          // Close previous directory (but not root if it's the current one)
          if (previous != NULL && previous->Handle != ROOT_DIRECTORY_HANDLE)
          {
@@ -844,7 +827,6 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
                                         : &g_Data->OpenedFiles[current->Handle];
 
          current = FAT_OpenEntry(disk, &entry, parentData);
-         printf("FAT_Open: opened '%s', new Handle=%d, path next char='%c'\n", name, current->Handle, *path);
       }
       else
       {
@@ -858,8 +840,6 @@ FAT_File *FAT_Open(Partition *disk, const char *path)
          return NULL;
       }
    }
-
-   printf("FAT_Open: returning current Handle=%d\n", current->Handle);
    return current;
 }
 
@@ -869,10 +849,8 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
                           ? &g_Data->RootDirectory
                           : &g_Data->OpenedFiles[file->Handle];
 
-   printf("FAT_Seek: file Handle=%d, position=%u, Size=%u, FirstCluster=%u\n",
-          file->Handle, position, fd->Public.Size, fd->FirstCluster);
-
-   // don't seek past end (but allow seeks in directories since they don't track size)
+   // don't seek past end (but allow seeks in directories since they don't track
+   // size)
    if (!fd->Public.IsDirectory && position > fd->Public.Size) return false;
 
    fd->Public.Position = position;
@@ -880,8 +858,6 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
    // compute cluster/sector for the position
    uint32_t bytesPerSector = g_Data->BS.BootSector.BytesPerSector;
    uint32_t sectorsPerCluster = g_Data->BS.BootSector.SectorsPerCluster;
-
-   printf("FAT_Seek: bytesPerSector=%u, sectorsPerCluster=%u\n", bytesPerSector, sectorsPerCluster);
 
    // Guard against divide-by-zero from invalid FAT parameters
    if (bytesPerSector == 0 || sectorsPerCluster == 0)
@@ -971,9 +947,6 @@ bool FAT_Seek(Partition *disk, FAT_File *file, uint32_t position)
       fd->CurrentCluster = c;
       fd->CurrentSectorInCluster = sectorInCluster;
 
-      printf("FAT_Seek: positioned at cluster=%u, sectorInCluster=%u for position=%u\n",
-             fd->CurrentCluster, fd->CurrentSectorInCluster, position);
-
       if (!Partition_ReadSectors(disk,
                                  FAT_ClusterToLba(fd->CurrentCluster) +
                                      fd->CurrentSectorInCluster,
@@ -1037,9 +1010,11 @@ bool FAT_WriteEntry(Partition *disk, FAT_File *file,
 
    memcpy(&sectorBuffer[offsetInSector], dirEntry, sizeof(FAT_DirectoryEntry));
 
-   printf("FAT_WriteEntry: writing entry '%s' at LBA=%u, offset=%u, cluster=0x%x\n",
+   printf("FAT_WriteEntry: writing entry '%s' at LBA=%u, offset=%u, "
+          "cluster=0x%x\n",
           dirEntry->Name, sectorLba, offsetInSector,
-          dirEntry->FirstClusterLow | ((uint32_t)dirEntry->FirstClusterHigh << 16));
+          dirEntry->FirstClusterLow |
+              ((uint32_t)dirEntry->FirstClusterHigh << 16));
 
    if (!Partition_WriteSectors(disk, sectorLba, 1, sectorBuffer))
    {
@@ -1091,7 +1066,8 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
       return 0;
    }
 
-   // If writing to a newly created empty file, clear the buffer to avoid stale data
+   // If writing to a newly created empty file, clear the buffer to avoid stale
+   // data
    if (fd->Public.Size == 0 && fd->Public.Position == 0)
    {
       printf("FAT_Write: clearing buffer for newly created file\n");
@@ -1101,8 +1077,10 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
    const uint8_t *u8DataIn = (const uint8_t *)dataIn;
    uint32_t bytesWritten = 0;
 
-   printf("FAT_Write: START - Position=%u, Size=%u, CurrentCluster=%u, CurrentSectorInCluster=%u, writing %u bytes\n",
-          fd->Public.Position, fd->Public.Size, fd->CurrentCluster, fd->CurrentSectorInCluster, byteCount);
+   printf("FAT_Write: START - Position=%u, Size=%u, CurrentCluster=%u, "
+          "CurrentSectorInCluster=%u, writing %u bytes\n",
+          fd->Public.Position, fd->Public.Size, fd->CurrentCluster,
+          fd->CurrentSectorInCluster, byteCount);
 
    while (byteCount > 0)
    {
@@ -1127,12 +1105,14 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
       // Write sector back to disk if we've filled it or reached end of request
       if (offsetInSector + take == SECTOR_SIZE || byteCount == 0)
       {
-         uint32_t sectorLba = FAT_ClusterToLba(fd->CurrentCluster) +
-                              fd->CurrentSectorInCluster;
+         uint32_t sectorLba =
+             FAT_ClusterToLba(fd->CurrentCluster) + fd->CurrentSectorInCluster;
 
          // Debug each sector write
-         printf("FAT_Write: pos=%u, writing %u bytes to cluster=%u, sectorInCluster=%u (LBA=%u)\n",
-                fd->Public.Position - take, take, fd->CurrentCluster, fd->CurrentSectorInCluster, sectorLba);
+         printf("FAT_Write: pos=%u, writing %u bytes to cluster=%u, "
+                "sectorInCluster=%u (LBA=%u)\n",
+                fd->Public.Position - take, take, fd->CurrentCluster,
+                fd->CurrentSectorInCluster, sectorLba);
 
          if (!Partition_WriteSectors(disk, sectorLba, 1, fd->Buffer))
          {
@@ -1141,18 +1121,20 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
          }
 
          // If we filled a complete sector, advance to next sector/cluster
-         // This ensures fd->CurrentCluster/CurrentSectorInCluster are positioned
-         // correctly for the next write call
+         // This ensures fd->CurrentCluster/CurrentSectorInCluster are
+         // positioned correctly for the next write call
          bool needAdvance = (offsetInSector + take == SECTOR_SIZE);
-         
-         // If we're done with this request and didn't fill the sector, we're good
+
+         // If we're done with this request and didn't fill the sector, we're
+         // good
          if (byteCount == 0 && !needAdvance)
          {
             break;
          }
 
          // Advance to next sector/cluster if we filled the sector
-         if (needAdvance && ++fd->CurrentSectorInCluster >= g_Data->BS.BootSector.SectorsPerCluster)
+         if (needAdvance && ++fd->CurrentSectorInCluster >=
+                                g_Data->BS.BootSector.SectorsPerCluster)
          {
             fd->CurrentSectorInCluster = 0;
 
@@ -1195,7 +1177,8 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                if (!FAT_WriteFatEntry(disk, fd->CurrentCluster, newCluster) ||
                    !FAT_WriteFatEntry(disk, newCluster, eofVal))
                {
-                  printf("FAT_Write: FAT write error linking/marking cluster\n");
+                  printf(
+                      "FAT_Write: FAT write error linking/marking cluster\n");
                   return bytesWritten;
                }
 
@@ -1203,8 +1186,10 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                uint32_t verify = FAT_NextCluster(disk, newCluster);
                if (verify != eofVal)
                {
-                  printf("FAT_Write: ERROR: linked %u->%u, marked %u as EOF (0x%08x), but verify=0x%08x\n",
-                         fd->CurrentCluster, newCluster, newCluster, eofVal, verify);
+                  printf("FAT_Write: ERROR: linked %u->%u, marked %u as EOF "
+                         "(0x%08x), but verify=0x%08x\n",
+                         fd->CurrentCluster, newCluster, newCluster, eofVal,
+                         verify);
                }
 
                // Update current cluster and read it
@@ -1241,7 +1226,7 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
                return bytesWritten;
             }
          }
-         
+
          // If we advanced and no more data to write, we're done
          if (byteCount == 0)
          {
@@ -1253,13 +1238,16 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
    // Don't call FAT_Seek here - the write function already maintains correct
    // position, and seeking would fail if the chain isn't long enough yet
    // (which is normal when appending data in multiple write calls).
-   
+
    // Verify the cluster chain integrity
    uint32_t chainLength = 0;
    uint32_t testCluster = fd->FirstCluster;
-   uint32_t eofMarker = (g_FatType == 12) ? 0xFF8 : (g_FatType == 16) ? 0xFFF8 : 0x0FFFFFF8;
-   
-   printf("FAT_Write: verifying cluster chain starting from %u:\n", testCluster);
+   uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
+                        : (g_FatType == 16) ? 0xFFF8
+                                            : 0x0FFFFFF8;
+
+   printf("FAT_Write: verifying cluster chain starting from %u:\n",
+          testCluster);
    while (testCluster < eofMarker && chainLength < 100)
    {
       uint32_t next = FAT_NextCluster(disk, testCluster);
@@ -1271,15 +1259,17 @@ uint32_t FAT_Write(Partition *disk, FAT_File *file, uint32_t byteCount,
       }
       testCluster = next;
       chainLength++;
-      
+
       if (next < 2)
       {
-         printf("FAT_Write: ERROR - chain broken at cluster %u (next=%u)\n", testCluster, next);
+         printf("FAT_Write: ERROR - chain broken at cluster %u (next=%u)\n",
+                testCluster, next);
          break;
       }
    }
-   printf("FAT_Write: chain length = %u clusters = %u bytes (expected %u bytes)\n",
-          chainLength, chainLength * 512, fd->Public.Size);
+   printf(
+       "FAT_Write: chain length = %u clusters = %u bytes (expected %u bytes)\n",
+       chainLength, chainLength * 512, fd->Public.Size);
 
    printf("FAT_Write: wrote %u bytes, file now %u bytes\n", bytesWritten,
           fd->Public.Size);
@@ -1323,16 +1313,18 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
    if (parentIsRoot && g_FatType != 32)
    {
       // Legacy FAT12/16 fixed root directory
-      for (uint32_t s = 0; s < g_RootDirSectors && sectorsScanned < maxSectorsToScan; s++, sectorsScanned++)
+      for (uint32_t s = 0;
+           s < g_RootDirSectors && sectorsScanned < maxSectorsToScan;
+           s++, sectorsScanned++)
       {
          uint8_t sectorBuffer[SECTOR_SIZE];
          uint32_t lba = g_RootDirLba + s;
-         if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer))
-            return false;
+         if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer)) return false;
 
          for (uint32_t i = 0; i < SECTOR_SIZE; i += sizeof(FAT_DirectoryEntry))
          {
-            FAT_DirectoryEntry *entry = (FAT_DirectoryEntry *)(sectorBuffer + i);
+            FAT_DirectoryEntry *entry =
+                (FAT_DirectoryEntry *)(sectorBuffer + i);
             if ((entry->Attributes & 0x0F) == 0x0F || entry->Name[0] == 0x00)
                continue;
             if (memcmp(entry->Name, fd->Public.Name, 11) == 0)
@@ -1352,21 +1344,25 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
       // Cluster-based directory (FAT32 root or any subdirectory)
       uint32_t cluster = parentCluster;
       uint32_t eofMarker = (g_FatType == 12)   ? 0xFF8
-                  : (g_FatType == 16) ? 0xFFF8
-                             : 0x0FFFFFF8;
+                           : (g_FatType == 16) ? 0xFFF8
+                                               : 0x0FFFFFF8;
 
       while (cluster < eofMarker && sectorsScanned < maxSectorsToScan)
       {
-         for (uint32_t sec = 0; sec < g_Data->BS.BootSector.SectorsPerCluster && sectorsScanned < maxSectorsToScan; sec++, sectorsScanned++)
+         for (uint32_t sec = 0; sec < g_Data->BS.BootSector.SectorsPerCluster &&
+                                sectorsScanned < maxSectorsToScan;
+              sec++, sectorsScanned++)
          {
             uint8_t sectorBuffer[SECTOR_SIZE];
             uint32_t lba = FAT_ClusterToLba(cluster) + sec;
             if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer))
                return false;
 
-            for (uint32_t i = 0; i < SECTOR_SIZE; i += sizeof(FAT_DirectoryEntry))
+            for (uint32_t i = 0; i < SECTOR_SIZE;
+                 i += sizeof(FAT_DirectoryEntry))
             {
-               FAT_DirectoryEntry *entry = (FAT_DirectoryEntry *)(sectorBuffer + i);
+               FAT_DirectoryEntry *entry =
+                   (FAT_DirectoryEntry *)(sectorBuffer + i);
                if ((entry->Attributes & 0x0F) == 0x0F || entry->Name[0] == 0x00)
                   continue;
                if (memcmp(entry->Name, fd->Public.Name, 11) == 0)
@@ -1375,8 +1371,10 @@ bool FAT_UpdateEntry(Partition *disk, FAT_File *file)
                   updated.Size = fd->Public.Size;
                   updated.FirstClusterLow = fd->FirstCluster & 0xFFFF;
                   updated.FirstClusterHigh = (fd->FirstCluster >> 16) & 0xFFFF;
-                  memcpy(sectorBuffer + i, &updated, sizeof(FAT_DirectoryEntry));
-                  printf("FAT_UpdateEntry: updating entry, Size=%u, FirstCluster=0x%x at LBA=%u\n",
+                  memcpy(sectorBuffer + i, &updated,
+                         sizeof(FAT_DirectoryEntry));
+                  printf("FAT_UpdateEntry: updating entry, Size=%u, "
+                         "FirstCluster=0x%x at LBA=%u\n",
                          updated.Size, fd->FirstCluster, lba);
                   return Partition_WriteSectors(disk, lba, 1, sectorBuffer);
                }
@@ -1550,9 +1548,10 @@ FAT_File *FAT_Create(Partition *disk, const char *path)
          }
 
          // Open the file (with parent context)
-         FAT_FileData *parentData = (parentFile->Handle == ROOT_DIRECTORY_HANDLE)
-                                        ? &g_Data->RootDirectory
-                                        : &g_Data->OpenedFiles[parentFile->Handle];
+         FAT_FileData *parentData =
+             (parentFile->Handle == ROOT_DIRECTORY_HANDLE)
+                 ? &g_Data->RootDirectory
+                 : &g_Data->OpenedFiles[parentFile->Handle];
          FAT_File *file = FAT_OpenEntry(disk, &newEntry, parentData);
          printf("FAT_Create: created file '%s' at cluster %u, opened: %s\n",
                 baseName, firstFreeCluster, file ? "yes" : "no");
@@ -1601,9 +1600,8 @@ bool FAT_Delete(Partition *disk, const char *name)
       return false;
    }
 
-   FAT_File *parentDir = (parentPath[0] == '\0')
-                             ? &g_Data->RootDirectory.Public
-                             : FAT_Open(disk, parentPath);
+   FAT_File *parentDir = (parentPath[0] == '\0') ? &g_Data->RootDirectory.Public
+                                                 : FAT_Open(disk, parentPath);
    if (!parentDir || !parentDir->IsDirectory)
    {
       printf("FAT_Delete: parent directory '%s' not found\n", parentPath);
@@ -1624,10 +1622,9 @@ bool FAT_Delete(Partition *disk, const char *name)
    // If it's a directory, delete its contents best-effort
    if (entry.Attributes & FAT_ATTRIBUTE_DIRECTORY)
    {
-      FAT_FileData *parentData =
-          (parentDir->Handle == ROOT_DIRECTORY_HANDLE)
-              ? &g_Data->RootDirectory
-              : &g_Data->OpenedFiles[parentDir->Handle];
+      FAT_FileData *parentData = (parentDir->Handle == ROOT_DIRECTORY_HANDLE)
+                                     ? &g_Data->RootDirectory
+                                     : &g_Data->OpenedFiles[parentDir->Handle];
 
       FAT_File *dir = FAT_OpenEntry(disk, &entry, parentData);
       if (dir)
@@ -1635,8 +1632,8 @@ bool FAT_Delete(Partition *disk, const char *name)
          FAT_DirectoryEntry subEntry;
          while (FAT_ReadEntry(disk, dir, &subEntry))
          {
-            if ((subEntry.Attributes & 0x0F) == 0x0F || subEntry.Name[0] == 0x00 ||
-                (uint8_t)subEntry.Name[0] == 0xE5)
+            if ((subEntry.Attributes & 0x0F) == 0x0F ||
+                subEntry.Name[0] == 0x00 || (uint8_t)subEntry.Name[0] == 0xE5)
                continue;
 
             if ((subEntry.Name[0] == '.' && subEntry.Name[1] == ' ') ||
@@ -1668,10 +1665,11 @@ bool FAT_Delete(Partition *disk, const char *name)
    }
 
    int clusterCount = 0;
-   if (currentCluster >= 2 && currentCluster < eofMarker && currentCluster < largeClusterThreshold)
+   if (currentCluster >= 2 && currentCluster < eofMarker &&
+       currentCluster < largeClusterThreshold)
    {
-      while (currentCluster < eofMarker && currentCluster < largeClusterThreshold &&
-             clusterCount < 10000)
+      while (currentCluster < eofMarker &&
+             currentCluster < largeClusterThreshold && clusterCount < 10000)
       {
          clusterCount++;
 
@@ -1680,16 +1678,17 @@ bool FAT_Delete(Partition *disk, const char *name)
          uint32_t clusterLba = FAT_ClusterToLba(currentCluster);
          uint8_t zeroBuffer[SECTOR_SIZE];
          memset(zeroBuffer, 0, SECTOR_SIZE);
-         
+
          for (uint32_t s = 0; s < sectorsPerCluster; s++)
          {
-             Partition_WriteSectors(disk, clusterLba + s, 1, zeroBuffer);
+            Partition_WriteSectors(disk, clusterLba + s, 1, zeroBuffer);
          }
 
          uint32_t nextCluster = FAT_NextCluster(disk, currentCluster);
          if (!FAT_WriteFatEntry(disk, currentCluster, 0))
          {
-            printf("FAT_Delete: FAT write error freeing cluster %u\n", currentCluster);
+            printf("FAT_Delete: FAT write error freeing cluster %u\n",
+                   currentCluster);
             break;
          }
 
@@ -1710,7 +1709,8 @@ bool FAT_Delete(Partition *disk, const char *name)
          uint8_t sectorBuffer[SECTOR_SIZE];
          uint32_t lba = g_RootDirLba + s;
          if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer)) continue;
-         for (uint32_t off = 0; off < SECTOR_SIZE; off += sizeof(FAT_DirectoryEntry))
+         for (uint32_t off = 0; off < SECTOR_SIZE;
+              off += sizeof(FAT_DirectoryEntry))
          {
             FAT_DirectoryEntry *e = (FAT_DirectoryEntry *)(sectorBuffer + off);
             if ((e->Attributes & 0x0F) == 0x0F) continue;
@@ -1729,8 +1729,8 @@ bool FAT_Delete(Partition *disk, const char *name)
    {
       uint32_t cluster = parentData->FirstCluster;
       uint32_t eofMarkerDel = (g_FatType == 12)   ? 0xFF8
-                            : (g_FatType == 16) ? 0xFFF8
-                                                : 0x0FFFFFF8;
+                              : (g_FatType == 16) ? 0xFFF8
+                                                  : 0x0FFFFFF8;
       uint32_t scanned = 0;
       while (cluster < eofMarkerDel && scanned < 10000)
       {
@@ -1739,9 +1739,11 @@ bool FAT_Delete(Partition *disk, const char *name)
             uint8_t sectorBuffer[SECTOR_SIZE];
             uint32_t lba = FAT_ClusterToLba(cluster) + sec;
             if (!Partition_ReadSectors(disk, lba, 1, sectorBuffer)) continue;
-            for (uint32_t off = 0; off < SECTOR_SIZE; off += sizeof(FAT_DirectoryEntry))
+            for (uint32_t off = 0; off < SECTOR_SIZE;
+                 off += sizeof(FAT_DirectoryEntry))
             {
-               FAT_DirectoryEntry *e = (FAT_DirectoryEntry *)(sectorBuffer + off);
+               FAT_DirectoryEntry *e =
+                   (FAT_DirectoryEntry *)(sectorBuffer + off);
                if ((e->Attributes & 0x0F) == 0x0F) continue;
                if (e->Name[0] == 0x00) break;
                if (memcmp(e->Name, entry.Name, 11) == 0)
@@ -1764,7 +1766,8 @@ bool FAT_Delete(Partition *disk, const char *name)
 
 bool FAT_Truncate(Partition *disk, FAT_File *file)
 {
-   printf("FAT_Truncate: called, file=%p, Handle=%d\n", file, file ? file->Handle : -999);
+   printf("FAT_Truncate: called, file=%p, Handle=%d\n", file,
+          file ? file->Handle : -999);
    if (!file || file->Handle == ROOT_DIRECTORY_HANDLE) return false;
 
    if (file->Handle < 0 || file->Handle >= MAX_FILE_HANDLES) return false;
@@ -1807,19 +1810,23 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
    uint8_t fatBuffer[SECTOR_SIZE];
    int clusterCount = 0;
 
-   printf("FAT_Truncate: starting cluster chain cleanup, FirstCluster=%u, g_FatType=%u\n", 
+   printf("FAT_Truncate: starting cluster chain cleanup, FirstCluster=%u, "
+          "g_FatType=%u\n",
           fd->FirstCluster, g_FatType);
    printf("FAT_Truncate: eofMarker=%u (0x%x)\n", eofMarker, eofMarker);
 
    // Get the next cluster BEFORE freeing anything
    uint32_t nextCluster = FAT_NextCluster(disk, currentCluster);
-   printf("FAT_Truncate: FirstCluster nextCluster=%u, eofMarker=%u\n", nextCluster, eofMarker);
+   printf("FAT_Truncate: FirstCluster nextCluster=%u, eofMarker=%u\n",
+          nextCluster, eofMarker);
 
-   // Free all clusters EXCEPT the first one (we want to keep that for potential writes)
+   // Free all clusters EXCEPT the first one (we want to keep that for potential
+   // writes)
    if (nextCluster < eofMarker)
    {
       currentCluster = nextCluster;
-      while (currentCluster >= 2 && currentCluster < eofMarker && clusterCount < 5000)
+      while (currentCluster >= 2 && currentCluster < eofMarker &&
+             clusterCount < 5000)
       {
          printf("FAT_Truncate: freeing cluster %u\n", currentCluster);
          clusterCount++;
@@ -1827,7 +1834,8 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
          uint32_t tempNextCluster = FAT_NextCluster(disk, currentCluster);
          if (!FAT_WriteFatEntry(disk, currentCluster, 0))
          {
-            printf("FAT_Truncate: FAT write error freeing cluster %u\n", currentCluster);
+            printf("FAT_Truncate: FAT write error freeing cluster %u\n",
+                   currentCluster);
             return false;
          }
 
@@ -1846,7 +1854,8 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
       return false;
    }
 
-   // Reset file position and size, but keep FirstCluster and CurrentCluster intact
+   // Reset file position and size, but keep FirstCluster and CurrentCluster
+   // intact
    fd->Public.Position = 0;
    fd->Public.Size = 0;
    fd->CurrentSectorInCluster = 0;
@@ -1854,7 +1863,8 @@ bool FAT_Truncate(Partition *disk, FAT_File *file)
    memset(fd->Buffer, 0, SECTOR_SIZE);
 
    // Read the first cluster into buffer for potential writes
-   if (!Partition_ReadSectors(disk, FAT_ClusterToLba(fd->FirstCluster), 1, fd->Buffer))
+   if (!Partition_ReadSectors(disk, FAT_ClusterToLba(fd->FirstCluster), 1,
+                              fd->Buffer))
    {
       printf("FAT_Truncate: failed to read first cluster into buffer\n");
       return false;

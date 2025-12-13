@@ -2,8 +2,8 @@
 
 #include "irq.h"
 #include "i8259.h"
-#include <arch/i686/io/io.h>
 #include "pic.h"
+#include <arch/i686/io/io.h>
 #include <display/keyboard.h>
 #include <std/arrays.h>
 #include <std/stdio.h>
@@ -34,9 +34,7 @@ void i686_IRQ_Handler(Registers *regs)
 
 void i686_IRQ_Initialize()
 {
-#ifdef DEBUG
-   printf("IRQ initialized...\n");
-#endif
+   printf("[IRQ] initialized\n");
    const PICDriver *drivers[] = {
        i8259_GetDriver(),
    };

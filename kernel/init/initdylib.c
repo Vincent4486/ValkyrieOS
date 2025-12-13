@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <fs/disk/partition.h>
+#include <mem/memdefs.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <sys/dylib.h>
-#include <mem/memdefs.h>
 
 static int load_libmath(Partition *partition)
 {

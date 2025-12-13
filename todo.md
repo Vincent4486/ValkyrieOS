@@ -7,7 +7,7 @@
 - [x] Heap management (brk/sbrk syscalls for malloc)
 - [ ] Stack management (per-process user stacks)
 - [ ] Memory protection (read/write/execute permissions)
-- [ ] Page tables and MMU setup
+- [x] Page tables and MMU setup
 
 ### Process Management
 - [x] Process Control Block (PCB) structure

@@ -4,8 +4,8 @@
 #pragma once
 
 #include <fs/disk/disk.h>
-#include <fs/fat/fat.h>
 #include <fs/disk/partition.h>
+#include <fs/fat/fat.h>
 #include <stdbool.h>
 #include <stdint.h>
 

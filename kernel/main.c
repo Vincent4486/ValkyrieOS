@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <arch/i686/cpu/irq.h>
+#include <arch/i686/mem/paging.h>
+#include <arch/i686/syscall/syscall_dispatch.h>
+#include <cpu/process.h>
 #include <drivers/ata.h>
 #include <fs/disk/disk.h>
-#include <fs/fat/fat.h>
 #include <fs/disk/partition.h>
+#include <fs/fat/fat.h>
 #include <init/init.h>
-#include <arch/i686/mem/paging.h>
+#include <mem/heap.h>
+#include <mem/memory.h>
+#include <mem/pmm.h>
+#include <mem/vmm.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
-#include <mem/memory.h>
-#include <mem/heap.h>
-#include <mem/pmm.h>
-#include <mem/vmm.h>
 
 #include <display/startscreen.h>
 #include <libmath/math.h>
@@ -62,21 +64,23 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    // Init system
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
-   heap_init();
+   Heap_Initialize();
    heap_self_test();
-   paging_init();
+   Paging_Initialize();
    paging_self_test();
-   
+
    // Initialize physical and virtual memory managers
-   pmm_init(256 * 1024 * 1024); // 256 MiB
+   PMM_Initialize(256 * 1024 * 1024); // 256 MiB
    pmm_self_test();
-   vmm_init();
+   VMM_Initialize();
    vmm_self_test();
-   
+   process_self_test();
+
    HAL_Initialize();
    set_iopl_level_3();
 
    i686_IRQ_RegisterHandler(0, timer);
+   i686_IRQ_RegisterHandler(0x80, (void *)i686_syscall_handler);
 
    DISK disk;
    Partition partition;
@@ -92,7 +96,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
-	 
+
 end:
    for (;;);
 }

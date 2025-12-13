@@ -49,7 +49,5 @@ void i686_IDT_DisableGate(int interrupt)
 void i686_IDT_Initialize()
 {
    i686_IDT_Load(&g_IDTDescriptor);
-#ifdef DEBUG
-   printf("IDT initialized...\n");
-#endif
+   printf("[IDT] initialized\n");
 }

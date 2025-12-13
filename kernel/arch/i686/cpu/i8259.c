@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <arch/i686/io/io.h>
 #include "pic.h"
+#include <arch/i686/io/io.h>
 #include <stdbool.h>
 
 #define PIC1_COMMAND_PORT 0x20

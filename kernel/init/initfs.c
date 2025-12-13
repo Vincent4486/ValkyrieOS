@@ -2,10 +2,10 @@
 
 #include "init.h"
 #include <fs/disk/disk.h>
-#include <fs/fat/fat.h>
 #include <fs/disk/partition.h>
-#include <stdint.h>
+#include <fs/fat/fat.h>
 #include <mem/memdefs.h>
+#include <stdint.h>
 
 /**
  * Initialize storage system: disk detection, partition detection, and FAT

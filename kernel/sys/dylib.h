@@ -6,8 +6,8 @@
 #pragma once
 
 #include <fs/disk/partition.h>
-#include <stdint.h>
 #include <mem/memdefs.h>
+#include <stdint.h>
 
 // Maximum dependencies per library
 #define DYLIB_MAX_DEPS 16

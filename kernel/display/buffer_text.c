@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "buffer_text.h"
+#include <mem/memory.h>
 #include <std/stdio.h>
+#include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <std/string.h>
-#include <mem/memory.h>
 
 #define BUFFER_LINES 2048
 #define BUFFER_BASE_ADDR 0x00800000
@@ -285,8 +285,7 @@ void buffer_putc(char c)
          int len_prev = 0, len_curr = 0;
          while (len_prev < SCREEN_WIDTH && s_buffer[prev_idx][len_prev])
             len_prev++;
-         while (len_curr < SCREEN_WIDTH && s_buffer[idx][len_curr])
-            len_curr++;
+         while (len_curr < SCREEN_WIDTH && s_buffer[idx][len_curr]) len_curr++;
          int orig_prev_len = len_prev;
          int can_move = SCREEN_WIDTH - len_prev;
          int move = (len_curr < can_move) ? len_curr : can_move;
@@ -326,7 +325,8 @@ void buffer_putc(char c)
          {
             s_cursor_x = 0;
          }
-         mark_visible_range_from_row(prev_cursor_row > 0 ? prev_cursor_row - 1 : 0);
+         mark_visible_range_from_row(prev_cursor_row > 0 ? prev_cursor_row - 1
+                                                         : 0);
          mark_row_dirty(s_cursor_y);
          goto repaint;
       }
@@ -360,8 +360,7 @@ void buffer_putc(char c)
             push_newline_at_tail();
          }
          uint32_t next_idx = (s_head + rel_pos + 1) % BUFFER_LINES;
-         memmove(&s_buffer[next_idx][1], s_buffer[next_idx],
-                 SCREEN_WIDTH - 1);
+         memmove(&s_buffer[next_idx][1], s_buffer[next_idx], SCREEN_WIDTH - 1);
          s_buffer[next_idx][0] = last;
          memmove(&s_buffer[idx][s_cursor_x + 1], &s_buffer[idx][s_cursor_x],
                  SCREEN_WIDTH - 1 - s_cursor_x);
@@ -389,8 +388,7 @@ repaint:
 
 static void finalize_putc_repaint(int prev_visible_start)
 {
-   if (compute_visible_start() != prev_visible_start)
-      mark_all_rows_dirty();
+   if (compute_visible_start() != prev_visible_start) mark_all_rows_dirty();
    buffer_repaint();
 }
 

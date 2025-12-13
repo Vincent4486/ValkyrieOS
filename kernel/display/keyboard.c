@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "keyboard.h"
-#include <arch/i686/io/io.h>
 #include <arch/i686/cpu/irq.h>
+#include <arch/i686/io/io.h>
 #include <display/buffer_text.h>
 #include <std/stdio.h> // for putc/printf
 

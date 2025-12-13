@@ -119,22 +119,30 @@ int strcmp(const char *a, const char *b)
    return (*a < *b) ? -1 : 1;
 }
 
-char *strrchr(const char *s, int c) {
-    const char *last_occurrence = NULL; // Pointer to store the last found position
-    char search_char = (char)c;         // Convert int c to char
+char *strrchr(const char *s, int c)
+{
+   const char *last_occurrence =
+       NULL;                   // Pointer to store the last found position
+   char search_char = (char)c; // Convert int c to char
 
-    // Iterate through the string until the null terminator is reached
-    while (*s != '\0') {
-        if (*s == search_char) {
-            last_occurrence = s; // Update last_occurrence if the character is found
-        }
-        s++; // Move to the next character in the string
-    }
+   // Iterate through the string until the null terminator is reached
+   while (*s != '\0')
+   {
+      if (*s == search_char)
+      {
+         last_occurrence =
+             s; // Update last_occurrence if the character is found
+      }
+      s++; // Move to the next character in the string
+   }
 
-    // After the loop, check if the character was the null terminator itself
-    if (search_char == '\0') {
-        last_occurrence = s; // If searching for null, its last occurrence is at the end
-    }
+   // After the loop, check if the character was the null terminator itself
+   if (search_char == '\0')
+   {
+      last_occurrence =
+          s; // If searching for null, its last occurrence is at the end
+   }
 
-    return (char *)last_occurrence; // Return the pointer to the last occurrence (or NULL)
+   return (char *)
+       last_occurrence; // Return the pointer to the last occurrence (or NULL)
 }

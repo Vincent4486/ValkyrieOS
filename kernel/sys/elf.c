@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "elf.h"
-#include <std/stdio.h>
-#include <std/string.h>
 #include <mem/memdefs.h>
 #include <mem/memory.h>
+#include <std/stdio.h>
+#include <std/string.h>
 
 #define EI_MAG0 0
 #define EI_MAG1 1

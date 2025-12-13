@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
+#include <cpu/process.h>
 #include <stddef.h>
 #include <stdint.h>
 
+/* Per-process heap management */
+int Heap_ProcessInitialize(Process *proc, uint32_t heap_start_va);
+int Heap_ProcessBrk(Process *proc, void *addr);
+void *Heap_ProcessSbrk(Process *proc, intptr_t inc);
+
 /* Heap / allocator initialization */
-void heap_init(void);
+void Heap_Initialize(void);
 
 /* Core allocators */
 void *kmalloc(size_t size);
