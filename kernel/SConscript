@@ -35,9 +35,10 @@ env.Append(
     ],
     CPATH = [ src_dir, '#include' ],
     CPPPATH = [ src_dir, '#include' ],
-    # Include source directory for assembly files (nasm -I flag for include paths)
+    # Include source directory for assembly files (GNU AS -I flag for include paths)
     # Use list format so each item becomes a separate argument
-    ASFLAGS = [ '-I', os.path.join(src_dir, 'arch', TARGET_ENVIRONMENT['arch']) + '/', '-f', 'elf' ]
+    # Note: -m32 from CCFLAGS already handles 32-bit mode, so we don't need --32
+    ASFLAGS = [ '-I', os.path.join(src_dir, 'arch', TARGET_ENVIRONMENT['arch']), '-g' ]
 )
 
 # Glob files directly from the source directory using os.walk
@@ -47,7 +48,8 @@ for root, dirs, files in os.walk(src_dir):
     for file in files:
         full_path = os.path.join(root, file)
         # Include C, C++, assembly and Rust source files
-        if file.endswith(('.c', '.cpp', '.asm')):
+        # Support both .S (preprocessed GNU AS) and .asm (legacy NASM) during transition
+        if file.endswith(('.c', '.cpp', '.S')):
             # Make path relative to src_dir so SCons puts objects in build dir
             rel_path = os.path.relpath(full_path, src_dir)
             # Use File() with the relative path - SCons will resolve it relative to variant_dir

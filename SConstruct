@@ -52,7 +52,6 @@ DEPS = {
 
 HOST_ENVIRONMENT = Environment(variables=VARS,
     ENV = os.environ,
-    AS = 'nasm',
     CFLAGS = ['-std=c99'],
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
@@ -68,19 +67,6 @@ if HOST_ENVIRONMENT['config'] == 'debug':
 else:
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3', '-DRELEASE'])
 
-HOST_ENVIRONMENT.Replace(ASCOMSTR        = "Assembling [$SOURCE]",
-                         CCCOMSTR        = "Compiling  [$SOURCE]",
-                         CXXCOMSTR       = "Compiling  [$SOURCE]",
-                         FORTRANPPCOMSTR = "Compiling  [$SOURCE]",
-                         FORTRANCOMSTR   = "Compiling  [$SOURCE]",
-                         SHCCCOMSTR      = "Compiling  [$SOURCE]",
-                         SHCXXCOMSTR     = "Compiling  [$SOURCE]",
-                         LINKCOMSTR      = "Linking    [$TARGET]",
-                         SHLINKCOMSTR    = "Linking    [$TARGET]",
-                         INSTALLSTR      = "Installing [$TARGET]",
-                         ARCOMSTR        = "Archiving  [$TARGET]",
-                         RANLIBCOMSTR    = "Ranlib     [$TARGET]")
-
 #
 # ***  Target environment ***
 #
@@ -94,6 +80,7 @@ toolchainBin = Path(toolchainDir, 'bin')
 toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', platform_prefix.removesuffix('-'), DEPS['gcc'])
 
 TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
+    AS = f'{platform_prefix}as',
     AR = f'{platform_prefix}ar',
     CC = f'{platform_prefix}gcc',
     CXX = f'{platform_prefix}g++',
@@ -112,7 +99,7 @@ TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
 
 TARGET_ENVIRONMENT.Append(
     ASFLAGS = [
-        '-f', 'elf',
+        '-m32',
         '-g'
     ],
     CCFLAGS = [
@@ -138,6 +125,18 @@ TARGET_ENVIRONMENT.Append(
     LIBS = ['gcc'],
     LIBPATH = [ str(toolchainGccLibs) ],
 )
+
+# Ensure custom command strings also apply to target builds
+TARGET_ENVIRONMENT.Replace(ASCOMSTR        = "   AS      $SOURCE",
+                           ASPPCOMSTR      = "   AS      $SOURCE",
+                           CCCOMSTR        = "   CC      $SOURCE",
+                           CXXCOMSTR       = "   CXX     $SOURCE",
+                           SHCCCOMSTR      = "   CC      $SOURCE",
+                           SHCXXCOMSTR     = "   CXX     $SOURCE",
+                           LINKCOMSTR      = "   LD      $TARGET",
+                           SHLINKCOMSTR    = "   LD      $TARGET",
+                           ARCOMSTR        = "   AR      $TARGET",
+                           RANLIBCOMSTR    = "   RANLIB  $TARGET")
 
 TARGET_ENVIRONMENT['ENV']['PATH'] += os.pathsep + str(toolchainBin)
 

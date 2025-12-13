@@ -39,7 +39,7 @@ sources = []
 for root, dirs, files in os.walk(src_dir):
     for file in files:
         full_path = os.path.join(root, file)
-        if file.endswith(('.c', '.cpp', '.asm')):
+        if file.endswith(('.c', '.cpp', '.S')):
             # Make path relative to src_dir so SCons puts objects in build dir
             rel_path = os.path.relpath(full_path, src_dir)
             sources.append(rel_path)
