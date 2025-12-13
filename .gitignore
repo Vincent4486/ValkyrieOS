@@ -16,3 +16,5 @@ tmp/
 .sconsign.dblite
 scripts/scons/__pycache__/*
 .venv/
+
+*.so
