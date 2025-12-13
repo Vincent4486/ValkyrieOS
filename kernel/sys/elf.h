@@ -6,6 +6,7 @@
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
+#include <cpu/process.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -45,3 +46,9 @@ typedef struct
 // will read program headers (PT_LOAD) and copy them to their p_paddr (or
 // p_vaddr if p_paddr is zero), zeroing the BSS area when necessary.
 bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut);
+
+// Load an ELF32 executable file into a new process's isolated address space.
+// Opens the file by name from the filesystem, parses the ELF header, allocates
+// pages in the process's page directory, and copies segments. Returns the new
+// Process on success, or NULL on failure.
+Process *ELF_LoadProcess(Partition *disk, const char *filename);

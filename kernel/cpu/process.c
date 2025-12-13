@@ -6,8 +6,12 @@
 #include <mem/pmm.h>
 #include <mem/vmm.h>
 #include <std/stdio.h>
+#include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/elf.h>
+#include <fs/fat/fat.h>
+#include <fs/disk/partition.h>
 
 #define PAGE_SIZE 4096
 #define HEAP_MAX 0xC0000000u // Don't allow heap above 3GB

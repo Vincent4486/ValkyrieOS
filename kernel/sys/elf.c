@@ -4,6 +4,9 @@
 #include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
+#include <arch/i686/mem/paging.h>
+#include <mem/pmm.h>
+#include <cpu/process.h>
 
 #define EI_MAG0 0
 #define EI_MAG1 1
@@ -124,4 +127,162 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    // return entry point
    *entryOut = (void *)ehdr.e_entry;
    return true;
+}
+
+Process *ELF_LoadProcess(Partition *disk, const char *filename)
+{
+   if (!disk || !filename)
+      return NULL;
+
+   // Open ELF file from filesystem
+   FAT_File *file = FAT_Open(disk, filename);
+   if (!file)
+   {
+      printf("[ELF] LoadProcess: FAT_Open failed for %s\n", filename);
+      return NULL;
+   }
+
+   // Read ELF header
+   if (!FAT_Seek(disk, file, 0))
+   {
+      printf("[ELF] LoadProcess: seek header failed\n");
+      FAT_Close(file);
+      return NULL;
+   }
+
+   Elf32_Ehdr ehdr;
+   if (FAT_Read(disk, file, sizeof(ehdr), (uint8_t *)&ehdr) != sizeof(ehdr))
+   {
+      printf("[ELF] LoadProcess: read header failed\n");
+      FAT_Close(file);
+      return NULL;
+   }
+
+   // Validate magic
+   if (ehdr.e_ident[EI_MAG0] != ELFMAG0 || ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
+       ehdr.e_ident[EI_MAG2] != ELFMAG2 || ehdr.e_ident[EI_MAG3] != ELFMAG3)
+   {
+      printf("[ELF] LoadProcess: bad magic\n");
+      FAT_Close(file);
+      return NULL;
+   }
+
+   // Create process with ELF entry point
+   Process *proc = Process_Create(ehdr.e_entry);
+   if (!proc)
+   {
+      printf("[ELF] LoadProcess: Process_Create failed\n");
+      FAT_Close(file);
+      return NULL;
+   }
+
+   // Load each program header (PT_LOAD segments)
+   Elf32_Phdr phdr;
+   for (uint16_t i = 0; i < ehdr.e_phnum; ++i)
+   {
+      uint32_t phoff = ehdr.e_phoff + i * ehdr.e_phentsize;
+      if (!FAT_Seek(disk, file, phoff))
+      {
+         printf("[ELF] LoadProcess: seek phdr %u failed\n", i);
+         Process_Destroy(proc);
+         FAT_Close(file);
+         return NULL;
+      }
+
+      if (FAT_Read(disk, file, sizeof(phdr), (uint8_t *)&phdr) != sizeof(phdr))
+      {
+         printf("[ELF] LoadProcess: read phdr %u failed\n", i);
+         Process_Destroy(proc);
+         FAT_Close(file);
+         return NULL;
+      }
+
+      // Only load PT_LOAD segments
+      const uint32_t PT_LOAD = 1;
+      if (phdr.p_type != PT_LOAD)
+         continue;
+
+      uint32_t vaddr = phdr.p_vaddr;
+      uint32_t memsz = phdr.p_memsz;
+      uint32_t filesz = phdr.p_filesz;
+
+      printf("[ELF] LoadProcess: loading segment %u at 0x%08x (filesz=%u, memsz=%u)\n",
+             i, vaddr, filesz, memsz);
+
+      // Allocate pages in process's virtual address space
+      uint32_t pages_needed = (memsz + 4096 - 1) / 4096;
+      for (uint32_t j = 0; j < pages_needed; ++j)
+      {
+         uint32_t page_va = vaddr + (j * 4096);
+         uint32_t phys = PMM_AllocatePhysicalPage();
+         if (phys == 0)
+         {
+            printf("[ELF] LoadProcess: PMM_AllocatePhysicalPage failed\n");
+            Process_Destroy(proc);
+            FAT_Close(file);
+            return NULL;
+         }
+
+         // Map page into process's page directory (user mode, read+write)
+         if (!Paging_MapPage(proc->page_directory, page_va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER))
+         {
+            printf("[ELF] LoadProcess: Paging_MapPage failed at 0x%08x\n", page_va);
+            PMM_FreePhysicalPage(phys);
+            Process_Destroy(proc);
+            FAT_Close(file);
+            return NULL;
+         }
+      }
+
+      // Read segment data from file and copy to process memory
+      if (!FAT_Seek(disk, file, phdr.p_offset))
+      {
+         printf("[ELF] LoadProcess: seek segment data failed\n");
+         Process_Destroy(proc);
+         FAT_Close(file);
+         return NULL;
+      }
+
+      // Temporarily switch to process page directory to write to its memory
+      void *old_pdir = get_current_page_directory();
+      switch_page_directory(proc->page_directory);
+
+      // Read and copy file section
+      uint8_t buffer[512];
+      uint32_t remaining = filesz;
+      uint32_t offset = 0;
+
+      while (remaining > 0)
+      {
+         uint32_t chunk = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+         uint32_t bytes_read = FAT_Read(disk, file, chunk, buffer);
+         if (bytes_read == 0)
+         {
+            printf("[ELF] LoadProcess: FAT_Read failed\n");
+            switch_page_directory(old_pdir);
+            Process_Destroy(proc);
+            FAT_Close(file);
+            return NULL;
+         }
+
+         // Copy to process memory
+         memcpy((void *)(vaddr + offset), buffer, bytes_read);
+         offset += bytes_read;
+         remaining -= bytes_read;
+      }
+
+      // Zero out BSS (memsz > filesz)
+      if (memsz > filesz)
+      {
+         memset((void *)(vaddr + filesz), 0, memsz - filesz);
+      }
+
+      // Restore kernel page directory
+      switch_page_directory(old_pdir);
+   }
+
+   FAT_Close(file);
+   printf("[ELF] LoadProcess: successfully loaded %s into pid=%u at entry 0x%08x\n",
+          filename, proc->pid, ehdr.e_entry);
+   return proc;
 }

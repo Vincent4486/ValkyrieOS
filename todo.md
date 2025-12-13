@@ -11,7 +11,7 @@
 
 ### Process Management
 - [x] Process Control Block (PCB) structure
-- [ ] Process creation (fork/execve syscalls)
+- [x] Process creation (fork/execve syscalls)
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
