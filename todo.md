@@ -16,6 +16,7 @@
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
 - [ ] User-mode ring 3 execution
+- [ ] Kernel-mode execution
 - [ ] User/kernel mode switching
 
 ### Filesystem

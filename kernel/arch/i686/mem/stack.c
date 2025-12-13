@@ -3,7 +3,7 @@
 #include "stack.h"
 #include <mem/stack.h>
 #include <mem/heap.h>
-#include <string.h>
+#include <std/string.h>
 
 /**
  * x86 32-bit Stack Implementation
@@ -60,7 +60,7 @@ void i686_Stack_SetupProcess(Stack *stack, uint32_t entry_point) {
  */
 uint32_t i686_Stack_GetESP(void) {
     uint32_t esp;
-    asm volatile("mov %%esp, %0" : "=r" (esp));
+    __asm__ __volatile__("mov %%esp, %0" : "=r" (esp));
     return esp;
 }
 
@@ -71,7 +71,7 @@ uint32_t i686_Stack_GetESP(void) {
  */
 uint32_t i686_Stack_GetEBP(void) {
     uint32_t ebp;
-    asm volatile("mov %%ebp, %0" : "=r" (ebp));
+    __asm__ __volatile__("mov %%ebp, %0" : "=r" (ebp));
     return ebp;
 }
 
@@ -85,10 +85,10 @@ uint32_t i686_Stack_GetEBP(void) {
  */
 void i686_Stack_SetRegisters(uint32_t esp, uint32_t ebp) {
     // Set EBP first (provides frame reference for debuggers)
-    asm volatile("mov %0, %%ebp" : : "r" (ebp));
+    __asm__ __volatile__("mov %0, %%ebp" : : "r" (ebp));
     
     // Set ESP (changes active stack)
-    asm volatile("mov %0, %%esp" : : "r" (esp));
+    __asm__ __volatile__("mov %0, %%esp" : : "r" (esp));
 }
 
 /**
@@ -96,10 +96,10 @@ void i686_Stack_SetRegisters(uint32_t esp, uint32_t ebp) {
  */
 void i686_Stack_GetRegisters(uint32_t *esp_out, uint32_t *ebp_out) {
     if (esp_out) {
-        asm volatile("mov %%esp, %0" : "=r" (*esp_out));
+        __asm__ __volatile__("mov %%esp, %0" : "=r" (*esp_out));
     }
     if (ebp_out) {
-        asm volatile("mov %%ebp, %0" : "=r" (*ebp_out));
+        __asm__ __volatile__("mov %%ebp, %0" : "=r" (*ebp_out));
     }
 }
 
@@ -108,7 +108,7 @@ void i686_Stack_GetRegisters(uint32_t *esp_out, uint32_t *ebp_out) {
  * 
  * Prepares stack frame for exception handling with error code
  */
-void i686_Stack_Setup_Exception(Stack *stack, uint32_t handler, uint32_t error_code) {
+void i686_Stack_SetupException(Stack *stack, uint32_t handler, uint32_t error_code) {
     if (!stack) return;
     
     // Reset to top of kernel stack

@@ -101,7 +101,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
    
-   ELF_LoadProcess(&partition, "/usr/bin/sh");
+   ELF_LoadProcess(&partition, "/usr/bin/sh", true);
 
 end:
    for (;;);

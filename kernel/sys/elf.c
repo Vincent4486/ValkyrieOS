@@ -129,7 +129,7 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    return true;
 }
 
-Process *ELF_LoadProcess(Partition *disk, const char *filename)
+Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode)
 {
    if (!disk || !filename)
       return NULL;
@@ -168,7 +168,7 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename)
    }
 
    // Create process with ELF entry point
-   Process *proc = Process_Create(ehdr.e_entry);
+   Process *proc = Process_Create(ehdr.e_entry, kernel_mode);
    if (!proc)
    {
       printf("[ELF] LoadProcess: Process_Create failed\n");

@@ -120,7 +120,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
           .current = stack_top,
           .data = (uint8_t *)stack_bottom,
       };
-      Stack_Setup_Process(&tmp_stack, entry_point);
+      Stack_SetupProcess(&tmp_stack, entry_point);
 
       // Record initial ESP/EBP after setup
       proc->esp = tmp_stack.current;
@@ -179,7 +179,11 @@ void Process_Destroy(Process *proc)
    // Free process structure
    free(proc);
 
-   if (current_process == proc) current_process = NULL;
+   if (current_process == proc)
+   {
+      current_process = NULL;
+      switch_page_directory(VMM_GetPageDirectory());
+   }
 }
 
 Process *Process_GetCurrent(void) { return current_process; }
@@ -190,6 +194,11 @@ void Process_SetCurrent(Process *proc)
    if (proc)
    {
       switch_page_directory(proc->page_directory);
+   }
+   else
+   {
+       // Restore kernel page directory when no process is current
+       switch_page_directory(VMM_GetPageDirectory());
    }
 }
 

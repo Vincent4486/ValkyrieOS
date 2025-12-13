@@ -4,7 +4,8 @@
 #include <mem/vmm.h>
 #include <mem/heap.h>
 #include <arch/i686/mem/stack.h>
-#include <string.h>
+#include <std/string.h>
+#include <mem/memory.h>
 
 /**
  * Generic stack management implementation
@@ -34,13 +35,13 @@ Stack *Stack_Create(size_t size) {
     if (size == 0) return NULL;
     
     // Allocate Stack structure
-    Stack *stack = (Stack *)Heap_Alloc(sizeof(Stack));
+    Stack *stack = (Stack *)kmalloc(sizeof(Stack));
     if (!stack) return NULL;
     
     // Allocate stack memory from kernel heap
-    uint8_t *data = (uint8_t *)Heap_Alloc(size);
+    uint8_t *data = (uint8_t *)kmalloc(size);
     if (!data) {
-        Heap_Free(stack);
+        free(stack);
         return NULL;
     }
     
@@ -62,11 +63,11 @@ void Stack_Destroy(Stack *stack) {
     
     // Free allocated data
     if (stack->data) {
-        Heap_Free(stack->data);
+        free(stack->data);
     }
     
     // Free Stack structure
-    Heap_Free(stack);
+    free(stack);
 }
 
 /**

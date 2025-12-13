@@ -25,7 +25,7 @@
  * The inline assembly executes the INVLPG instruction on x86.
  */
 static inline void tlb_invalidate_entry(uintptr_t vaddr) {
-    asm volatile("invlpg (%0)" : : "r" (vaddr) : "memory");
+    __asm__ __volatile__("invlpg (%0)" : : "r" (vaddr) : "memory");
 }
 
 /**
@@ -40,8 +40,8 @@ static inline void tlb_invalidate_entry(uintptr_t vaddr) {
  */
 static inline void tlb_invalidate_all(void) {
     uint32_t cr3;
-    asm volatile("movl %%cr3, %0" : "=r" (cr3));
-    asm volatile("movl %0, %%cr3" : : "r" (cr3));
+    __asm__ __volatile__("movl %%cr3, %0" : "=r" (cr3));
+    __asm__ __volatile__("movl %0, %%cr3" : : "r" (cr3));
 }
 
 /**
@@ -67,7 +67,7 @@ static inline void tlb_invalidate_range(uintptr_t vaddr_start, uintptr_t vaddr_e
  */
 static inline uint32_t tlb_get_cr3(void) {
     uint32_t cr3;
-    asm volatile("movl %%cr3, %0" : "=r" (cr3));
+    __asm__ __volatile__("movl %%cr3, %0" : "=r" (cr3));
     return cr3;
 }
 
@@ -80,7 +80,7 @@ static inline uint32_t tlb_get_cr3(void) {
  * Used during process context switches.
  */
 static inline void tlb_set_cr3(uint32_t page_dir_phys) {
-    asm volatile("movl %0, %%cr3" : : "r" (page_dir_phys));
+    __asm__ __volatile__("movl %0, %%cr3" : : "r" (page_dir_phys));
 }
 
 /**
@@ -100,5 +100,5 @@ static inline void tlb_set_cr3(uint32_t page_dir_phys) {
  * but it's not a direct TLB operation. This is rarely used in practice.
  */
 static inline void tlb_prefetch(uintptr_t vaddr) {
-    asm volatile("prefetcht0 (%0)" : : "r" (vaddr));
+    __asm__ __volatile__("prefetcht0 (%0)" : : "r" (vaddr));
 }
