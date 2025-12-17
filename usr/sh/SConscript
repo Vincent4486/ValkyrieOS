@@ -14,25 +14,24 @@ Import('musl_lib')
 env = usermode_env.Clone()
 
 # Get source directory
-src_dir = Dir('#usr/libmath').abspath
+src_dir = Dir('#usr/sh').abspath
 
 env.Append(
-    # Absolute code with explicit relocations that we'll patch at load time
-    CCFLAGS=['-fno-PIC', '-fno-asynchronous-unwind-tables'],
-    CFLAGS=['-fno-PIC'],
-    CXXFLAGS=['-fno-PIC'],
+    # Position-independent code for dynamic linking
+    CCFLAGS=['-fPIC'],
+    CFLAGS=['-fPIC'],
+    CXXFLAGS=['-fPIC'],
     LINKFLAGS=[
-        '-shared',
         '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
-        '-Wl,-Map=' + env.File('libmath.map').path,
+        '-Wl,-Map=' + env.File('sh.map').path,
         '-Wl,--as-needed',
-        '-Wl,-soname,libmath.so',
-        '-Wl,-Bsymbolic-functions',  # Resolve internal references locally
+        '-pie',  # Position-independent executable
     ],
     CPATH=[src_dir],
     CPPPATH=[src_dir],
-    # Include source directory for assembly files (nasm -I flag for include paths)
-    ASFLAGS=['-I', src_dir + '/', '-f', 'elf']
+    ASFLAGS=['-I', src_dir + '/'],
+    # Explicit musl libc linking (order matters: libc then libgcc)
+    LIBS=['c', 'gcc'],  # Link libc and libgcc
 )
 
 # Glob files directly from the source directory using os.walk
@@ -45,12 +44,11 @@ for root, dirs, files in os.walk(src_dir):
             rel_path = os.path.relpath(full_path, src_dir)
             sources.append(rel_path)
 
+objects = env.Object(sources)
 
-objects = env.SharedObject(sources)
+# Build executable
+sh_executable = env.Program('sh', objects)
 
-# Build shared library
-libmath_so = env.SharedLibrary('libmath', objects)
-
-# Export as libmath_module for kernel build system detection
-libmath_module = libmath_so
-Export('libmath_module')
+# Export as sh_module for image build system detection
+sh_module = sh_executable
+Export('sh_module')

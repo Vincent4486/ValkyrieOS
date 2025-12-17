@@ -4,13 +4,13 @@
 
 BINUTILS_VERSION=2.37
 GCC_VERSION=15.2.0
-NEWLIB_VERSION=4.4.0
+MUSL_VERSION=1.2.5
 
 TARGET=i686-elf
 
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
-NEWLIB_URL="https://sourceware.org/pub/newlib/newlib-${NEWLIB_VERSION}.tar.gz"
+MUSL_URL="https://musl.libc.org/releases/musl-${MUSL_VERSION}.tar.gz"
 
 # ---------------------------
 
@@ -82,19 +82,20 @@ if [ "$OPERATION" = "build" ]; then
 
     cd ..
 
-    # Download and build newlib
-    NEWLIB_SRC="newlib-${NEWLIB_VERSION}"
-    NEWLIB_BUILD="newlib-build-${NEWLIB_VERSION}"
+    # Download and build musl
+    MUSL_SRC="musl-${MUSL_VERSION}"
+    MUSL_BUILD="musl-build-${MUSL_VERSION}"
 
-    wget ${NEWLIB_URL}
-    tar -xf newlib-${NEWLIB_VERSION}.tar.gz
-    mkdir -p ${NEWLIB_BUILD}
-    cd ${NEWLIB_BUILD}
+    wget ${MUSL_URL}
+    tar -xf musl-${MUSL_VERSION}.tar.gz
+    mkdir -p ${MUSL_BUILD}
+    cd ${MUSL_BUILD}
     CFLAGS= ASMFLAGS= LD= ASM= LINKFLAGS= LIBS=
-    ../newlib-${NEWLIB_VERSION}/configure \
+    ../musl-${MUSL_VERSION}/configure \
             --prefix="${TOOLCHAIN_PREFIX}" \
-            --target=${TARGET} \
-            --disable-newlib-supplied-syscalls
+            --host=${TARGET} \
+            --enable-static \
+            --disable-shared
     make -j8
     make install
 

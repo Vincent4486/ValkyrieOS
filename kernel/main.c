@@ -9,6 +9,7 @@
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
 #include <init/init.h>
+#include <mem/stack.h>
 #include <mem/heap.h>
 #include <mem/memory.h>
 #include <mem/pmm.h>
@@ -17,6 +18,7 @@
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
+#include <sys/elf.h>
 
 #include <display/startscreen.h>
 #include <libmath/math.h>
@@ -66,6 +68,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    _init();
    Heap_Initialize();
    heap_self_test();
+   Stack_Initialize();
+   stack_self_test();
    Paging_Initialize();
    paging_self_test();
 
@@ -96,6 +100,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
+
+   ELF_LoadProcess(&partition, "/usr/bin/sh", false);
 
 end:
    for (;;);

@@ -5,7 +5,7 @@
 ### Memory Management
 - [x] Virtual memory / paging (per-process address spaces)
 - [x] Heap management (brk/sbrk syscalls for malloc)
-- [ ] Stack management (per-process user stacks)
+- [x] Stack management (per-process user stacks)
 - [ ] Memory protection (read/write/execute permissions)
 - [x] Page tables and MMU setup
 
@@ -16,6 +16,7 @@
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
 - [ ] User-mode ring 3 execution
+- [ ] Kernel-mode execution
 - [ ] User/kernel mode switching
 
 ### Filesystem

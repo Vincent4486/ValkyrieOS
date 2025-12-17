@@ -17,7 +17,8 @@ from SCons.Script import Flatten
 from scripts.scons.utility import FindIndex, GlobRecursive, IsFileName
 
 Import('core')
-Import('kernel_libraries')
+Import('user_libraries')
+Import('user_applications')
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
@@ -163,7 +164,7 @@ def unmount_fs(mount_dir: str):
     os.remove(device_file)
 
 
-def build_disk(image, core_exe, kernel_libraries, files, env):
+def build_disk(image, core_exe, user_libraries, user_applications, files, env):
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     file_system = env['imageFS']
     partition_offset = 2048
@@ -192,12 +193,19 @@ def build_disk(image, core_exe, kernel_libraries, files, env):
         sh.sudo.mkdir('-p', bootdir)
         sh.sudo.cp(core_exe, bootdir)
         
-        # copy kernel libraries to /usr/lib
+        # copy user libraries to /usr/lib
         libdir = os.path.join(tempdir, 'usr', 'lib')
         sh.sudo.mkdir('-p', libdir)
-        for library in kernel_libraries:
+        for library in user_libraries:
             print(f"   CP {os.path.basename(library)} /usr/lib")
             sh.sudo.cp(library, libdir)
+        
+        # copy user applications to /usr/bin
+        bindir = os.path.join(tempdir, 'usr', 'bin')
+        sh.sudo.mkdir('-p', bindir)
+        for application in user_applications:
+            print(f"   CP {os.path.basename(application)} /usr/bin")
+            sh.sudo.cp(application, bindir)
 
         # copy rest of files
         src_root = env['BASEDIR']
@@ -257,8 +265,8 @@ def build_image(target, source, env):
     if core_exe is None:
         raise RuntimeError("Core executable not found in build inputs")
 
-    # Flatten the library list and normalize paths for copying
-    lib_nodes = Flatten(kernel_libraries)
+    # Flatten the library and application lists and normalize paths for copying
+    lib_nodes = Flatten(user_libraries)
     libs = []
     lib_compare = set()
     for lib in lib_nodes:
@@ -269,16 +277,27 @@ def build_image(target, source, env):
         libs.append(path)
         lib_compare.add(str(lib))
 
-    files = [src for src in source if str(src) != core_exe and str(src) not in lib_compare]
+    app_nodes = Flatten(user_applications)
+    apps = []
+    app_compare = set()
+    for app in app_nodes:
+        try:
+            path = app.get_abspath()
+        except Exception:
+            path = str(app)
+        apps.append(path)
+        app_compare.add(str(app))
+
+    files = [src for src in source if str(src) != core_exe and str(src) not in lib_compare and str(src) not in app_compare]
 
     image = str(target[0])
 
-    build_disk(image, core_exe, libs, files, env)
+    build_disk(image, core_exe, libs, apps, files, env)
  
 # Setup image target
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
-inputs = [core] + kernel_libraries + root_content
+inputs = [core] + user_libraries + user_applications + root_content
 
 output_fmt = env["outputFormat"]
 
