@@ -9,7 +9,7 @@
   "editor.acceptSuggestionOnEnter": "on",
   "editor.wordBasedSuggestions": "off",
   "editor.parameterHints.enabled": true,
-  "editor.hover.enabled": true,
+  "editor.hover.enabled": "on",
   "C_Cpp.errorSquiggles": "enabled",
   "editor.fontFamily": "Maple Mono",
   "editor.fontWeight": "bold",
