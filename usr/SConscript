@@ -43,37 +43,5 @@ Import('sh_module')
 user_libraries = [libmath_module]
 user_applications = [sh_module]
 
-# Import any module libraries that were built
-for module_dir in glob.glob('*/'):
-    if module_dir.startswith('core'):
-        continue
-    if module_dir in ['libmath/', 'sh/']:
-        continue
-    if not os.path.isdir(module_dir):
-        continue
-    
-    has_sources = (
-        len(glob.glob(f'{module_dir}/*.c')) > 0 or
-        len(glob.glob(f'{module_dir}/*.cpp')) > 0 or
-        len(glob.glob(f'{module_dir}/*.rs')) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.c', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.cpp', recursive=True)) > 0 or
-        len(glob.glob(f'{module_dir}/**/*.rs', recursive=True)) > 0
-    )
-    
-    if has_sources:
-        module_name = module_dir.rstrip('/')
-        try:
-            Import(f'{module_name}_module')
-            module = locals()[f'{module_name}_module']
-            # Check if it's a shared library (.so) or executable
-            module_path = str(module)
-            if module_path.endswith('.so'):
-                user_libraries.append(module)
-            else:
-                user_applications.append(module)
-        except:
-            pass
-
 Export('user_libraries')
 Export('user_applications')
