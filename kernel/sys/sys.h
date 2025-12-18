@@ -52,3 +52,6 @@ typedef struct {
     uint8_t initialized;         /* 1 if fully initialized, 0 otherwise */
     uint8_t reserved[3];         /* Padding for alignment */
 } __attribute__((packed)) SYS_Info;
+
+void SYS_Initialize();
+void SYS_Finalize();

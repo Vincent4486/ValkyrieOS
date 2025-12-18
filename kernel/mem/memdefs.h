@@ -44,3 +44,8 @@ typedef struct
 
 #define LIB_REGISTRY_ADDR ((LibRecord *)0x00028000)
 #define LIB_REGISTRY_MAX 16
+
+#define BUFFER_LINES 2048
+#define BUFFER_BASE_ADDR 0x00800000
+
+#define SYS_INFO_ADDR 0x0087D000

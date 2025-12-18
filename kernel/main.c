@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <arch/i686/cpu/irq.h>
-#include <arch/i686/mem/paging.h>
 #include <arch/i686/syscall/syscall_dispatch.h>
 #include <cpu/process.h>
 #include <drivers/ata.h>
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
-#include <init/init.h>
-#include <mem/stack.h>
-#include <mem/heap.h>
-#include <mem/memory.h>
-#include <mem/pmm.h>
-#include <mem/vmm.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stdint.h>
 #include <sys/dylib.h>
 #include <sys/elf.h>
+#include <sys/sys.h>
+#include <mem/memory.h>
+#include <cpu.h>
+#include <sys/hal.h>
+#include <fs/fs.h>
 
 #include <display/startscreen.h>
 #include <libmath/math.h>
@@ -59,27 +57,13 @@ void timer(Registers *regs)
 void __attribute__((section(".entry"))) start(uint16_t bootDrive,
                                               void *partitionPtr)
 {
-   // Draw start screen
-   clrscr();
-   draw_start_screen(false);
-
    // Init system
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
-   Heap_Initialize();
-   heap_self_test();
-   Stack_Initialize();
-   stack_self_test();
-   Paging_Initialize();
-   paging_self_test();
 
-   // Initialize physical and virtual memory managers
-   PMM_Initialize(256 * 1024 * 1024); // 256 MiB
-   pmm_self_test();
-   VMM_Initialize();
-   vmm_self_test();
-   process_self_test();
-
+   SYS_Initialize();
+   MEM_Initialize();
+   CPU_Initialize();
    HAL_Initialize();
    set_iopl_level_3();
 
@@ -100,6 +84,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       printf("Failed to load dynamic libraries...");
       goto end;
    }
+
+   /* Mark system as fully initialized */
+   SYS_Finalize();
 
    ELF_LoadProcess(&partition, "/usr/bin/sh", false);
 

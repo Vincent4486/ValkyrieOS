@@ -2,13 +2,11 @@
 
 #include "buffer_text.h"
 #include <mem/memory.h>
+#include <mem/memdefs.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#define BUFFER_LINES 2048
-#define BUFFER_BASE_ADDR 0x00800000
 
 /* declare setcursor (defined in stdio.c) to avoid implicit declaration */
 extern void setcursor(int x, int y);

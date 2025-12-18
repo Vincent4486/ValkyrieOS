@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#pragma once
+
+#include <stdint.h>
+
+void HAL_Initialize();
+

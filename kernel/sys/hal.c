@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "init.h"
+#include "hal.h"
 #include <arch/i686/cpu/gdt.h>
 #include <arch/i686/cpu/idt.h>
 #include <arch/i686/cpu/irq.h>

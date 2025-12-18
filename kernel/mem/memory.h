@@ -26,3 +26,5 @@ int memcmp(const void *ptr1, const void *ptr2, size_t num);
 void *memmove(void *dest, const void *src, size_t n);
 
 void *SegmentOffsetToLinear(void *addr);
+
+void MEM_Initialize();

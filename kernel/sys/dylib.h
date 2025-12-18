@@ -138,6 +138,8 @@ void dylib_mem_stats(void);
 // Register a callback to load symbols when library is loaded
 void dylib_register_callback(dylib_register_symbols_t callback);
 
+bool dylib_Initialize(Partition *partition);
+
 // ============================================================================
 // Helper macro for loading function symbols from a library
 // Usage: DYLIB_LOAD_SYMBOL(libname, funcname, functype);

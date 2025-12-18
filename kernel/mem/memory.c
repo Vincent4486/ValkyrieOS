@@ -5,6 +5,13 @@
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <mem/stack.h>
+#include <mem/heap.h>
+#include <mem/memory.h>
+#include <mem/pmm.h>
+#include <mem/vmm.h>
+#include <arch/i686/mem/paging.h>
+#include <sys/sys.h>
 
 /* Runtime-controlled memory debug flag. Set non-zero to make the handler
  * call `i686_Panic()` when a memory safety fault is detected. Default is 0.
@@ -85,4 +92,28 @@ void *memmove(void *dest, const void *src, size_t n)
       }
    }
    return dest;
+}
+
+void MEM_Initialize(){
+   Heap_Initialize();
+   heap_self_test();
+   Stack_Initialize();
+   stack_self_test();
+   Paging_Initialize();
+   paging_self_test();
+
+   // Initialize physical and virtual memory managers
+   PMM_Initialize(256 * 1024 * 1024); // 256 MiB
+   pmm_self_test();
+   VMM_Initialize();
+   vmm_self_test();
+   
+   /* Populate memory info in SYS_Info */
+   extern SYS_Info *g_SysInfo;
+   g_SysInfo->memory.total_memory = 256 * 1024 * 1024;
+   g_SysInfo->memory.page_size = 4096;
+   g_SysInfo->memory.kernel_start = (uint32_t)0x00A00000;
+   g_SysInfo->memory.kernel_end = (uint32_t)0x00A00000 + 0x100000; /* Approximate */
+   g_SysInfo->memory.user_start = (uint32_t)0x08000000;
+   g_SysInfo->memory.user_end = (uint32_t)0xC0000000;
 }

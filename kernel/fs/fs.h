@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <stdint.h>
+#include <fs/disk/partition.h>
 
 /* Filesystem device information */
 typedef struct {
@@ -15,3 +16,5 @@ typedef struct {
     uint8_t mounted;             /* 1 if mounted, 0 otherwise */
     uint8_t read_only;           /* 1 if read-only, 0 if read-write */
 } __attribute__((packed)) FS_Info;
+
+bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
