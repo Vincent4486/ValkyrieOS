@@ -12,7 +12,7 @@
  */
 
 /* Initialize VMM
- * Should be called after Paging_Initialize() and PMM_Initialize()
+ * Should be called after i686_Paging_Initialize() and PMM_Initialize()
  */
 void VMM_Initialize(void);
 

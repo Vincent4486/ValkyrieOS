@@ -44,7 +44,7 @@ void *sys_sbrk(intptr_t increment)
  * Called by arch-specific handler after extracting parameters from registers.
  * Returns result in EAX (for x86).
  */
-intptr_t syscall_dispatch(uint32_t syscall_num, uint32_t *args)
+intptr_t Syscall_Dispatch(uint32_t syscall_num, uint32_t *args)
 {
    switch (syscall_num)
    {

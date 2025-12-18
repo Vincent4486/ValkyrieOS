@@ -16,7 +16,7 @@ static void *kernel_page_dir = NULL;
 void VMM_Initialize(void)
 {
    // Get the kernel page directory from paging subsystem
-   kernel_page_dir = get_current_page_directory();
+   kernel_page_dir = i686_Paging_GetCurrentPageDirectory();
    if (!kernel_page_dir)
    {
       printf("[vmm] ERROR: no kernel page directory!\n");
@@ -52,7 +52,7 @@ void *VMM_Allocate(uint32_t size, uint32_t flags)
       }
 
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      if (!Paging_MapPage(kernel_page_dir, va, paddr, flags | PAGE_PRESENT))
+      if (!i686_Paging_MapPage(kernel_page_dir, va, paddr, flags | PAGE_PRESENT))
       {
          printf("[vmm] VMM_Allocate: failed to map page at 0x%08x\n", va);
          PMM_FreePhysicalPage(paddr);
@@ -75,11 +75,11 @@ void VMM_Free(void *vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t page_va = va + (i * PAGE_SIZE);
-      uint32_t page_pa = get_physical_address(kernel_page_dir, page_va);
+      uint32_t page_pa = i686_Paging_GetPhysicalAddress(kernel_page_dir, page_va);
 
       if (page_pa != 0)
       {
-         Paging_UnmapPage(kernel_page_dir, page_va);
+         i686_Paging_UnmapPage(kernel_page_dir, page_va);
          PMM_FreePhysicalPage(page_pa);
       }
    }
@@ -97,7 +97,7 @@ bool VMM_Map(uint32_t vaddr, uint32_t paddr, uint32_t size, uint32_t flags)
       uint32_t va = vaddr + (i * PAGE_SIZE);
       uint32_t pa = paddr + (i * PAGE_SIZE);
 
-      if (!Paging_MapPage(kernel_page_dir, va, pa, flags | PAGE_PRESENT))
+      if (!i686_Paging_MapPage(kernel_page_dir, va, pa, flags | PAGE_PRESENT))
       {
          printf("[vmm] VMM_Map: failed at offset 0x%x\n", i * PAGE_SIZE);
          return false;
@@ -117,7 +117,7 @@ bool VMM_Unmap(uint32_t vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      Paging_UnmapPage(kernel_page_dir, va);
+      i686_Paging_UnmapPage(kernel_page_dir, va);
    }
 
    return true;
@@ -125,7 +125,7 @@ bool VMM_Unmap(uint32_t vaddr, uint32_t size)
 
 uint32_t VMM_GetPhys(uint32_t vaddr)
 {
-   return get_physical_address(kernel_page_dir, vaddr);
+   return i686_Paging_GetPhysicalAddress(kernel_page_dir, vaddr);
 }
 
 void *VMM_GetPageDirectory(void) { return kernel_page_dir; }

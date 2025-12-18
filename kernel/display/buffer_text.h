@@ -9,24 +9,24 @@
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
 
-void buffer_init(void);
-void buffer_clear(void);
-void buffer_putc(char c);
-void buffer_puts(const char *s);
-void buffer_repaint(void);
-void buffer_scroll(int lines);
-void buffer_set_color(uint8_t color);
-void buffer_set_cursor(int x, int y);
-void buffer_get_cursor(int *x, int *y);
+void Buffer_Initialize(void);
+void Buffer_Clear(void);
+void Buffer_PutChar(char c);
+void Buffer_PutString(const char *s);
+void Buffer_Repaint(void);
+void Buffer_Scroll(int lines);
+void Buffer_SetColor(uint8_t color);
+void Buffer_SetCursor(int x, int y);
+void Buffer_GetCursor(int *x, int *y);
 /* Return the length (number of printable chars) of the visible logical line
    at the given visible row y (0..SCREEN_HEIGHT-1). Returns 0 if no line.
    This is useful for cursor movement logic in input handling. */
-int buffer_get_visible_line_length(int y);
+int Buffer_GetVisibleLineLength(int y);
 /* Return maximum number of scroll lines available (older content). */
-int buffer_get_max_scroll(void);
+int Buffer_GetMaxScroll(void);
 /* Return the logical index (relative to head) of the first visible line. */
-uint32_t buffer_get_visible_start(void);
+uint32_t Buffer_GetVisibleStart(void);
 
 /* Debug: draw a small overlay on row 0 with buffer internals (s_lines_used,
    s_head, s_scroll, max_scroll). This is temporary debugging aid. */
-void buffer_debug_overlay(void);
+void Buffer_DebugOverlay(void);

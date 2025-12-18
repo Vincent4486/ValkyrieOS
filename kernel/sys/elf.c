@@ -224,9 +224,9 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
          }
 
          // Map page into process's page directory (user mode, read+write)
-         if (!Paging_MapPage(proc->page_directory, page_va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER))
+         if (!i686_Paging_MapPage(proc->page_directory, page_va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER))
          {
-            printf("[ELF] LoadProcess: Paging_MapPage failed at 0x%08x\n", page_va);
+            printf("[ELF] LoadProcess: i686_Paging_MapPage failed at 0x%08x\n", page_va);
             PMM_FreePhysicalPage(phys);
             Process_Destroy(proc);
             FAT_Close(file);
@@ -244,8 +244,8 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
       }
 
       // Temporarily switch to process page directory to write to its memory
-      void *old_pdir = get_current_page_directory();
-      switch_page_directory(proc->page_directory);
+      void *old_pdir = i686_Paging_GetCurrentPageDirectory();
+      i686_Paging_SwitchPageDirectory(proc->page_directory);
 
       // Read and copy file section
       uint8_t buffer[512];
@@ -259,7 +259,7 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
          if (bytes_read == 0)
          {
             printf("[ELF] LoadProcess: FAT_Read failed\n");
-            switch_page_directory(old_pdir);
+            i686_Paging_SwitchPageDirectory(old_pdir);
             Process_Destroy(proc);
             FAT_Close(file);
             return NULL;
@@ -278,7 +278,7 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
       }
 
       // Restore kernel page directory
-      switch_page_directory(old_pdir);
+      i686_Paging_SwitchPageDirectory(old_pdir);
    }
 
    FAT_Close(file);

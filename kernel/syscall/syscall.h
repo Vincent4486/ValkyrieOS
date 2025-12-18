@@ -21,4 +21,4 @@ void *sys_sbrk(intptr_t increment);
  * syscall_num: syscall number
  * args: array of up to 6 arguments
  */
-intptr_t syscall_dispatch(uint32_t syscall_num, uint32_t *args);
+intptr_t Syscall_Dispatch(uint32_t syscall_num, uint32_t *args);

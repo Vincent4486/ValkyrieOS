@@ -3,7 +3,7 @@
 #include <arch/i686/cpu/irq.h>
 #include <arch/i686/syscall/syscall_dispatch.h>
 #include <cpu/process.h>
-#include <drivers/ata.h>
+#include <drivers/ata/ata.h>
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
@@ -79,7 +79,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
       goto end;
    }
 
-   if (!dylib_Initialize(&partition))
+   if (!Dylib_Initialize(&partition))
    {
       printf("Failed to load dynamic libraries...");
       goto end;

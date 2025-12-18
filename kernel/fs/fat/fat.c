@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "fat.h"
-#include <drivers/ata.h>
-#include <drivers/fdc.h>
+#include <drivers/ata/ata.h>
+#include <drivers/fdc/fdc.h>
 #include <fs/disk/partition.h>
 #include <mem/memdefs.h>
 #include <mem/memory.h>

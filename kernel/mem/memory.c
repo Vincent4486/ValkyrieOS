@@ -99,7 +99,7 @@ void MEM_Initialize(){
    heap_self_test();
    Stack_Initialize();
    stack_self_test();
-   Paging_Initialize();
+   i686_Paging_Initialize();
    paging_self_test();
 
    // Initialize physical and virtual memory managers

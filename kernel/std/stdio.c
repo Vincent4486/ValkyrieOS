@@ -42,7 +42,7 @@ void setcursor(int x, int y)
    i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
-void clrscr() { buffer_clear(); }
+void clrscr() { Buffer_Clear(); }
 
 void scrollback(int lines)
 {
@@ -66,7 +66,7 @@ void scrollback(int lines)
 void putc(char c)
 {
    i686_outb(0xe9, c);
-   buffer_putc(c);
+   Buffer_PutChar(c);
 }
 
 void puts(const char *str)
