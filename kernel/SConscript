@@ -47,7 +47,6 @@ sources = []
 for root, dirs, files in os.walk(src_dir):
     for file in files:
         full_path = os.path.join(root, file)
-        # Include C, C++, assembly and Rust source files
         # Support both .S (preprocessed GNU AS) and .asm (legacy NASM) during transition
         if file.endswith(('.c', '.cpp', '.S')):
             # Make path relative to src_dir so SCons puts objects in build dir

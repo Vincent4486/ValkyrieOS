@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <arch/i686/cpu/irq.h>
-#include <arch/i686/syscall/syscall_dispatch.h>
+#include <hal/irq.h>
 #include <cpu/process.h>
 #include <drivers/ata/ata.h>
 #include <fs/disk/disk.h>
@@ -15,7 +14,7 @@
 #include <sys/sys.h>
 #include <mem/memory.h>
 #include <cpu.h>
-#include <sys/hal.h>
+#include <hal/hal.h>
 #include <fs/fs.h>
 
 #include <display/startscreen.h>
@@ -67,8 +66,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    HAL_Initialize();
    set_iopl_level_3();
 
-   i686_IRQ_RegisterHandler(0, timer);
-   i686_IRQ_RegisterHandler(0x80, (void *)i686_syscall_handler);
+   HAL_IRQ_RegisterHandler(0, timer);
 
    DISK disk;
    Partition partition;

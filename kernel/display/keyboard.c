@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "keyboard.h"
-#include <arch/i686/cpu/irq.h>
-#include <arch/i686/io/io.h>
 #include <display/buffer_text.h>
 #include <std/stdio.h> // for putc/printf
+#include <stdint.h>
 
 /* Input line buffer for simple line editing */
 #define KB_LINE_BUF 256
 static char kb_line[KB_LINE_BUF];
 static int kb_len = 0;
 static int kb_ready = 0; /* 1 when a full line (\n) is available */
-
-/* Global counter for keypress events for debugging (incremented in IRQ). */
-volatile uint32_t g_kb_count = 0;
 
 /* modifier state */
 static int shift = 0;
@@ -36,12 +32,12 @@ static const char scancode_map[128] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-/* IRQ handler for keyboard IRQ1 */
-void i686_keyboard_irq(Registers *regs)
+/**
+ * Generic scancode handler (platform-independent)
+ * Processes PS/2 scancodes and manages line buffering
+ */
+void Keyboard_HandleScancode(uint8_t scancode)
 {
-   (void)regs;
-   uint8_t scancode = i686_inb(0x60);
-
    /* handle key releases and modifier keys */
 
    /* handle 0xE0 extended prefix */
@@ -338,15 +334,11 @@ void i686_keyboard_irq(Registers *regs)
    }
 }
 
-/* Register keyboard handler for IRQ1 */
-void i686_keyboard_init(void)
-{
-   i686_IRQ_RegisterHandler(1, i686_keyboard_irq);
-}
-
-/* Non-blocking readline: returns number of bytes written into buf, 0 if no line
- * ready */
-int i686_keyboard_readline_nb(char *buf, int bufsize)
+/**
+ * Platform-independent non-blocking readline
+ * Returns number of bytes written into buf, 0 if no line ready
+ */
+int Keyboard_ReadlineNb(char *buf, int bufsize)
 {
    if (!kb_ready) return 0;
    int copy = kb_len;
@@ -354,20 +346,18 @@ int i686_keyboard_readline_nb(char *buf, int bufsize)
    for (int i = 0; i < copy; ++i) buf[i] = kb_line[i];
    buf[copy] = '\0';
 
-   /* reset bufffer */
+   /* reset buffer */
    kb_len = 0;
    kb_ready = 0;
    return copy;
 }
 
-int i686_keyboard_readline(char *buf, int bufsize)
+/**
+ * Platform-independent blocking readline
+ * Note: The actual idle implementation is in the platform-specific driver
+ */
+int Keyboard_Readline(char *buf, int bufsize)
 {
-   int n;
-   while ((n = i686_keyboard_readline_nb(buf, bufsize)) == 0)
-   {
-      /* simple idle: execute HLT to reduce busy spin and wait for interrupts
-       */
-      __asm__ volatile("sti; hlt; cli");
-   }
-   return n;
+   /* This should not be called directly - use platform-specific wrapper instead */
+   return Keyboard_ReadlineNb(buf, bufsize);
 }

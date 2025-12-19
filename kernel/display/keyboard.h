@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include <arch/i686/cpu/irq.h>
 #include <stdint.h>
 
-void i686_keyboard_init(void);
-void i686_keyboard_irq(Registers *regs);
-int i686_keyboard_readline_nb(char *buf, int bufsize);
-int i686_keyboard_readline(char *buf, int bufsize);
+/**
+ * Generic keyboard interface (platform-independent)
+ * Handles scancode processing, line buffering, and editing
+ */
+
+/* Process a scancode (called by platform-specific drivers) */
+void Keyboard_HandleScancode(uint8_t scancode);
+
+/* Platform-independent line reading functions */
+int Keyboard_ReadlineNb(char *buf, int bufsize);
+int Keyboard_Readline(char *buf, int bufsize);

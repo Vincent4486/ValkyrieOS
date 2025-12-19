@@ -1,3 +1,9 @@
+## Current todo
+
+1) Resolve macros to use SYS_Info struct
+2) Add wrapper functions to `HAL` for functions under `arch/`
+3) Make SYS_Info being detected my OS not hard coded
+
 # ValkyrieOS glibc Implementation Roadmap
 
 ## Phase 1: Core OS Infrastructure (Current)
