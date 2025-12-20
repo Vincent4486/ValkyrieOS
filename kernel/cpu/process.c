@@ -13,6 +13,7 @@
 #include <sys/elf.h>
 #include <fs/fat/fat.h>
 #include <fs/disk/partition.h>
+#include <fs/fd.h>
 
 #define PAGE_SIZE 4096
 #define HEAP_MAX 0xC0000000u // Don't allow heap above 3GB
@@ -138,7 +139,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
    proc->esi = proc->edi = 0;
    proc->eflags = 0x202; // IF=1 (interrupts enabled)
 
-   // Initialize file descriptors
+   // Initialize file descriptors (all NULL, reserved FDs 0/1/2 handled by syscalls)
    for (int i = 0; i < 16; ++i) proc->fd_table[i] = NULL;
 
    printf("[process] created: pid=%u, entry=0x%08x\n", proc->pid, entry_point);
@@ -149,39 +150,46 @@ void Process_Destroy(Process *proc)
 {
    if (!proc) return;
 
-   // Unmap and free stack pages
-   if (proc->page_directory && proc->stack_start && proc->stack_end)
+   // Only unmap/free resources if it's a user-mode process
+   if (!proc->kernel_mode)
    {
-      uint32_t pages = (proc->stack_end - proc->stack_start) / PAGE_SIZE;
-      for (uint32_t i = 0; i < pages; ++i)
+      // Unmap and free stack pages
+      if (proc->page_directory && proc->stack_start && proc->stack_end)
       {
-         uint32_t va = proc->stack_start + (i * PAGE_SIZE);
-         uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
-         i686_Paging_UnmapPage(proc->page_directory, va);
-         if (phys) PMM_FreePhysicalPage(phys);
+         uint32_t pages = (proc->stack_end - proc->stack_start) / PAGE_SIZE;
+         for (uint32_t i = 0; i < pages; ++i)
+         {
+            uint32_t va = proc->stack_start + (i * PAGE_SIZE);
+            uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
+            i686_Paging_UnmapPage(proc->page_directory, va);
+            if (phys) PMM_FreePhysicalPage(phys);
+         }
+      }
+
+      // Unmap and free heap pages
+      if (proc->page_directory && proc->heap_start && proc->heap_end)
+      {
+         uint32_t heap_pages = (proc->heap_end - proc->heap_start + PAGE_SIZE - 1) / PAGE_SIZE;
+         for (uint32_t i = 0; i < heap_pages; ++i)
+         {
+            uint32_t va = proc->heap_start + (i * PAGE_SIZE);
+            uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
+            i686_Paging_UnmapPage(proc->page_directory, va);
+            if (phys) PMM_FreePhysicalPage(phys);
+         }
+      }
+
+      // Only destroy page directory for user-mode processes
+      if (proc->page_directory)
+      {
+         i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
       }
    }
+   // Kernel-mode: just free the PCB, don't touch page directory
 
-   // Unmap and free heap pages
-   if (proc->page_directory && proc->heap_start && proc->heap_end)
-   {
-      uint32_t heap_pages = (proc->heap_end - proc->heap_start + PAGE_SIZE - 1) / PAGE_SIZE;
-      for (uint32_t i = 0; i < heap_pages; ++i)
-      {
-         uint32_t va = proc->heap_start + (i * PAGE_SIZE);
-         uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
-         i686_Paging_UnmapPage(proc->page_directory, va);
-         if (phys) PMM_FreePhysicalPage(phys);
-      }
-   }
+   // Close all open file descriptors
+   FD_CloseAll(proc);
 
-   // Free page directory and all mapped pages
-   if (proc->page_directory)
-   {
-      i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
-   }
-
-   // Free process structure
    free(proc);
 
    if (current_process == proc)
