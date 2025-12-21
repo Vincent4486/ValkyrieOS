@@ -2,7 +2,7 @@
 
 1) Resolve macros to use SYS_Info struct
 2) Add wrapper functions to `HAL` for functions under `arch/`
-3) Make SYS_Info being detected from OS not hard coded (Scan disks & CPU info & memory & IRQ)
+3) Make SYS_Info being detected from OS not hard coded (Scan disks (4 ATA channels) & CPU info & memory & IRQ)
 
 # ValkyrieOS glibc Implementation Roadmap
 
