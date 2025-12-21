@@ -7,9 +7,13 @@
 #include <kernel/fs/disk/disk.h>
 #include <kernel/arch/i686/cpu/irq.h>
 
+extern __attribute__((cdecl)) get_arch(uint8_t *arch);
+extern __attribute__((cdecl)) get_cpu_count(uint32_t *cpu_count);
+extern __attribute__((cdecl)) void get_cpu_brand(char *brand);
+
 /* Architecture/CPU information */
 typedef struct {
-    uint8_t arch;                /* Architecture (i686, x86_64, aarch64, etc) */
+    uint8_t arch;                /* Architecture (1: i686, 2: x86_64, 3: aarch64) */
     uint32_t cpu_count;          /* Number of CPUs/cores */
     uint32_t cpu_frequency;      /* CPU frequency in MHz */
     uint32_t cache_line_size;    /* L1 cache line size */
