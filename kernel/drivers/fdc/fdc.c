@@ -2,7 +2,7 @@
 
 #include "fdc.h"
 #include <arch/i686/cpu/irq.h>
-#include <arch/i686/io/io.h>
+#include <hal/io.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -63,11 +63,11 @@ static void fdc_dma_init(bool is_read)
    }
 
    // Mask DMA channel 2
-   i686_outb(DMA_SINGLE_MASK,
+   HAL_outb(DMA_SINGLE_MASK,
              0x06); // 0x06 = 0b0110 = mask set (bit 2) | channel 2
 
    // Reset flip-flop
-   i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
+   HAL_outb(DMA_FLIP_FLOP_RESET, 0x0C);
 
    // Set DMA mode for channel 2
    // For FDC read (disk->memory): mode = 0x46
@@ -77,30 +77,30 @@ static void fdc_dma_init(bool is_read)
    //   0100 1010 = single transfer, address increment, autoinit disabled, read
    //   mode, channel 2
    uint8_t mode = is_read ? 0x46 : 0x4A;
-   i686_outb(DMA_MODE, mode);
+   HAL_outb(DMA_MODE, mode);
 
    // Set address (must be physical address, low 16 bits)
    uint32_t addr = FDC_DMA_BUFFER;
-   i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
-   i686_outb(DMA_CHANNEL_2_ADDR, addr & 0xFF);
-   i686_outb(DMA_CHANNEL_2_ADDR, (addr >> 8) & 0xFF);
+   HAL_outb(DMA_FLIP_FLOP_RESET, 0x0C);
+   HAL_outb(DMA_CHANNEL_2_ADDR, addr & 0xFF);
+   HAL_outb(DMA_CHANNEL_2_ADDR, (addr >> 8) & 0xFF);
 
    // Set page register (bits 16-23 of address)
-   i686_outb(DMA_CHANNEL_2_PAGE, (addr >> 16) & 0xFF);
+   HAL_outb(DMA_CHANNEL_2_PAGE, (addr >> 16) & 0xFF);
 
    // Set count (number of bytes - 1)
    uint16_t count = FLOPPY_SECTOR_SIZE - 1;
-   i686_outb(DMA_FLIP_FLOP_RESET, 0x0C);
-   i686_outb(DMA_CHANNEL_2_COUNT, count & 0xFF);
-   i686_outb(DMA_CHANNEL_2_COUNT, (count >> 8) & 0xFF);
+   HAL_outb(DMA_FLIP_FLOP_RESET, 0x0C);
+   HAL_outb(DMA_CHANNEL_2_COUNT, count & 0xFF);
+   HAL_outb(DMA_CHANNEL_2_COUNT, (count >> 8) & 0xFF);
 
    // Unmask DMA channel 2 to allow transfers
-   i686_outb(DMA_SINGLE_MASK, 0x02); // 0x02 = 0b0010 = mask clear | channel 2
+   HAL_outb(DMA_SINGLE_MASK, 0x02); // 0x02 = 0b0010 = mask clear | channel 2
 }
 
-static void fdc_motor_on(void) { i686_outb(FDC_DOR, FDC_MOTOR_ON); }
+static void fdc_motor_on(void) { HAL_outb(FDC_DOR, FDC_MOTOR_ON); }
 
-static void fdc_motor_off(void) { i686_outb(FDC_DOR, FDC_MOTOR_OFF); }
+static void fdc_motor_off(void) { HAL_outb(FDC_DOR, FDC_MOTOR_OFF); }
 
 // FDC IRQ handler - sets flag when interrupt is received
 static void fdc_irq_handler(Registers *regs) { g_fdc_irq_received = true; }
@@ -135,10 +135,10 @@ static void fdc_send_byte(uint8_t byte)
 
    while (timeout--)
    {
-      msr = i686_inb(FDC_MSR);
+      msr = HAL_inb(FDC_MSR);
       if ((msr & 0xC0) == 0x80) // RQM=1, DIO=0
       {
-         i686_outb(FDC_FIFO, byte);
+         HAL_outb(FDC_FIFO, byte);
          return;
       }
       i686_iowait();
@@ -153,10 +153,10 @@ static uint8_t fdc_read_byte(void)
 
    while (timeout--)
    {
-      msr = i686_inb(FDC_MSR);
+      msr = HAL_inb(FDC_MSR);
       if ((msr & 0xC0) == 0xC0) // RQM=1, DIO=1
       {
-         return i686_inb(FDC_FIFO);
+         return HAL_inb(FDC_FIFO);
       }
       i686_iowait();
    }
@@ -173,9 +173,9 @@ void FDC_Reset(void)
    i686_IRQ_Unmask(FDC_IRQ);
 
    // Reset controller
-   i686_outb(FDC_DOR, 0x00);
+   HAL_outb(FDC_DOR, 0x00);
    i686_iowait();
-   i686_outb(FDC_DOR, FDC_MOTOR_ON);
+   HAL_outb(FDC_DOR, FDC_MOTOR_ON);
 
    // Wait for IRQ after reset
    if (!fdc_wait_irq())
@@ -191,7 +191,7 @@ void FDC_Reset(void)
    }
 
    // Set data rate (500 Kbps for 1.44MB floppy)
-   i686_outb(FDC_CCR, 0x00);
+   HAL_outb(FDC_CCR, 0x00);
 
    // Configure controller (SPECIFY command)
    fdc_send_byte(FDC_CMD_SPECIFY);

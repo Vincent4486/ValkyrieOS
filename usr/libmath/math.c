@@ -5,7 +5,7 @@
  * Exports: integer ops, floating-point trig, exponential, power, rounding
  */
 
-#include "float.h"
+#include <float.h>
 
 /* Math constants */
 #define M_PI 3.14159265358979323846

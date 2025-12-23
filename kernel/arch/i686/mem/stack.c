@@ -138,10 +138,20 @@ void i686_Stack_SetupException(Stack *stack, uint32_t handler, uint32_t error_co
  * 
  * Sets up the kernel stack in kernel memory space.
  * The kernel stack grows downward from a fixed high address.
+ * 
+ * Kernel stack layout (typical):
+ * - Physical location: First few pages of kernel memory
+ * - Virtual location: Kernel address space (1GB+)
+ * - Size: 4KB - 8KB (configurable)
  */
 void i686_Stack_InitializeKernel(void) {
-    // Kernel stack location: end of kernel memory
-    // Typically 4KB or more reserved for kernel stack
-    // This will be called during kernel initialization
-    // Details depend on final kernel memory layout
+    // Kernel stack initialization happens during boot
+    // ESP is set up in boot code (entry.S) to point to kernel stack
+    // This function can be used for additional per-CPU kernel stack setup
+    // in multi-processor scenarios
+    
+    // For now, kernel stack is initialized in entry.S:
+    // - Physical address: early in kernel memory
+    // - Virtual address: kernel space (maps to physical via boot page tables)
+    // - Size: predefined in linker script
 }

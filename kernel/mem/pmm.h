@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef PMM_H
+#define PMM_H
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -46,3 +48,5 @@ uint32_t PMM_AllocatedPages(void);
 /* Self-test helper
  */
 void pmm_self_test(void);
+
+#endif

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include <stdio.h>
+/* #include <stdio.h>
 #include <stddef.h>
 #include <unistd.h>
 #include <limits.h>
@@ -612,3 +612,4 @@ int main(int argc, char **argv){
     loop();
     return 0;
 }
+*/

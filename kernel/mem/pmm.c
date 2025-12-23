@@ -2,11 +2,11 @@
 
 #include "pmm.h"
 #include "memory.h"
+#include <mem/memdefs.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#define PAGE_SIZE 4096
 #define BITS_PER_BYTE 8
 
 /* Bitmap to track free/allocated pages

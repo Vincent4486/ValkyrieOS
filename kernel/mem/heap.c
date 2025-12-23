@@ -32,7 +32,7 @@ int Heap_ProcessInitialize(Process *proc, uint32_t heap_start_va)
    }
 
    // Map to process page directory
-   if (!Paging_MapPage(proc->page_directory, heap_start_va, phys, 0x007))
+   if (!i686_Paging_MapPage(proc->page_directory, heap_start_va, phys, 0x007))
    { // RW, Present
       printf("[process] Heap_Initialize: map_page failed\n");
       PMM_FreePhysicalPage(phys);
@@ -68,7 +68,7 @@ int Heap_ProcessBrk(Process *proc, void *addr)
                    i, pages_needed);
             return -1;
          }
-         if (!Paging_MapPage(proc->page_directory, va, phys, 0x007))
+         if (!i686_Paging_MapPage(proc->page_directory, va, phys, 0x007))
          { // RW, Present
             printf("[process] brk: map_page failed at 0x%08x\n", va);
             PMM_FreePhysicalPage(phys);

@@ -1,3 +1,8 @@
+## Current todo
+
+2) Add wrapper functions to `HAL` for functions under `arch/`
+3) Make SYS_Info being detected from OS not hard coded
+
 # ValkyrieOS glibc Implementation Roadmap
 
 ## Phase 1: Core OS Infrastructure (Current)
@@ -5,13 +10,24 @@
 ### Memory Management
 - [x] Virtual memory / paging (per-process address spaces)
 - [x] Heap management (brk/sbrk syscalls for malloc)
-- [x] Stack management (per-process user stacks)
+- [ ] Stack management (per-process user stacks)
+    - [x] Refactor user stack allocation (move from process.c to stack.c)
+    - [x] Implement `Stack_CreateUser` using PMM/Paging (not kmalloc)
+    - [ ] Map user-mode exit trampoline (fix GPF on return)
+    - [ ] Update TSS ESP0 on context switch
 - [ ] Memory protection (read/write/execute permissions)
 - [x] Page tables and MMU setup
 
 ### Process Management
 - [x] Process Control Block (PCB) structure
-- [x] Process creation (fork/execve syscalls)
+- [ ] Process creation & destroy (fork/execve syscalls)
+    - [ ] Add Kernel Stack to Process Struct
+    - [ ] Allocate Kernel Stack in Process_Create
+    - [ ] Free Kernel Stack in Process_Destroy
+    - [ ] Set Parent PID
+    - [ ] Initialize Standard File Descriptors (stdin, stdout, stderr)
+    - [ ] Handle Arguments (argv/envp)
+    - [ ] Scheduler Registration
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
@@ -25,7 +41,7 @@
 - [x] `FAT_Delete()` - delete files
 - [x] Multi-cluster file support (files > 1 cluster)
 - [ ] Device files abstraction
-- [ ] File descriptors table per process
+- [!] File descriptors table per process
 - [ ] `FAT_Stat()` - file metadata
 
 ### Terminal Support
@@ -35,14 +51,14 @@
 - [ ] Keyboard input handling
 - [ ] Terminal control ioctl calls
 
-## Phase 2: Essential Syscalls
+## Phase 2: Syscalls Wrappers
 
 ### File I/O Syscalls
-- [ ] `read` - read from file descriptor
-- [ ] `write` - write to file descriptor
-- [ ] `open` - open file
-- [ ] `close` - close file descriptor
-- [ ] `lseek` - seek in file
+- [!] `read` - read from file descriptor
+- [!] `write` - write to file descriptor
+- [!] `open` - open file
+- [!] `close` - close file descriptor
+- [!] `lseek` - seek in file
 - [ ] `fstat`, `stat`, `lstat` - file metadata
 - [ ] `ioctl` - device control
 - [ ] `fcntl` - file control
@@ -85,38 +101,7 @@
 - [ ] `umask` - file creation mask
 - [ ] `nice`, `getpriority`, `setpriority` - scheduling
 
-## Phase 3: Functionality Support
-
-### Core Functionality (glibc will syscall for these)
-- [ ] Dynamic memory management - heap allocation/deallocation
-- [ ] Formatted I/O - output to file descriptors, input from files
-- [ ] File streaming - buffered read/write with file streams
-- [ ] I/O multiplexing - select/poll on multiple file descriptors
-- [ ] String/memory manipulation - copy, search, compare operations
-- [ ] Time/clock queries - current time, timers
-- [ ] Locale support - character encoding, sorting
-
-### Provided Headers
-- [x] `<stdio.h>` - basic version
-- [ ] `<stdlib.h>` - allocation, exit utilities
-- [x] `<string.h>` - basic version
-- [ ] `<time.h>` - time/clock functions
-- [ ] `<sys/stat.h>` - file metadata queries
-- [ ] `<fcntl.h>` - file opening flags
-- [ ] `<unistd.h>` - POSIX utilities
-- [ ] `<signal.h>` - signal handling
-- [ ] `<errno.h>` - error reporting
-- [ ] `<limits.h>` - system limits
-- [ ] `<stddef.h>` - standard type definitions
-
-### Threading Support (glibc will handle, you provide primitives)
-- [ ] Thread creation/joining syscalls
-- [ ] Mutex primitives (futex syscall)
-- [ ] Condition variable support
-- [ ] Thread-local storage (TLS)
-- [ ] Atomic operations
-
-## Phase 4: Advanced Features
+## Phase 3: Advanced Features
 
 ### Device Support
 - [ ] `/dev/null` device file

@@ -17,7 +17,7 @@ VARS.AddVariables(
     EnumVariable("arch", 
                  help="Target architecture", 
                  default="i686",
-                 allowed_values=("i686")),
+                 allowed_values=("i686", "x64")),
 
     EnumVariable("imageFS",
                  help="Type of image",
@@ -55,17 +55,24 @@ HOST_ENVIRONMENT = Environment(variables=VARS,
     CFLAGS = ['-std=c99'],
     CXXFLAGS = ['-std=c++17'],
     CCFLAGS = ['-g'],
-    RUSTFLAGS = [
-        '--edition', '2021',
-        '-C', 'opt-level=0' if 'debug' else '-C', 'opt-level=3',
-    ],
-    STRIP = 'strip',
+    STRIP = 'strip'
 )
 
 if HOST_ENVIRONMENT['config'] == 'debug':
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O0', '-DDEBUG'])
 else:
     HOST_ENVIRONMENT.Append(CCFLAGS = ['-O3', '-DRELEASE'])
+
+#
+# *** Define architecture macros ***
+#
+
+if HOST_ENVIRONMENT['arch'] == 'i686':
+    HOST_ENVIRONMENT.Append(CCFLAGS = ['-DI686'])
+elif HOST_ENVIRONMENT['arch'] == 'x64':
+    HOST_ENVIRONMENT.Append(CCFLAGS = ['-DX64'])
+else:
+    HOST_ENVIRONMENT.Append(CCFLAGS = ['-DNOARCH'])
 
 #
 # ***  Target environment ***
@@ -87,7 +94,6 @@ TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
     LD = f'{platform_prefix}g++',
     RANLIB = f'{platform_prefix}ranlib',
     STRIP = f'{platform_prefix}strip',
-    RUSTC = '/home/vincent/.cargo/bin/rustc',
 
     # toolchain
     TOOLCHAIN_PREFIX = str(toolchainDir),
@@ -110,13 +116,6 @@ TARGET_ENVIRONMENT.Append(
     CXXFLAGS = [
         '-fno-exceptions',
         '-fno-rtti',
-    ],
-    RUSTFLAGS = [
-        '--target', 'i686-unknown-linux-gnu',
-        '-C', 'no-redzone=on',
-        '-C', 'relocation-model=static',
-        '-C', 'code-model=static',
-        '-Z', 'build-std=core,alloc',
     ],
     LINKFLAGS = [
         '-nostdlib'

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef PARTITION_H
+#define PARTITION_H
 
 #include "disk.h"
 #include <stdbool.h>
@@ -20,3 +21,5 @@ bool Partition_ReadSectors(Partition *disk, uint32_t lba, uint8_t sectors,
 
 bool Partition_WriteSectors(Partition *part, uint32_t lba, uint8_t sectors,
                             const void *lowerDataIn);
+
+#endif

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "init.h"
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
 #include <mem/memdefs.h>
+#include <sys/sys.h>
 #include <stdint.h>
 
 /**
@@ -84,6 +84,13 @@ bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
    {
       return false;
    }
+   
+   /* Populate filesystem info in SYS_Info */
+   g_SysInfo->fs.mounted = 1;
+   g_SysInfo->fs.read_only = 0;
+   g_SysInfo->fs.block_size = 512;
+   g_SysInfo->fs.type = 2; /* FAT */
+   g_SysInfo->fs_count = 1;
 
    return true;
 }

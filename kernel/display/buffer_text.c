@@ -2,13 +2,11 @@
 
 #include "buffer_text.h"
 #include <mem/memory.h>
+#include <mem/memdefs.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#define BUFFER_LINES 2048
-#define BUFFER_BASE_ADDR 0x00800000
 
 /* declare setcursor (defined in stdio.c) to avoid implicit declaration */
 extern void setcursor(int x, int y);
@@ -64,9 +62,9 @@ static inline void reset_dirty_rows(void)
 
 static void finalize_putc_repaint(int prev_visible_start);
 
-void buffer_init(void) { buffer_clear(); }
+void Buffer_Initialize(void) { Buffer_Clear(); }
 
-void buffer_clear(void)
+void Buffer_Clear(void)
 {
    memset((char *)s_buffer, 0, BUFFER_LINES * SCREEN_WIDTH);
    s_head = 0;
@@ -75,7 +73,7 @@ void buffer_clear(void)
    s_cursor_y = 0;
    s_scroll = 0;
    mark_all_rows_dirty();
-   buffer_repaint();
+   Buffer_Repaint();
 }
 
 static void ensure_line_exists(void)
@@ -193,7 +191,7 @@ static void buffer_insert_empty_line_at_rel(uint32_t rel_pos)
    }
 }
 
-void buffer_putc(char c)
+void Buffer_PutChar(char c)
 {
    ensure_line_exists();
    int prev_visible_start = compute_visible_start();
@@ -262,7 +260,7 @@ void buffer_putc(char c)
    if (c == '\t')
    {
       int n = 4 - (s_cursor_x % 4);
-      for (int i = 0; i < n; i++) buffer_putc(' ');
+      for (int i = 0; i < n; i++) Buffer_PutChar(' ');
       return;
    }
 
@@ -389,15 +387,15 @@ repaint:
 static void finalize_putc_repaint(int prev_visible_start)
 {
    if (compute_visible_start() != prev_visible_start) mark_all_rows_dirty();
-   buffer_repaint();
+   Buffer_Repaint();
 }
 
-void buffer_puts(const char *s)
+void Buffer_PutString(const char *s)
 {
-   while (*s) buffer_putc(*s++);
+   while (*s) Buffer_PutChar(*s++);
 }
 
-void buffer_scroll(int lines)
+void Buffer_Scroll(int lines)
 {
    /* Positive lines -> scroll up (view older content); negative -> scroll down.
       We maintain s_scroll which is clamped between 0 and max_scroll. */
@@ -413,12 +411,12 @@ void buffer_scroll(int lines)
    if (new_scroll > max_scroll) new_scroll = max_scroll;
    s_scroll = (uint32_t)new_scroll;
    mark_all_rows_dirty();
-   buffer_repaint();
+   Buffer_Repaint();
 }
 
-void buffer_set_color(uint8_t color) { s_color = color; }
+void Buffer_SetColor(uint8_t color) { s_color = color; }
 
-void buffer_set_cursor(int x, int y)
+void Buffer_SetCursor(int x, int y)
 {
    if (x < 0) x = 0;
    if (x >= SCREEN_WIDTH) x = SCREEN_WIDTH - 1;
@@ -426,20 +424,20 @@ void buffer_set_cursor(int x, int y)
    if (y >= SCREEN_HEIGHT) y = SCREEN_HEIGHT - 1;
    /* Clamp x to the actual printable length of the visible logical line so
       the cursor cannot be positioned in trailing empty space. */
-   int max_x = buffer_get_visible_line_length(y);
+   int max_x = Buffer_GetVisibleLineLength(y);
    if (x > max_x) x = max_x;
    s_cursor_x = x;
    s_cursor_y = y;
    setcursor(s_cursor_x, s_cursor_y);
 }
 
-void buffer_get_cursor(int *x, int *y)
+void Buffer_GetCursor(int *x, int *y)
 {
    if (x) *x = s_cursor_x;
    if (y) *y = s_cursor_y;
 }
 
-int buffer_get_visible_line_length(int y)
+int Buffer_GetVisibleLineLength(int y)
 {
    if (y < 0 || y >= SCREEN_HEIGHT) return 0;
    int start = compute_visible_start();
@@ -451,18 +449,18 @@ int buffer_get_visible_line_length(int y)
    return len;
 }
 
-int buffer_get_max_scroll(void)
+int Buffer_GetMaxScroll(void)
 {
    if (s_lines_used <= SCREEN_HEIGHT) return 0;
    return (int)(s_lines_used - SCREEN_HEIGHT);
 }
 
-uint32_t buffer_get_visible_start(void)
+uint32_t Buffer_GetVisibleStart(void)
 {
    return (uint32_t)compute_visible_start();
 }
 
-void buffer_repaint(void)
+void Buffer_Repaint(void)
 {
    int start = compute_visible_start();
    if (s_dirty_row_start > s_dirty_row_end)

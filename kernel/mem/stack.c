@@ -3,9 +3,14 @@
 #include "stack.h"
 #include <mem/vmm.h>
 #include <mem/heap.h>
+#include <mem/pmm.h>
 #include <arch/i686/mem/stack.h>
+#include <arch/i686/mem/paging.h>
 #include <std/string.h>
+#include <std/stdio.h>
 #include <mem/memory.h>
+#include <sys/sys.h>
+#include <cpu/process.h>
 
 /**
  * Generic stack management implementation
@@ -25,7 +30,19 @@ void Stack_Initialize(void) {
  * Initialize kernel stack (delegates to architecture code)
  */
 void Stack_InitializeKernel(void) {
+    // Initialize architecture-specific kernel stack
     i686_Stack_InitializeKernel();
+    
+    // Get kernel stack size from system info (default 8KB if not set)
+    uint32_t stack_size = (g_SysInfo && g_SysInfo->memory.kernel_stack_size) 
+                          ? g_SysInfo->memory.kernel_stack_size 
+                          : 8192;
+    
+    // Create kernel stack
+    kernel_stack = Stack_Create(stack_size);
+    if (!kernel_stack) {
+        printf("[stack] ERROR: failed to create kernel stack\n");
+    }
 }
 
 /**
@@ -53,6 +70,62 @@ Stack *Stack_Create(size_t size) {
     stack->data = data;
     
     return stack;
+}
+
+/**
+ * Initialize a process's user stack
+ */
+int Stack_ProcessInitialize(Process *proc, uint32_t stack_top_va, size_t size) {
+    if (!proc || size == 0) return -1;
+
+    // Align size to page boundary
+    if (size % PAGE_SIZE != 0) {
+        size = ((size / PAGE_SIZE) + 1) * PAGE_SIZE;
+    }
+
+    uint32_t stack_bottom_va = stack_top_va - size;
+    uint32_t pages_needed = size / PAGE_SIZE;
+
+    // Allocate and map pages
+    for (uint32_t i = 0; i < pages_needed; ++i) {
+        uint32_t va = stack_bottom_va + (i * PAGE_SIZE);
+        uint32_t phys = PMM_AllocatePhysicalPage();
+        
+        if (phys == 0) {
+            printf("[stack] ERROR: PMM_AllocatePhysicalPage failed\n");
+            // Cleanup already mapped pages
+            for (uint32_t j = 0; j < i; ++j) {
+                uint32_t va_cleanup = stack_bottom_va + (j * PAGE_SIZE);
+                uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
+                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
+            }
+            return -1;
+        }
+
+        // Map as User | RW | Present
+        if (!i686_Paging_MapPage(proc->page_directory, va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER)) {
+            printf("[stack] ERROR: map_page failed for stack at 0x%08x\n", va);
+            PMM_FreePhysicalPage(phys);
+            // Cleanup
+            for (uint32_t j = 0; j < i; ++j) {
+                uint32_t va_cleanup = stack_bottom_va + (j * PAGE_SIZE);
+                uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
+                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
+            }
+            return -1;
+        }
+    }
+
+    // Update Process struct
+    proc->stack_start = stack_bottom_va;
+    proc->stack_end = stack_top_va;
+
+    printf("[stack] Initialized user stack for pid=%u at 0x%08x-0x%08x\n", 
+           proc->pid, proc->stack_start, proc->stack_end);
+
+    return 0;
 }
 
 /**

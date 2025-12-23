@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_IDT_H
+#define I686_IDT_H
+
 #include <stdint.h>
 
 typedef enum
@@ -25,3 +27,5 @@ void i686_IDT_DisableGate(int interrupt);
 void i686_IDT_EnableGate(int interrupt);
 void i686_IDT_SetGate(int interrupt, void *base, uint16_t segmentDescriptor,
                       uint8_t flags);
+
+#endif

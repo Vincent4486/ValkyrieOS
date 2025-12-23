@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_TLB_H
+#define I686_TLB_H
 
 #include <stdint.h>
 
@@ -102,3 +103,5 @@ static inline void tlb_set_cr3(uint32_t page_dir_phys) {
 static inline void tlb_prefetch(uintptr_t vaddr) {
     __asm__ __volatile__("prefetcht0 (%0)" : : "r" (vaddr));
 }
+
+#endif

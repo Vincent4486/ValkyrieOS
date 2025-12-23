@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_VM_LAYOUT_H
+#define I686_VM_LAYOUT_H
 
 #include <stdint.h>
 
@@ -92,10 +93,12 @@
 /** Per-process code/data region (typically loaded from 0x08048000 on x86 Linux convention) */
 #define USER_CODE_START             0x08048000UL  // 128MiB + 16KB (standard x86 32-bit)
 
+/* Pull in common memory constants (PAGE_SIZE, etc.) */
+#include <mem/memdefs.h>
+
 /* ========== PAGE ALIGNMENT ========== */
 
 /** Page size for x86 (4KB) */
-#define PAGE_SIZE                   0x1000UL
 #define PAGE_SHIFT                  12
 
 /** Align address down to page boundary */
@@ -148,3 +151,5 @@ static inline int is_video_memory_address(uintptr_t addr) {
 static inline int is_dylib_region_address(uintptr_t addr) {
     return addr >= DYLIB_REGION_VIRT_START && addr < DYLIB_REGION_VIRT_END;
 }
+
+#endif

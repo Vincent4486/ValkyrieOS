@@ -14,6 +14,13 @@ i686_outw:
     outw %ax, %dx
     ret
 
+.global i686_outl
+i686_outl:
+    movw 4(%esp), %dx
+    movl 8(%esp), %eax
+    outl %eax, %dx
+    ret
+
 .global i686_inb
 i686_inb:
     movw 4(%esp), %dx
@@ -26,6 +33,13 @@ i686_inw:
     movw 4(%esp), %dx
     xorl %eax, %eax
     inw %dx, %ax
+    ret
+
+.global i686_inl
+i686_inl:
+    movw 4(%esp), %dx
+    xorl %eax, %eax
+    inl %dx, %eax
     ret
 
 .global i686_EnableInterrupts

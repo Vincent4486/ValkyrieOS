@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "stdio.h"
-#include <arch/i686/io/io.h>
+#include <hal/io.h>
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -36,13 +36,13 @@ void setcursor(int x, int y)
 {
    int pos = y * SCREEN_WIDTH + x;
 
-   i686_outb(0x3D4, 0x0F);
-   i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
-   i686_outb(0x3D4, 0x0E);
-   i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+   HAL_outb(0x3D4, 0x0F);
+   HAL_outb(0x3D5, (uint8_t)(pos & 0xFF));
+   HAL_outb(0x3D4, 0x0E);
+   HAL_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
-void clrscr() { buffer_clear(); }
+void clrscr() { Buffer_Clear(); }
 
 void scrollback(int lines)
 {
@@ -65,8 +65,8 @@ void scrollback(int lines)
 
 void putc(char c)
 {
-   i686_outb(0xe9, c);
-   buffer_putc(c);
+   HAL_outb(0xe9, c);
+   Buffer_PutChar(c);
 }
 
 void puts(const char *str)

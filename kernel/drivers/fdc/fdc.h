@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef FDC_H
+#define FDC_H
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -20,3 +21,5 @@ int FDC_WriteLba(uint32_t lba, const uint8_t *buffer, size_t count);
 bool FDC_Seek(uint8_t head, uint8_t track);
 
 void FDC_Reset(void);
+
+#endif

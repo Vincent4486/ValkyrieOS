@@ -109,7 +109,7 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
 
 static dylib_register_symbols_t symbol_callback = NULL;
 
-int dylib_mem_init(void)
+int Dylib_MemoryInitialize(void)
 {
    if (dylib_mem_initialized) return 0;
 
@@ -142,7 +142,7 @@ int dylib_mem_init(void)
 // Global Symbol Table Management
 // ============================================================================
 
-int dylib_add_global_symbol(const char *name, uint32_t address,
+int Dylib_AddGlobalSymbol(const char *name, uint32_t address,
                             const char *lib_name, int is_kernel)
 {
    if (global_symtab_count >= DYLIB_MAX_GLOBAL_SYMBOLS)
@@ -164,7 +164,7 @@ int dylib_add_global_symbol(const char *name, uint32_t address,
    return 0;
 }
 
-uint32_t dylib_lookup_global_symbol(const char *name)
+uint32_t Dylib_LookupGlobalSymbol(const char *name)
 {
    for (int i = 0; i < global_symtab_count; i++)
    {
@@ -174,7 +174,7 @@ uint32_t dylib_lookup_global_symbol(const char *name)
    return 0; // Not found
 }
 
-void dylib_print_global_symtab(void)
+void Dylib_PrintGlobalSymtab(void)
 {
    printf("\n========== Global Symbol Table ==========\n");
    printf("%-40s 0x%-8x %s\n", "Symbol", "Address", "Source");
@@ -190,7 +190,7 @@ void dylib_print_global_symtab(void)
    printf("Total: %d symbols\n\n", global_symtab_count);
 }
 
-void dylib_clear_global_symtab(void)
+void Dylib_ClearGlobalSymtab(void)
 {
    global_symtab_count = 0;
    printf("[DYLIB] Global symbol table cleared\n");
@@ -287,7 +287,7 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
                const char *sym_name =
                    (const char *)(dynstr_addr + st_name_offset);
 
-               uint32_t sym_addr = dylib_lookup_global_symbol(sym_name);
+               uint32_t sym_addr = Dylib_LookupGlobalSymbol(sym_name);
                if (sym_addr == 0)
                {
                   printf("[WARNING] Unresolved symbol in %s: %s (skipping "
@@ -331,7 +331,7 @@ static int apply_relocations(uint32_t base, Elf32_Rel *rel_table,
    return 0;
 }
 
-int dylib_apply_kernel_relocations(void)
+int Dylib_ApplyKernelRelocations(void)
 {
    // Kernel relocation sections are exposed by linker script
    extern char _kernel_rel_dyn_start[];
@@ -410,9 +410,9 @@ int dylib_apply_kernel_relocations(void)
    return 0;
 }
 
-uint32_t dylib_mem_alloc(const char *lib_name, uint32_t size)
+uint32_t Dylib_MemoryAllocate(const char *lib_name, uint32_t size)
 {
-   if (!dylib_mem_initialized) dylib_mem_init();
+   if (!dylib_mem_initialized) Dylib_MemoryInitialize();
 
    // Round up to 16-byte boundary for alignment
    uint32_t aligned_size = (size + 15) & ~15;
@@ -450,7 +450,7 @@ static int dylib_find_index(const char *name)
    return -1;
 }
 
-LibRecord *dylib_find(const char *name)
+LibRecord *Dylib_Find(const char *name)
 {
    LibRecord *reg = LIB_REGISTRY_ADDR;
    for (int i = 0; i < LIB_REGISTRY_MAX; i++)
@@ -463,7 +463,7 @@ LibRecord *dylib_find(const char *name)
    return NULL;
 }
 
-int dylib_check_dependencies(const char *name)
+int Dylib_CheckDependencies(const char *name)
 {
    int idx = dylib_find_index(name);
    if (idx < 0) return 0;
@@ -482,7 +482,7 @@ int dylib_check_dependencies(const char *name)
    return 1;
 }
 
-int dylib_resolve_dependencies(const char *name)
+int Dylib_ResolveDependencies(const char *name)
 {
    int idx = dylib_find_index(name);
    if (idx < 0) return -1;
@@ -494,7 +494,7 @@ int dylib_resolve_dependencies(const char *name)
    // Resolve each dependency
    for (int i = 0; i < ext->dep_count; i++)
    {
-      LibRecord *dep = dylib_find(ext->deps[i].name);
+      LibRecord *dep = Dylib_Find(ext->deps[i].name);
       if (dep)
       {
          ext->deps[i].resolved = 1;
@@ -510,13 +510,13 @@ int dylib_resolve_dependencies(const char *name)
    return 0;
 }
 
-int dylib_call_if_exists(const char *name)
+int Dylib_CallIfExists(const char *name)
 {
-   LibRecord *lib = dylib_find(name);
+   LibRecord *lib = Dylib_Find(name);
    if (!lib || !lib->entry) return -1;
 
    // Check dependencies before calling
-   if (!dylib_check_dependencies(name))
+   if (!Dylib_CheckDependencies(name))
    {
       printf("[ERROR] %s has unresolved dependencies\n", name);
       return -1;
@@ -527,7 +527,7 @@ int dylib_call_if_exists(const char *name)
    return ((entry_t)lib->entry)();
 }
 
-void dylib_list(void)
+void Dylib_List(void)
 {
    LibRecord *reg = LIB_REGISTRY_ADDR;
 
@@ -553,7 +553,7 @@ void dylib_list(void)
    printf("\n");
 }
 
-void dylib_list_deps(const char *name)
+void Dylib_ListDependencies(const char *name)
 {
    int idx = dylib_find_index(name);
    if (idx < 0)
@@ -579,7 +579,7 @@ void dylib_list_deps(const char *name)
    printf("\n");
 }
 
-uint32_t dylib_find_symbol(const char *libname, const char *symname)
+uint32_t Dylib_FindSymbol(const char *libname, const char *symname)
 {
    int idx = dylib_find_index(libname);
    if (idx < 0)
@@ -603,9 +603,9 @@ uint32_t dylib_find_symbol(const char *libname, const char *symname)
    return 0;
 }
 
-int dylib_call_symbol(const char *libname, const char *symname)
+int Dylib_CallSymbol(const char *libname, const char *symname)
 {
-   LibRecord *lib = dylib_find(libname);
+   LibRecord *lib = Dylib_Find(libname);
    if (!lib)
    {
       printf("[ERROR] Library not found: %s\n", libname);
@@ -613,14 +613,14 @@ int dylib_call_symbol(const char *libname, const char *symname)
    }
 
    // Check dependencies before calling
-   if (!dylib_check_dependencies(libname))
+   if (!Dylib_CheckDependencies(libname))
    {
       printf("[ERROR] %s has unresolved dependencies\n", libname);
       return -1;
    }
 
    // Find the symbol
-   uint32_t symbol_addr = dylib_find_symbol(libname, symname);
+   uint32_t symbol_addr = Dylib_FindSymbol(libname, symname);
    if (!symbol_addr)
    {
       return -1;
@@ -631,7 +631,7 @@ int dylib_call_symbol(const char *libname, const char *symname)
    return ((func_t)symbol_addr)();
 }
 
-void dylib_list_symbols(const char *name)
+void Dylib_ListSymbols(const char *name)
 {
    int idx = dylib_find_index(name);
    if (idx < 0)
@@ -657,7 +657,7 @@ void dylib_list_symbols(const char *name)
    printf("\n");
 }
 
-int dylib_parse_symbols(LibRecord *lib)
+int Dylib_ParseSymbols(LibRecord *lib)
 {
    if (!lib || !lib->base)
    {
@@ -685,7 +685,7 @@ int dylib_parse_symbols(LibRecord *lib)
    return 0;
 }
 
-int dylib_mem_free(const char *lib_name)
+int Dylib_MemoryFree(const char *lib_name)
 {
    int idx = dylib_find_index(lib_name);
    if (idx < 0)
@@ -710,9 +710,9 @@ int dylib_mem_free(const char *lib_name)
    return 0;
 }
 
-int dylib_load(const char *name, const void *image, uint32_t size)
+int Dylib_Load(const char *name, const void *image, uint32_t size)
 {
-   if (!dylib_mem_initialized) dylib_mem_init();
+   if (!dylib_mem_initialized) Dylib_MemoryInitialize();
 
    int idx = dylib_find_index(name);
    if (idx < 0)
@@ -731,7 +731,7 @@ int dylib_load(const char *name, const void *image, uint32_t size)
    }
 
    // Allocate memory for the library
-   uint32_t load_addr = dylib_mem_alloc(name, size);
+   uint32_t load_addr = Dylib_MemoryAllocate(name, size);
    if (!load_addr)
    {
       printf("[ERROR] Failed to allocate memory for %s\n", name);
@@ -988,10 +988,10 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
    return 0;
 }
 
-int dylib_load_from_disk(Partition *partition, const char *name,
+int Dylib_LoadFromDisk(Partition *partition, const char *name,
                          const char *filepath)
 {
-   if (!dylib_mem_initialized) dylib_mem_init();
+   if (!dylib_mem_initialized) Dylib_MemoryInitialize();
 
    if (!partition)
    {
@@ -1034,7 +1034,7 @@ int dylib_load_from_disk(Partition *partition, const char *name,
    }
 
    // Allocate memory for the library
-   uint32_t load_addr = dylib_mem_alloc(name, file_size);
+   uint32_t load_addr = Dylib_MemoryAllocate(name, file_size);
    if (!load_addr)
    {
       printf("[ERROR] Failed to allocate memory for %s (need %d bytes)\n", name,
@@ -1052,7 +1052,7 @@ int dylib_load_from_disk(Partition *partition, const char *name,
       printf("[ERROR] Failed to read library: expected %d bytes, got %d\n",
              file_size, bytes_read);
       FAT_Close(file);
-      dylib_mem_free(name);
+      Dylib_MemoryFree(name);
       return -1;
    }
 
@@ -1078,7 +1078,7 @@ int dylib_load_from_disk(Partition *partition, const char *name,
    return 0;
 }
 
-int dylib_remove(const char *name)
+int Dylib_Remove(const char *name)
 {
    int idx = dylib_find_index(name);
    if (idx < 0)
@@ -1097,7 +1097,7 @@ int dylib_remove(const char *name)
    }
 
    // Free memory
-   if (dylib_mem_free(name) != 0) return -1;
+   if (Dylib_MemoryFree(name) != 0) return -1;
 
    // Mark as unloaded
    ext->loaded = 0;
@@ -1115,7 +1115,7 @@ int dylib_remove(const char *name)
    return 0;
 }
 
-void dylib_mem_stats(void)
+void Dylib_MemoryStatus(void)
 {
    if (!dylib_mem_initialized)
    {
@@ -1153,7 +1153,151 @@ void dylib_mem_stats(void)
    printf("\n");
 }
 
-void dylib_register_callback(dylib_register_symbols_t callback)
+void Dylib_RegisterCallback(dylib_register_symbols_t callback)
 {
    symbol_callback = callback;
+}
+
+#include <fs/disk/partition.h>
+#include <mem/memdefs.h>
+#include <std/stdio.h>
+#include <stddef.h>
+#include <sys/dylib.h>
+
+static int load_libmath(Partition *partition)
+{
+   // First, ensure libmath is registered in the library registry
+   LibRecord *lib_registry = LIB_REGISTRY_ADDR;
+
+   // Check if libmath is already registered
+   LibRecord *existing_lib = Dylib_Find("libmath");
+   if (!existing_lib || existing_lib->name[0] == '\0')
+   {
+      // Register libmath in the registry
+      lib_registry[0].name[0] = 'l';
+      lib_registry[0].name[1] = 'i';
+      lib_registry[0].name[2] = 'b';
+      lib_registry[0].name[3] = 'm';
+      lib_registry[0].name[4] = 'a';
+      lib_registry[0].name[5] = 't';
+      lib_registry[0].name[6] = 'h';
+      lib_registry[0].name[7] = '\0';
+      lib_registry[0].base = NULL;
+      lib_registry[0].entry = NULL;
+      lib_registry[0].size = 0;
+      printf("[DYLIB] Registered libmath in library registry\n");
+   }
+
+   // Load libmath from disk using the standard loader
+   if (Dylib_LoadFromDisk(partition, "libmath", "/usr/lib/libmath.so") != 0)
+   {
+      printf("[ERROR] Failed to load libmath.so\n");
+      return -1;
+   }
+
+   // Resolve dependencies
+   Dylib_ResolveDependencies("libmath");
+
+   // Dylib_ListSymbols("libmath");
+
+   // Register libmath symbols in global symbol table for GOT patching
+   printf("\n[*] Registering libmath symbols in global symbol table...\n");
+   Dylib_AddGlobalSymbol("add", (uint32_t)Dylib_FindSymbol("libmath", "add"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("subtract",
+                           (uint32_t)Dylib_FindSymbol("libmath", "subtract"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("multiply",
+                           (uint32_t)Dylib_FindSymbol("libmath", "multiply"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("divide",
+                           (uint32_t)Dylib_FindSymbol("libmath", "divide"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("modulo",
+                           (uint32_t)Dylib_FindSymbol("libmath", "modulo"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("abs_int",
+                           (uint32_t)Dylib_FindSymbol("libmath", "abs_int"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fabsf", (uint32_t)Dylib_FindSymbol("libmath", "fabsf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fabs", (uint32_t)Dylib_FindSymbol("libmath", "fabs"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "sinf", (uint32_t)Dylib_FindSymbol("libmath", "sinf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("sin", (uint32_t)Dylib_FindSymbol("libmath", "sin"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "cosf", (uint32_t)Dylib_FindSymbol("libmath", "cosf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("cos", (uint32_t)Dylib_FindSymbol("libmath", "cos"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "tanf", (uint32_t)Dylib_FindSymbol("libmath", "tanf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("tan", (uint32_t)Dylib_FindSymbol("libmath", "tan"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "expf", (uint32_t)Dylib_FindSymbol("libmath", "expf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("exp", (uint32_t)Dylib_FindSymbol("libmath", "exp"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "logf", (uint32_t)Dylib_FindSymbol("libmath", "logf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("log", (uint32_t)Dylib_FindSymbol("libmath", "log"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol("log10f",
+                           (uint32_t)Dylib_FindSymbol("libmath", "log10f"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "log10", (uint32_t)Dylib_FindSymbol("libmath", "log10"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "powf", (uint32_t)Dylib_FindSymbol("libmath", "powf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("pow", (uint32_t)Dylib_FindSymbol("libmath", "pow"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "sqrtf", (uint32_t)Dylib_FindSymbol("libmath", "sqrtf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "sqrt", (uint32_t)Dylib_FindSymbol("libmath", "sqrt"), "libmath", 0);
+   Dylib_AddGlobalSymbol("floorf",
+                           (uint32_t)Dylib_FindSymbol("libmath", "floorf"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "floor", (uint32_t)Dylib_FindSymbol("libmath", "floor"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "ceilf", (uint32_t)Dylib_FindSymbol("libmath", "ceilf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "ceil", (uint32_t)Dylib_FindSymbol("libmath", "ceil"), "libmath", 0);
+   Dylib_AddGlobalSymbol("roundf",
+                           (uint32_t)Dylib_FindSymbol("libmath", "roundf"),
+                           "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "round", (uint32_t)Dylib_FindSymbol("libmath", "round"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fminf", (uint32_t)Dylib_FindSymbol("libmath", "fminf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fmin", (uint32_t)Dylib_FindSymbol("libmath", "fmin"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fmaxf", (uint32_t)Dylib_FindSymbol("libmath", "fmaxf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fmax", (uint32_t)Dylib_FindSymbol("libmath", "fmax"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fmodf", (uint32_t)Dylib_FindSymbol("libmath", "fmodf"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "fmod", (uint32_t)Dylib_FindSymbol("libmath", "fmod"), "libmath", 0);
+   printf("[*] Symbols registered\n");
+
+   // Apply kernel GOT/PLT relocations for libmath
+   printf("\n[*] Applying kernel GOT/PLT relocations...\n");
+   Dylib_ApplyKernelRelocations();
+   printf("[*] Relocations applied\n");
+   return 0;
+}
+
+bool Dylib_Initialize(Partition *partition)
+{
+   // Load math library
+   if (load_libmath(partition) != 0) {
+      printf("[ERROR] Failed to initialize libmath\n");
+      return false;
+   }
+   
+   return true;
 }

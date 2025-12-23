@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef PROCESS_H
+#define PROCESS_H
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <mem/memdefs.h>
 
-#define PAGE_SIZE 4096
 #define HEAP_MAX 0xC0000000u // Don't allow heap
 
 typedef struct
@@ -51,3 +52,5 @@ void Process_Destroy(Process *proc);
 Process *Process_GetCurrent(void);
 void Process_SetCurrent(Process *proc);
 void process_self_test(void);
+
+#endif

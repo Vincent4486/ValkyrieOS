@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#ifndef FS_H
+#define FS_H
+
+#include <stdint.h>
+#include <fs/disk/partition.h>
+#include <fs/disk/disk.h>
+
+/* Filesystem device information */
+typedef struct {
+    uint8_t type;                /* Filesystem type (fat12, fat16, fat32, ext2, etc) */
+    uint32_t block_size;         /* Block size in bytes */
+    uint32_t total_blocks;       /* Total number of blocks */
+    uint32_t used_blocks;        /* Used blocks */
+    uint32_t free_blocks;        /* Free blocks */
+    uint32_t inode_size;         /* Size of an inode */
+    uint32_t total_inodes;       /* Total number of inodes */
+    uint32_t free_inodes;        /* Free inodes */
+    uint8_t mounted;             /* 1 if mounted, 0 otherwise */
+    uint8_t read_only;           /* 1 if read-only, 0 if read-write */
+} __attribute__((packed)) FS_Info;
+
+bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
+
+#endif

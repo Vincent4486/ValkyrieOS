@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "paging.h"
+#include <mem/memdefs.h>
 #include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
@@ -10,7 +11,6 @@
 
 extern uint8_t __end; // provided by linker, end of kernel image
 
-#define PAGE_SIZE 4096
 #define PAGE_TABLE_ENTRIES 1024
 #define PAGE_DIR_ENTRIES 1024
 
@@ -98,7 +98,7 @@ static void identity_map_range(uint32_t *pd, uint32_t start, uint32_t end)
    }
 }
 
-void Paging_Initialize(void)
+void i686_Paging_Initialize(void)
 {
    // Bootstrap identity-mapped kernel directory
    kernel_page_directory = alloc_page_directory();
@@ -107,12 +107,12 @@ void Paging_Initialize(void)
    // Set current directory and enable
    current_page_directory = kernel_page_directory;
    load_cr3((uint32_t)kernel_page_directory);
-   Paging_Enable();
+   i686_Paging_Enable();
 }
 
-void Paging_Enable(void) { enable_paging_hw(); }
+void i686_Paging_Enable(void) { enable_paging_hw(); }
 
-void *Paging_CreatePageDirectory(void)
+void *i686_Paging_CreatePageDirectory(void)
 {
    uint32_t *pd = alloc_page_directory();
    // Copy kernel mappings so shared kernel space stays accessible
@@ -123,7 +123,7 @@ void *Paging_CreatePageDirectory(void)
    return pd;
 }
 
-void Paging_DestroyPageDirectory(void *page_dir)
+void i686_Paging_DestroyPageDirectory(void *page_dir)
 {
    // No-op for now; simple allocator cannot free.
    (void)page_dir;
@@ -143,7 +143,7 @@ static uint32_t *get_page_table(uint32_t *pd, uint32_t vaddr, bool create)
    return (uint32_t *)(pde & 0xFFFFF000u);
 }
 
-bool Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,
+bool i686_Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,
                     uint32_t flags)
 {
    uint32_t *pd = (uint32_t *)page_dir;
@@ -156,7 +156,7 @@ bool Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,
    return true;
 }
 
-bool Paging_UnmapPage(void *page_dir, uint32_t vaddr)
+bool i686_Paging_UnmapPage(void *page_dir, uint32_t vaddr)
 {
    uint32_t *pd = (uint32_t *)page_dir;
    uint32_t *pt = get_page_table(pd, vaddr, false);
@@ -167,7 +167,7 @@ bool Paging_UnmapPage(void *page_dir, uint32_t vaddr)
    return true;
 }
 
-uint32_t get_physical_address(void *page_dir, uint32_t vaddr)
+uint32_t i686_Paging_GetPhysicalAddress(void *page_dir, uint32_t vaddr)
 {
    uint32_t *pd = (uint32_t *)page_dir;
    uint32_t *pt = get_page_table(pd, vaddr, false);
@@ -178,12 +178,12 @@ uint32_t get_physical_address(void *page_dir, uint32_t vaddr)
    return (pte & 0xFFFFF000u) | (vaddr & 0xFFF);
 }
 
-bool is_page_mapped(void *page_dir, uint32_t vaddr)
+bool i686_Paging_IsPageMapped(void *page_dir, uint32_t vaddr)
 {
-   return get_physical_address(page_dir, vaddr) != 0;
+   return i686_Paging_GetPhysicalAddress(page_dir, vaddr) != 0;
 }
 
-void page_fault_handler(uint32_t fault_address, uint32_t error_code)
+void i686_Paging_PageFaultHandler(uint32_t fault_address, uint32_t error_code)
 {
    printf("Page fault at 0x%08x, error=0x%x\n", fault_address, error_code);
    printf("  present=%d rw=%d user=%d reserved=%d fetch=%d\n",
@@ -193,19 +193,19 @@ void page_fault_handler(uint32_t fault_address, uint32_t error_code)
    for (;;) __asm__ __volatile__("hlt");
 }
 
-void invalidate_tlb_entry(uint32_t vaddr) { invlpg(vaddr); }
+void i686_Paging_InvalidateTlbEntry(uint32_t vaddr) { invlpg(vaddr); }
 
-void flush_tlb(void) { load_cr3(read_cr3()); }
+void i686_Paging_FlushTlb(void) { load_cr3(read_cr3()); }
 
-void switch_page_directory(void *page_dir)
+void i686_Paging_SwitchPageDirectory(void *page_dir)
 {
    current_page_directory = (uint32_t *)page_dir;
    load_cr3((uint32_t)page_dir);
 }
 
-void *get_current_page_directory(void) { return current_page_directory; }
+void *i686_Paging_GetCurrentPageDirectory(void) { return current_page_directory; }
 
-void *allocate_kernel_pages(int page_count)
+void *i686_Paging_AllocateKernelPages(int page_count)
 {
    if (page_count <= 0) return NULL;
    uint32_t first_phys = 0;
@@ -214,12 +214,12 @@ void *allocate_kernel_pages(int page_count)
       uint32_t phys = alloc_frame();
       if (i == 0) first_phys = phys;
       // identity map each page to keep it accessible
-      Paging_MapPage(kernel_page_directory, phys, phys, PAGE_RW | PAGE_PRESENT);
+      i686_Paging_MapPage(kernel_page_directory, phys, phys, PAGE_RW | PAGE_PRESENT);
    }
    return (void *)first_phys;
 }
 
-void free_kernel_pages(void *addr, int page_count)
+void i686_Paging_FreeKernelPages(void *addr, int page_count)
 {
    // Not implemented for this simple allocator
    (void)addr;
@@ -229,15 +229,15 @@ void free_kernel_pages(void *addr, int page_count)
 void paging_self_test(void)
 {
    const uint32_t test_va = 0x40000000u; // 1 GiB virtual address
-   uint32_t *pd = (uint32_t *)get_current_page_directory();
-   void *phys_page = allocate_kernel_pages(1);
+   uint32_t *pd = (uint32_t *)i686_Paging_GetCurrentPageDirectory();
+   void *phys_page = i686_Paging_AllocateKernelPages(1);
    if (!phys_page)
    {
       printf("[paging] self-test: failed to alloc frame\n");
       return;
    }
 
-   if (!Paging_MapPage(pd, test_va, (uint32_t)phys_page,
+   if (!i686_Paging_MapPage(pd, test_va, (uint32_t)phys_page,
                        PAGE_RW | PAGE_PRESENT))
    {
       printf("[paging] self-test: map failed\n");
@@ -258,5 +258,5 @@ void paging_self_test(void)
    }
 
    // Unmap to confirm no crash; ignore result
-   Paging_UnmapPage(pd, test_va);
+   i686_Paging_UnmapPage(pd, test_va);
 }

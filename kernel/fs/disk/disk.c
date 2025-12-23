@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "disk.h"
-#include <drivers/ata.h>
-#include <drivers/fdc.h>
+#include <drivers/ata/ata.h>
+#include <drivers/fdc/fdc.h>
+#include <sys/sys.h>
 
 // Disk type constants
 #define DISK_TYPE_FLOPPY 0
@@ -30,6 +31,16 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       disk->cylinders = cylinders;
       disk->heads = heads;
       disk->sectors = sectors;
+      
+      /* Populate disk info in SYS_Info */
+      g_SysInfo->disk.type = DISK_TYPE_FLOPPY;
+      g_SysInfo->disk.interface = 0; /* Floppy */
+      g_SysInfo->disk.sector_size = 512;
+      g_SysInfo->disk.total_sectors = cylinders * heads * sectors;
+      g_SysInfo->disk.total_size = g_SysInfo->disk.total_sectors * 512;
+      g_SysInfo->disk.removable = 1;
+      g_SysInfo->disk.status = 1; /* Online */
+      
       return true;
    }
    else
@@ -41,6 +52,13 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       // We'll use the standard primary master (IDE0 master) for hard disk
       // access
       ATA_Init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
+      
+      /* Populate disk info in SYS_Info */
+      g_SysInfo->disk.type = DISK_TYPE_ATA;
+      g_SysInfo->disk.interface = 1; /* ATA/IDE */
+      g_SysInfo->disk.sector_size = 512;
+      g_SysInfo->disk.removable = 0;
+      g_SysInfo->disk.status = 1; /* Online */
 
       return true;
    }

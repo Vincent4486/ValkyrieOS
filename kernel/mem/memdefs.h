@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef MEMDEFS_H
+#define MEMDEFS_H
 
 #include <stdint.h>
+
+/* Architecture page size (4 KiB) */
+#define PAGE_SIZE 0x1000u
 
 // 0x00000000 - 0x000003FF - interrupt vector table
 // 0x00000400 - 0x000004FF - BIOS data area
@@ -44,3 +48,10 @@ typedef struct
 
 #define LIB_REGISTRY_ADDR ((LibRecord *)0x00028000)
 #define LIB_REGISTRY_MAX 16
+
+#define BUFFER_LINES 2048
+#define BUFFER_BASE_ADDR 0x00800000
+
+#define SYS_INFO_ADDR 0x0087D000
+
+#endif

@@ -21,7 +21,7 @@ void i686_syscall_handler(Registers *regs)
           args[0], args[1], args[2]);
 
    // Call generic dispatcher
-   intptr_t result = syscall_dispatch(syscall_num, args);
+   intptr_t result = Syscall_Dispatch(syscall_num, args);
 
    // Store result in EAX for return to user
    regs->eax = (uint32_t)result;

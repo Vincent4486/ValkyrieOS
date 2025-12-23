@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "ata.h"
-#include <arch/i686/io/io.h>
+#include <hal/io.h>
 #include <stdint.h>
 
 // ATA register offsets from base port
@@ -85,7 +85,7 @@ static int ata_wait_busy(uint16_t tf_port)
 
    while (timeout--)
    {
-      uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+      uint8_t status = HAL_inb(tf_port + ATA_REG_STATUS);
       if (!(status & ATA_STATUS_BSY)) return 0;
 
       // Small delay to prevent bus saturation
@@ -105,7 +105,7 @@ static int ata_wait_drq(uint16_t tf_port)
 
    while (timeout--)
    {
-      uint8_t status = i686_inb(tf_port + ATA_REG_STATUS);
+      uint8_t status = HAL_inb(tf_port + ATA_REG_STATUS);
       if (status & ATA_STATUS_DRQ) return 0;
       if (status & ATA_STATUS_ERR)
       {
@@ -125,13 +125,13 @@ static int ata_wait_drq(uint16_t tf_port)
 static void ata_soft_reset(uint16_t dcr_port)
 {
    // Set SRST bit (software reset)
-   i686_outb(dcr_port, 0x04);
+   HAL_outb(dcr_port, 0x04);
 
    // Wait a bit
    for (volatile int i = 0; i < 100000; i++);
 
    // Clear SRST bit
-   i686_outb(dcr_port, 0x00);
+   HAL_outb(dcr_port, 0x00);
 
    // Wait for reset to complete
    for (volatile int i = 0; i < 100000; i++);
@@ -181,17 +181,17 @@ int ATA_Read(int channel, int drive, uint32_t lba, uint8_t *buffer,
 
    // Write all command registers in the correct sequence
    // This is critical - must follow ATA protocol
-   i686_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
-   i686_outb(drv->tf_port + ATA_REG_LBA_LOW, (lba & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_LBA_MID, ((lba >> 8) & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_DEVICE, device);
+   HAL_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
+   HAL_outb(drv->tf_port + ATA_REG_LBA_LOW, (lba & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_LBA_MID, ((lba >> 8) & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_DEVICE, device);
 
    // Small delay to allow registers to settle
    for (volatile int i = 0; i < 50000; i++);
 
    // Issue READ SECTORS command
-   i686_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_READ_PIO);
+   HAL_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_READ_PIO);
 
    // Read sectors
    for (uint32_t sec = 0; sec < count; sec++)
@@ -208,7 +208,7 @@ int ATA_Read(int channel, int drive, uint32_t lba, uint8_t *buffer,
       for (int i = 0; i < 256; i++)
       {
          // Read 16-bit word from data port
-         dest_words[i] = i686_inw(drv->tf_port + ATA_REG_DATA);
+         dest_words[i] = HAL_inw(drv->tf_port + ATA_REG_DATA);
       }
    }
 
@@ -241,17 +241,17 @@ int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
    uint8_t device = drv->slave_bits | 0x40 | ((lba >> 24) & 0x0F);
 
    // Write all command registers in the correct sequence
-   i686_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
-   i686_outb(drv->tf_port + ATA_REG_LBA_LOW, (lba & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_LBA_MID, ((lba >> 8) & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
-   i686_outb(drv->tf_port + ATA_REG_DEVICE, device);
+   HAL_outb(drv->tf_port + ATA_REG_NSECTOR, count & 0xFF);
+   HAL_outb(drv->tf_port + ATA_REG_LBA_LOW, (lba & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_LBA_MID, ((lba >> 8) & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_LBA_HIGH, ((lba >> 16) & 0xFF));
+   HAL_outb(drv->tf_port + ATA_REG_DEVICE, device);
 
    // Small delay to allow registers to settle
    for (volatile int i = 0; i < 50000; i++);
 
    // Issue WRITE SECTORS command
-   i686_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
+   HAL_outb(drv->tf_port + ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
 
    // Write sectors
    for (uint32_t sec = 0; sec < count; sec++)
@@ -268,7 +268,7 @@ int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
       for (int i = 0; i < 256; i++)
       {
          // Write 16-bit word to data port
-         i686_outw(drv->tf_port + ATA_REG_DATA, src_words[i]);
+         HAL_outw(drv->tf_port + ATA_REG_DATA, src_words[i]);
       }
 
       // For all sectors except the last, wait briefly before next sector
@@ -289,10 +289,10 @@ int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
    }
 
    // Final status check to catch any errors
-   uint8_t final_status = i686_inb(drv->tf_port + ATA_REG_STATUS);
+   uint8_t final_status = HAL_inb(drv->tf_port + ATA_REG_STATUS);
    if (final_status & ATA_STATUS_ERR)
    {
-      uint8_t error = i686_inb(drv->tf_port + ATA_REG_ERROR);
+      uint8_t error = HAL_inb(drv->tf_port + ATA_REG_ERROR);
       return -1;
    }
 

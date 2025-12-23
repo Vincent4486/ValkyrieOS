@@ -3,7 +3,8 @@
 // Dynamic-linking helper for kernel side to find, load, and relocate ELF
 // modules. Supports true dynamic linking with PLT/GOT relocation like Linux
 // ld.so.
-#pragma once
+#ifndef DYLIB_H
+#define DYLIB_H
 
 #include <fs/disk/partition.h>
 #include <mem/memdefs.h>
@@ -47,96 +48,98 @@ typedef void (*dylib_register_symbols_t)(const char *libname);
 
 // Find a loaded library record by name (basename without extension). Returns
 // pointer into the shared registry or NULL if not found.
-LibRecord *dylib_find(const char *name);
+LibRecord *Dylib_Find(const char *name);
 
 // Call the entry point of a named library if present. Returns 0 on success,
 // -1 if not found or dependencies unresolved.
-int dylib_call_if_exists(const char *name);
+int Dylib_CallIfExists(const char *name);
 
 // Check if all dependencies of a library are resolved. Returns 1 if all
 // resolved, 0 if any missing.
-int dylib_check_dependencies(const char *name);
+int Dylib_CheckDependencies(const char *name);
 
 // Resolve all dependencies for a library. Returns 0 on success, -1 if any
 // dependencies are missing.
-int dylib_resolve_dependencies(const char *name);
+int Dylib_ResolveDependencies(const char *name);
 
 // Print the current library registry with dependency info (for debugging)
-void dylib_list(void);
+void Dylib_List(void);
 
 // Print dependencies of a specific library
-void dylib_list_deps(const char *name);
+void Dylib_ListDependencies(const char *name);
 
 // Find a symbol (function) by name within a library. Returns the function
 // address or 0 if not found.
-uint32_t dylib_find_symbol(const char *libname, const char *symname);
+uint32_t Dylib_FindSymbol(const char *libname, const char *symname);
 
 // Call a symbol (function) within a library by name. Returns the result
 // of the function call, or -1 if not found or dependencies unresolved.
-int dylib_call_symbol(const char *libname, const char *symname);
+int Dylib_CallSymbol(const char *libname, const char *symname);
 
 // List all symbols exported by a library
-void dylib_list_symbols(const char *name);
+void Dylib_ListSymbols(const char *name);
 
 // Parse symbols from a pre-loaded library (already in memory via bootloader
 // registration) Call this when a library is already registered in LibRecord but
 // symbols haven't been parsed yet
-int dylib_parse_symbols(LibRecord *lib);
+int Dylib_ParseSymbols(LibRecord *lib);
 
 // Global symbol table management functions
 
 // Add a symbol to the global registry. Symbols are extracted from .dynsym
 // when libraries are loaded and registered here for relocation resolution.
-int dylib_add_global_symbol(const char *name, uint32_t address,
+int Dylib_AddGlobalSymbol(const char *name, uint32_t address,
                             const char *lib_name, int is_kernel);
 
 // Look up a symbol in the global registry by name.
 // Returns the absolute address or 0 if not found.
 // Used by relocation processor to resolve symbol references.
-uint32_t dylib_lookup_global_symbol(const char *name);
+uint32_t Dylib_LookupGlobalSymbol(const char *name);
 
 // Print the global symbol table (for debugging)
-void dylib_print_global_symtab(void);
+void Dylib_PrintGlobalSymtab(void);
 
 // Clear the global symbol table (on reload/shutdown)
-void dylib_clear_global_symtab(void);
+void Dylib_ClearGlobalSymtab(void);
 
 // Apply kernel relocations - patches kernel's PLT/GOT entries to point to
 // library functions. Must be called after loading libraries and populating
 // the global symbol table.
 // Returns 0 on success, -1 on unresolved symbols.
-int dylib_apply_kernel_relocations(void);
+int Dylib_ApplyKernelRelocations(void);
 
 // Memory management functions
 
 // Initialize the dylib memory allocator
-int dylib_mem_init(void);
+int Dylib_MemoryInitialize(void);
 
 // Allocate memory for a library. Returns allocated address or 0 on failure.
-uint32_t dylib_mem_alloc(const char *lib_name, uint32_t size);
+uint32_t Dylib_MemoryAllocate(const char *lib_name, uint32_t size);
 
 // Deallocate memory for a library. Returns 0 on success, -1 on failure.
-int dylib_mem_free(const char *lib_name);
+int Dylib_MemoryFree(const char *lib_name);
 
 // Load a library from disk into memory. Returns 0 on success, -1 on failure.
 // Parameters:
 //   partition: Initialized Partition structure for reading
 //   name: Library name to load
 //   filepath: Path to library file on disk (e.g., "/sys/graphics.so")
-int dylib_load_from_disk(Partition *partition, const char *name,
+int Dylib_LoadFromDisk(Partition *partition, const char *name,
                          const char *filepath);
 
 // Load a library from memory image. Returns 0 on success, -1 on failure.
-int dylib_load(const char *name, const void *image, uint32_t size);
+int Dylib_Load(const char *name, const void *image, uint32_t size);
 
 // Remove a library from memory. Returns 0 on success, -1 on failure.
-int dylib_remove(const char *name);
+int Dylib_Remove(const char *name);
 
 // Get memory usage statistics
-void dylib_mem_stats(void);
+void Dylib_MemoryStatus(void);
 
 // Register a callback to load symbols when library is loaded
-void dylib_register_callback(dylib_register_symbols_t callback);
+void Dylib_RegisterCallback(dylib_register_symbols_t callback);
+
+bool Dylib_Initialize(Partition *partition);
 
 // ============================================================================
 // Helper macro for loading function symbols from a library
@@ -149,9 +152,11 @@ void dylib_register_callback(dylib_register_symbols_t callback);
 // ============================================================================
 
 #define DYLIB_LOAD_SYMBOL(libname, funcname, functype)                         \
-   functype funcname = (functype)dylib_find_symbol(libname, #funcname);        \
+   functype funcname = (functype)Dylib_FindSymbol(libname, #funcname);         \
    if (!funcname)                                                              \
    {                                                                           \
       printf("[!] Failed to resolve: " #libname "::" #funcname "\n");          \
       goto end;                                                                \
    }
+
+#endif
