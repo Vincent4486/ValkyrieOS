@@ -17,6 +17,13 @@
 ### Process Management
 - [x] Process Control Block (PCB) structure
 - [ ] Process creation (fork/execve syscalls)
+    - [ ] Add Kernel Stack to Process Struct
+    - [ ] Allocate Kernel Stack in Process_Create
+    - [ ] Free Kernel Stack in Process_Destroy
+    - [ ] Set Parent PID
+    - [ ] Initialize Standard File Descriptors (stdin, stdout, stderr)
+    - [ ] Handle Arguments (argv/envp)
+    - [ ] Scheduler Registration
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
