@@ -108,32 +108,6 @@ static uint32_t g_RootDirSectors = 0;
 // Forward declaration
 uint32_t FAT_ClusterToLba(uint32_t cluster);
 
-bool FAT_ReadBootSector(Partition *disk)
-{
-   // Try reading from different offsets to find the boot sector
-   for (uint32_t offset = 0; offset <= 32; offset += 16)
-   {
-      if (!Partition_ReadSectors(disk, offset, 1, g_Data->BS.BootSectorBytes))
-         continue;
-
-      uint16_t sig = (g_Data->BS.BootSectorBytes[511] << 8) |
-                     g_Data->BS.BootSectorBytes[510];
-
-      // Check if this looks like a boot sector (signature 0xAA55 or starts with
-      // EB or E9)
-      if (sig == 0xaa55 || g_Data->BS.BootSectorBytes[0] == 0xEB ||
-          g_Data->BS.BootSectorBytes[0] == 0xE9)
-      {
-         if (!Partition_ReadSectors(disk, offset, 1,
-                                    g_Data->BS.BootSectorBytes))
-            return false;
-         break;
-      }
-   }
-
-   return true;
-}
-
 bool FAT_ReadFat(Partition *disk, size_t LBAIndex)
 {
    return Partition_ReadSectors(
