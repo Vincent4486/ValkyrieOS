@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef FD_H
+#define FD_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -33,3 +34,5 @@ int FD_Lseek(void *proc, int fd, int32_t offset, int whence);
 FileDescriptor *FD_Get(void *proc, int fd);
 int FD_FindFree(void *proc);
 void FD_CloseAll(void *proc);
+
+#endif

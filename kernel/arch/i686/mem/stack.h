@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef STACK_H
+#define STACK_H
 
 #include <stdint.h>
 #include <mem/stack.h>
@@ -86,3 +87,5 @@ void i686_Stack_GetRegisters(uint32_t *esp_out, uint32_t *ebp_out);
 void i686_Stack_SetupException(Stack *stack, uint32_t handler, uint32_t error_code);
 
 void i686_Stack_InitializeKernel(void);
+
+#endif

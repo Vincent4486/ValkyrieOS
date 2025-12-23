@@ -3,9 +3,11 @@
 #include "sys.h"
 #include <mem/memdefs.h>
 #include <std/string.h>
+#include <std/stdio.h>
 
 /* Global SYS_Info structure at fixed memory location */
 SYS_Info *g_SysInfo = (SYS_Info *)SYS_INFO_ADDR;
+
 
 /**
  * Get CPU brand string via CPUID
@@ -50,4 +52,17 @@ void SYS_Initialize(){
  */
 void SYS_Finalize(){
     g_SysInfo->initialized = 1;
+    printf("System finalized: kernel %u.%u.%u, arch=%u, cpus=%u, mem=%uMB total/%uMB avail, disks=%u, filesystems=%u, boot=0x%08x, video=%ux%u\n",
+           g_SysInfo->kernel_major,
+           g_SysInfo->kernel_minor,
+           g_SysInfo->kernel_patch,
+           g_SysInfo->arch.arch,
+           g_SysInfo->arch.cpu_count,
+           g_SysInfo->memory.total_memory / (1024 * 1024),
+           g_SysInfo->memory.available_memory / (1024 * 1024),
+           g_SysInfo->disk_count,
+           g_SysInfo->fs_count,
+           g_SysInfo->boot_device,
+           g_SysInfo->video_width,
+           g_SysInfo->video_height);
 }

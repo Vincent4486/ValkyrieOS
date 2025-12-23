@@ -5,7 +5,9 @@
 #include <mem/heap.h>
 #include <arch/i686/mem/stack.h>
 #include <std/string.h>
+#include <std/stdio.h>
 #include <mem/memory.h>
+#include <sys/sys.h>
 
 /**
  * Generic stack management implementation
@@ -25,7 +27,19 @@ void Stack_Initialize(void) {
  * Initialize kernel stack (delegates to architecture code)
  */
 void Stack_InitializeKernel(void) {
+    // Initialize architecture-specific kernel stack
     i686_Stack_InitializeKernel();
+    
+    // Get kernel stack size from system info (default 8KB if not set)
+    uint32_t stack_size = (g_SysInfo && g_SysInfo->memory.kernel_stack_size) 
+                          ? g_SysInfo->memory.kernel_stack_size 
+                          : 8192;
+    
+    // Create kernel stack
+    kernel_stack = Stack_Create(stack_size);
+    if (!kernel_stack) {
+        printf("[stack] ERROR: failed to create kernel stack\n");
+    }
 }
 
 /**

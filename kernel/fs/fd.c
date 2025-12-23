@@ -2,10 +2,14 @@
 
 #include "fd.h"
 #include <cpu/process.h>
+#include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
 #include <mem/heap.h>
 #include <std/stdio.h>
 #include <std/string.h>
+
+/* Partition declared in main.c */
+extern Partition partition;
 
 // Helper: Get file descriptor from process
 FileDescriptor *FD_Get(void *proc_ptr, int fd)
@@ -75,7 +79,7 @@ int FD_Open(void *proc_ptr, const char *path, int flags)
         file->offset = 0xFFFFFFFFu;  // Marker for "append mode"
     
     // Open in FAT filesystem
-    file->inode = FAT_OpenFile(path);
+    file->inode = FAT_Open(&partition, path);
     if (!file->inode)
     {
         printf("[fd] open: file not found: %s\n", path);
@@ -108,7 +112,7 @@ int FD_Close(void *proc_ptr, int fd)
     
     // Close in filesystem
     if (file->inode)
-        FAT_CloseFile(file->inode);
+        FAT_Close((FAT_File *)file->inode);
     
     free(file);
     proc->fd_table[fd] = NULL;
@@ -133,7 +137,7 @@ int FD_Read(void *proc_ptr, int fd, void *buf, uint32_t count)
         return -1;  // EACCES (permission denied)
     
     // Read from filesystem
-    uint32_t bytes_read = FAT_ReadFile(file->inode, buf, count, file->offset);
+    uint32_t bytes_read = FAT_Read(&partition, (FAT_File *)file->inode, count, buf);
     file->offset += bytes_read;
     
     return bytes_read;
@@ -162,11 +166,7 @@ int FD_Write(void *proc_ptr, int fd, const void *buf, uint32_t count)
         return -1;  // EACCES
     
     // Write to filesystem
-    uint32_t offset = file->offset;
-    if (file->flags & O_APPEND)
-        offset = 0xFFFFFFFFu;  // Signal FAT to append
-    
-    uint32_t bytes_written = FAT_WriteFile(file->inode, buf, count, offset);
+    uint32_t bytes_written = FAT_Write(&partition, (FAT_File *)file->inode, count, buf);
     file->offset += bytes_written;
     
     return bytes_written;

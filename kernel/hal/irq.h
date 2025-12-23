@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef IRQ_H
+#define IRQ_H
 
 #include <stdint.h>
 
@@ -23,3 +24,5 @@ static inline void HAL_IRQ_Unmask(int irq)
 {
 	HAL_ARCH_IRQ_Unmask(irq);
 }
+
+#endif

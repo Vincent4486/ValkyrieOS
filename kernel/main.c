@@ -13,7 +13,7 @@
 #include <sys/elf.h>
 #include <sys/sys.h>
 #include <mem/memory.h>
-#include <cpu.h>
+#include <cpu/cpu.h>
 #include <hal/hal.h>
 #include <fs/fs.h>
 
@@ -85,7 +85,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
 
    /* Mark system as fully initialized */
    SYS_Finalize();
-
+   int b = add(1, 1);
    ELF_LoadProcess(&partition, "/usr/bin/sh", false);
 
 end:

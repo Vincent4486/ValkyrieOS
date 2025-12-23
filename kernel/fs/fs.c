@@ -86,7 +86,6 @@ bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
    }
    
    /* Populate filesystem info in SYS_Info */
-   extern SYS_Info *g_SysInfo;
    g_SysInfo->fs.mounted = 1;
    g_SysInfo->fs.read_only = 0;
    g_SysInfo->fs.block_size = 512;

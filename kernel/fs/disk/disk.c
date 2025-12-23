@@ -33,7 +33,6 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       disk->sectors = sectors;
       
       /* Populate disk info in SYS_Info */
-      extern SYS_Info *g_SysInfo;
       g_SysInfo->disk.type = DISK_TYPE_FLOPPY;
       g_SysInfo->disk.interface = 0; /* Floppy */
       g_SysInfo->disk.sector_size = 512;
@@ -55,7 +54,6 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       ATA_Init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
       
       /* Populate disk info in SYS_Info */
-      extern SYS_Info *g_SysInfo;
       g_SysInfo->disk.type = DISK_TYPE_ATA;
       g_SysInfo->disk.interface = 1; /* ATA/IDE */
       g_SysInfo->disk.sector_size = 512;

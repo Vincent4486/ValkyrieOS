@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef IO_H
+#define IO_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -77,3 +78,4 @@ static inline void HAL_Panic()
 {
     HAL_ARCH_Panic();
 }
+#endif

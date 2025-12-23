@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "process.h"
+#include <mem/memdefs.h>
 #include <arch/i686/mem/paging.h>
 #include <mem/heap.h>
 #include <mem/stack.h>
@@ -14,9 +15,6 @@
 #include <fs/fat/fat.h>
 #include <fs/disk/partition.h>
 #include <fs/fd.h>
-
-#define PAGE_SIZE 4096
-#define HEAP_MAX 0xC0000000u // Don't allow heap above 3GB
 
 static Process *current_process = NULL;
 static uint32_t next_pid = 1;
@@ -123,9 +121,23 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
       };
         // Switch to process page directory so the user stack VA is mapped while we write to it
         void *kernel_pd = VMM_GetPageDirectory();
+        if (!kernel_pd) {
+            printf("[process] ERROR: cannot get kernel page directory\n");
+            // Cleanup: unmap already mapped stack pages
+            for (uint32_t j = 0; j < pages_needed; ++j) {
+                uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
+                uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
+                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
+            }
+            i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+            free(proc);
+            return NULL;
+        }
+        
         i686_Paging_SwitchPageDirectory(proc->page_directory);
         Stack_SetupProcess(&tmp_stack, entry_point);
-        // Switch back to kernel page directory
+        // Switch back to kernel page directory - critical for correctness
         i686_Paging_SwitchPageDirectory(kernel_pd);
 
       // Record initial ESP/EBP after setup

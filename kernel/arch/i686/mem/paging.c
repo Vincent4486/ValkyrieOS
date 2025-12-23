@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "paging.h"
+#include <mem/memdefs.h>
 #include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
@@ -10,7 +11,6 @@
 
 extern uint8_t __end; // provided by linker, end of kernel image
 
-#define PAGE_SIZE 4096
 #define PAGE_TABLE_ENTRIES 1024
 #define PAGE_DIR_ENTRIES 1024
 

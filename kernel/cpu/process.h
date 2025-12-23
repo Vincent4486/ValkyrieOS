@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <mem/memdefs.h>
 
-#define PAGE_SIZE 4096
 #define HEAP_MAX 0xC0000000u // Don't allow heap
 
 typedef struct

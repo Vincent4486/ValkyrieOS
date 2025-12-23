@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef ATA_H
+#define ATA_H
 #include <stddef.h>
 #include <stdint.h>
 
@@ -53,3 +54,5 @@ int ATA_Write(int channel, int drive, uint32_t lba, const uint8_t *buffer,
  * @param channel - IDE channel (ATA_CHANNEL_PRIMARY or ATA_CHANNEL_SECONDARY)
  */
 void ATA_Reset(int channel);
+
+#endif

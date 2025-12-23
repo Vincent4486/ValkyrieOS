@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef DISK_H
+#define DISK_H
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <kernel/fs/fs.h>
 
 typedef struct
 {
@@ -32,3 +32,5 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors,
                       void *lowerDataOut);
 bool DISK_WriteSectors(DISK *disk, uint32_t lba, uint8_t sectors,
                        const void *dataIn);
+
+#endif

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Simple ELF32 loader for stage2 bootloader
-#pragma once
+#ifndef ELF_H
+#define ELF_H
 
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
@@ -52,3 +53,5 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut);
 // pages in the process's page directory, and copies segments. Returns the new
 // Process on success, or NULL on failure.
 Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode);
+
+#endif

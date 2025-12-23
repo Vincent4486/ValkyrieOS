@@ -17,6 +17,7 @@ typedef struct {
     uint32_t kernel_end;         /* Kernel memory end */
     uint32_t user_start;         /* User space start */
     uint32_t user_end;           /* User space end */
+    uint32_t kernel_stack_size;  /* Kernel stack size in bytes */
 } __attribute__((packed)) MEM_Info;
 
 /* Basic memory helpers (sizes in bytes) */

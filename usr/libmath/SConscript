@@ -23,6 +23,7 @@ env.Append(
     CXXFLAGS=['-fno-PIC'],
     LINKFLAGS=[
         '-shared',
+        '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
         '-Wl,-Map=' + env.File('libmath.map').path,
         '-Wl,--as-needed',
         '-Wl,-soname,libmath.so',

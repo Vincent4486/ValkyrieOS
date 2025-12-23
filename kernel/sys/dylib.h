@@ -3,7 +3,8 @@
 // Dynamic-linking helper for kernel side to find, load, and relocate ELF
 // modules. Supports true dynamic linking with PLT/GOT relocation like Linux
 // ld.so.
-#pragma once
+#ifndef DYLIB_H
+#define DYLIB_H
 
 #include <fs/disk/partition.h>
 #include <mem/memdefs.h>
@@ -157,3 +158,5 @@ bool Dylib_Initialize(Partition *partition);
       printf("[!] Failed to resolve: " #libname "::" #funcname "\n");          \
       goto end;                                                                \
    }
+
+#endif

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef FAT_H
+#define FAT_H
 #include <fs/disk/partition.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -82,3 +83,5 @@ FAT_File *FAT_Create(Partition *disk, const char *name);
 // Frees all clusters and marks the directory entry as deleted (0xE5).
 // Returns true on success.
 bool FAT_Delete(Partition *disk, const char *name);
+
+#endif

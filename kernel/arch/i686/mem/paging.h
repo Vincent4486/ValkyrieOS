@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef PAGING_H
+#define PAGING_H
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <mem/memdefs.h>
 
 // Page flag helpers
 #define PAGE_PRESENT 0x001
@@ -44,3 +46,5 @@ void i686_Paging_FreeKernelPages(void *addr, int page_count);
 
 // Simple built-in self-test
 void paging_self_test(void);
+
+#endif

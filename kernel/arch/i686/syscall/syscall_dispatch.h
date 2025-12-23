@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef SYSCALL_DISPATCH_H
+#define SYSCALL_DISPATCH_H
 #include <arch/i686/cpu/irq.h>
 #include <stdint.h>
 
@@ -10,3 +11,5 @@
  * Extracts parameters from registers and dispatches to generic handler
  */
 void i686_syscall_handler(Registers *regs);
+
+#endif

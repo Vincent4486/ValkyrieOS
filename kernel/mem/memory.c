@@ -109,11 +109,11 @@ void MEM_Initialize(){
    vmm_self_test();
    
    /* Populate memory info in SYS_Info */
-   extern SYS_Info *g_SysInfo;
    g_SysInfo->memory.total_memory = 256 * 1024 * 1024;
    g_SysInfo->memory.page_size = 4096;
    g_SysInfo->memory.kernel_start = (uint32_t)0x00A00000;
    g_SysInfo->memory.kernel_end = (uint32_t)0x00A00000 + 0x100000; /* Approximate */
    g_SysInfo->memory.user_start = (uint32_t)0x08000000;
    g_SysInfo->memory.user_end = (uint32_t)0xC0000000;
+   g_SysInfo->memory.kernel_stack_size = 8192; /* 8KB kernel stack */
 }

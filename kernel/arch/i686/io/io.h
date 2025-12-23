@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_IO_H
+#define I686_IO_H
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -18,3 +19,5 @@ void i686_iowait();
 void __attribute__((cdecl)) i686_Panic();
 
 void __attribute__((cdecl)) i686_Halt();
+
+#endif

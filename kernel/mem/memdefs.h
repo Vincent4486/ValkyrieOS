@@ -4,6 +4,9 @@
 
 #include <stdint.h>
 
+/* Architecture page size (4 KiB) */
+#define PAGE_SIZE 0x1000u
+
 // 0x00000000 - 0x000003FF - interrupt vector table
 // 0x00000400 - 0x000004FF - BIOS data area
 

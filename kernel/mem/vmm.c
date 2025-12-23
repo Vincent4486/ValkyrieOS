@@ -2,12 +2,12 @@
 
 #include "vmm.h"
 #include "pmm.h"
+#include <mem/memdefs.h>
 #include <arch/i686/mem/paging.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#define PAGE_SIZE 4096
 #define PAGE_ALIGN_DOWN(v) ((v) & ~(PAGE_SIZE - 1))
 #define PAGE_ALIGN_UP(v) (((v) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 

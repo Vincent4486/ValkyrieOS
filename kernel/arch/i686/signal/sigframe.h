@@ -1,3 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef SIGFRAME_H
+#define SIGFRAME_H
+
+#endif

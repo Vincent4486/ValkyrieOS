@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef SYS_H
+#define SYS_H
 #include <stdint.h>
-#include <kernel/mem/memory.h>
-#include <kernel/fs/fs.h>
-#include <kernel/fs/disk/disk.h>
-#include <kernel/arch/i686/cpu/irq.h>
+#include <mem/memory.h>
+#include <fs/fs.h>
+#include <fs/disk/disk.h>
+#include <arch/i686/cpu/irq.h>
 
 /* Architecture/CPU information */
 typedef struct {
@@ -53,5 +54,10 @@ typedef struct {
     uint8_t reserved[3];         /* Padding for alignment */
 } __attribute__((packed)) SYS_Info;
 
+/* Global system info pointer (defined in sys.c) */
+extern SYS_Info *g_SysInfo;
+
 void SYS_Initialize();
 void SYS_Finalize();
+
+#endif
