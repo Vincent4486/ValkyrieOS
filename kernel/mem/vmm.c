@@ -5,13 +5,20 @@
 #include <mem/memdefs.h>
 #include <arch/i686/mem/paging.h>
 #include <std/stdio.h>
+#include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <mem/memory.h>
 
 #define PAGE_ALIGN_DOWN(v) ((v) & ~(PAGE_SIZE - 1))
 #define PAGE_ALIGN_UP(v) (((v) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
 static void *kernel_page_dir = NULL;
+static uint32_t kernel_next_vaddr = 0x80000000u; // Start at 2 GiB for kernel mappings
+
+#ifndef KERNEL_BASE
+#define KERNEL_BASE 0xC0000000u
+#endif
 
 void VMM_Initialize(void)
 {
@@ -26,7 +33,8 @@ void VMM_Initialize(void)
           (uint32_t)kernel_page_dir);
 }
 
-void *VMM_Allocate(uint32_t size, uint32_t flags)
+void *VMM_AllocateInDir(void *page_dir, uint32_t *next_vaddr_state,
+                       uint32_t size, uint32_t flags)
 {
    if (size == 0) return NULL;
 
@@ -34,36 +42,66 @@ void *VMM_Allocate(uint32_t size, uint32_t flags)
    uint32_t aligned_size = PAGE_ALIGN_UP(size);
    uint32_t num_pages = aligned_size / PAGE_SIZE;
 
-   // Find a free virtual address range (simple: use high memory)
-   // In a real system, maintain a free list or use VMA structures
-   static uint32_t next_vaddr = 0x80000000u; // Start at 2 GiB
-   uint32_t vaddr = next_vaddr;
-   next_vaddr += aligned_size;
+   // Choose bump pointer: per-dir state or kernel default
+   uint32_t *bump = next_vaddr_state ? next_vaddr_state : &kernel_next_vaddr;
+
+   // Find a free virtual address range (simple bump allocator)
+   if (*bump + aligned_size > KERNEL_BASE || *bump + aligned_size < *bump)
+   {
+      printf("[vmm] VMM_Allocate: virtual address space exhausted\n");
+      return NULL;
+   }
+
+   uint32_t vaddr = *bump;
+   *bump += aligned_size;
 
    // Allocate and map physical pages
+   uint32_t mapped_pages = 0;
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t paddr = PMM_AllocatePhysicalPage();
       if (paddr == 0)
       {
          printf("[vmm] VMM_Allocate: failed to allocate physical page %u/%u\n",
-                i, num_pages);
-         return NULL;
+                i + 1, num_pages);
+         goto fail_cleanup;
       }
 
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      if (!i686_Paging_MapPage(kernel_page_dir, va, paddr, flags | PAGE_PRESENT))
+      if (!i686_Paging_MapPage(page_dir, va, paddr, flags | PAGE_PRESENT))
       {
          printf("[vmm] VMM_Allocate: failed to map page at 0x%08x\n", va);
          PMM_FreePhysicalPage(paddr);
-         return NULL;
+         goto fail_cleanup;
       }
+
+      // Zero-fill only if we're in the same active address space
+      if (i686_Paging_GetCurrentPageDirectory() == page_dir)
+      {
+         memset((void *)va, 0, PAGE_SIZE);
+      }
+      mapped_pages++;
    }
 
    return (void *)vaddr;
+
+fail_cleanup:
+   for (uint32_t j = 0; j < mapped_pages; ++j)
+   {
+      uint32_t va_cleanup = vaddr + (j * PAGE_SIZE);
+      uint32_t pa_cleanup = i686_Paging_GetPhysicalAddress(page_dir, va_cleanup);
+      i686_Paging_UnmapPage(page_dir, va_cleanup);
+      if (pa_cleanup) PMM_FreePhysicalPage(pa_cleanup);
+   }
+   return NULL;
 }
 
-void VMM_Free(void *vaddr, uint32_t size)
+void *VMM_Allocate(uint32_t size, uint32_t flags)
+{
+   return VMM_AllocateInDir(kernel_page_dir, &kernel_next_vaddr, size, flags);
+}
+
+void VMM_FreeInDir(void *page_dir, void *vaddr, uint32_t size)
 {
    if (!vaddr || size == 0) return;
 
@@ -75,39 +113,60 @@ void VMM_Free(void *vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t page_va = va + (i * PAGE_SIZE);
-      uint32_t page_pa = i686_Paging_GetPhysicalAddress(kernel_page_dir, page_va);
+      uint32_t page_pa = i686_Paging_GetPhysicalAddress(page_dir, page_va);
 
       if (page_pa != 0)
       {
-         i686_Paging_UnmapPage(kernel_page_dir, page_va);
+         i686_Paging_UnmapPage(page_dir, page_va);
          PMM_FreePhysicalPage(page_pa);
       }
    }
 }
 
-bool VMM_Map(uint32_t vaddr, uint32_t paddr, uint32_t size, uint32_t flags)
+void VMM_Free(void *vaddr, uint32_t size)
+{
+   VMM_FreeInDir(kernel_page_dir, vaddr, size);
+}
+
+bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr,
+                  uint32_t size, uint32_t flags)
 {
    if (size == 0) return false;
 
    uint32_t aligned_size = PAGE_ALIGN_UP(size);
    uint32_t num_pages = aligned_size / PAGE_SIZE;
 
+   uint32_t mapped_pages = 0;
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t va = vaddr + (i * PAGE_SIZE);
       uint32_t pa = paddr + (i * PAGE_SIZE);
 
-      if (!i686_Paging_MapPage(kernel_page_dir, va, pa, flags | PAGE_PRESENT))
+      if (!i686_Paging_MapPage(page_dir, va, pa, flags | PAGE_PRESENT))
       {
          printf("[vmm] VMM_Map: failed at offset 0x%x\n", i * PAGE_SIZE);
-         return false;
+         goto rollback;
       }
+      mapped_pages++;
    }
 
    return true;
+
+rollback:
+   for (uint32_t j = 0; j < mapped_pages; ++j)
+   {
+      uint32_t va_cleanup = vaddr + (j * PAGE_SIZE);
+      i686_Paging_UnmapPage(page_dir, va_cleanup);
+   }
+   return false;
 }
 
-bool VMM_Unmap(uint32_t vaddr, uint32_t size)
+bool VMM_Map(uint32_t vaddr, uint32_t paddr, uint32_t size, uint32_t flags)
+{
+   return VMM_MapInDir(kernel_page_dir, vaddr, paddr, size, flags);
+}
+
+bool VMM_UnmapInDir(void *page_dir, uint32_t vaddr, uint32_t size)
 {
    if (size == 0) return true;
 
@@ -117,15 +176,25 @@ bool VMM_Unmap(uint32_t vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      i686_Paging_UnmapPage(kernel_page_dir, va);
+      i686_Paging_UnmapPage(page_dir, va);
    }
 
    return true;
 }
 
+bool VMM_Unmap(uint32_t vaddr, uint32_t size)
+{
+   return VMM_UnmapInDir(kernel_page_dir, vaddr, size);
+}
+
+uint32_t VMM_GetPhysInDir(void *page_dir, uint32_t vaddr)
+{
+   return i686_Paging_GetPhysicalAddress(page_dir, vaddr);
+}
+
 uint32_t VMM_GetPhys(uint32_t vaddr)
 {
-   return i686_Paging_GetPhysicalAddress(kernel_page_dir, vaddr);
+   return VMM_GetPhysInDir(kernel_page_dir, vaddr);
 }
 
 void *VMM_GetPageDirectory(void) { return kernel_page_dir; }

@@ -1,6 +1,5 @@
 ## Current todo
 
-1) Resolve macros to use SYS_Info struct
 2) Add wrapper functions to `HAL` for functions under `arch/`
 3) Make SYS_Info being detected from OS not hard coded
 
@@ -17,7 +16,7 @@
 
 ### Process Management
 - [x] Process Control Block (PCB) structure
-- [x] Process creation (fork/execve syscalls)
+- [ ] Process creation (fork/execve syscalls)
 - [ ] Process scheduling & context switching
 - [ ] Process termination (exit syscall)
 - [ ] Signal handling (signal syscalls)
