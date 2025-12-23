@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef VMM_H
+#define VMM_H
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -54,3 +56,5 @@ void *VMM_GetPageDirectory(void);
 /* Self-test helper
  */
 void vmm_self_test(void);
+
+#endif

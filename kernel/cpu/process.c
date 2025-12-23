@@ -59,7 +59,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
       if (Heap_ProcessInitialize(proc, 0x10000000) == -1)
       {
          printf("[process] create: Heap_Initialize failed\n");
-         i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+         i686_Paging_DestroyPageDirectory(proc->page_directory);
          free(proc);
          return NULL;
       }
@@ -86,7 +86,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
             }
-            i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+            i686_Paging_DestroyPageDirectory(proc->page_directory);
             free(proc);
             return NULL;
          }
@@ -102,7 +102,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
             }
-            i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+            i686_Paging_DestroyPageDirectory(proc->page_directory);
             free(proc);
             return NULL;
          }
@@ -130,7 +130,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
                 i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
                 if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
             }
-            i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+            i686_Paging_DestroyPageDirectory(proc->page_directory);
             free(proc);
             return NULL;
         }
@@ -194,7 +194,7 @@ void Process_Destroy(Process *proc)
       // Only destroy page directory for user-mode processes
       if (proc->page_directory)
       {
-         i686_i686_Paging_DestroyPageDirectory(proc->page_directory);
+         i686_Paging_DestroyPageDirectory(proc->page_directory);
       }
    }
    // Kernel-mode: just free the PCB, don't touch page directory

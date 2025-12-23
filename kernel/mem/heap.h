@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef HEAP_H
+#define HEAP_H
+
 #include <cpu/process.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -31,3 +33,5 @@ void *sbrk(intptr_t inc); /* returns previous break or (void*)-1 on failure */
 
 /* Self-test helper */
 void heap_self_test(void);
+
+#endif

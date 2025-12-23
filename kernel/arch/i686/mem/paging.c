@@ -123,7 +123,7 @@ void *i686_Paging_CreatePageDirectory(void)
    return pd;
 }
 
-void i686_i686_Paging_DestroyPageDirectory(void *page_dir)
+void i686_Paging_DestroyPageDirectory(void *page_dir)
 {
    // No-op for now; simple allocator cannot free.
    (void)page_dir;

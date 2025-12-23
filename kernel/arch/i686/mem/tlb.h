@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef TLB_H
-#define TLB_H
+#ifndef I686_TLB_H
+#define I686_TLB_H
 
 #include <stdint.h>
 

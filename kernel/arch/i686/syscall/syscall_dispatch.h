@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef SYSCALL_DISPATCH_H
-#define SYSCALL_DISPATCH_H
+#ifndef I686_SYSCALL_DISPATCH_H
+#define I686_SYSCALL_DISPATCH_H
 #include <arch/i686/cpu/irq.h>
 #include <stdint.h>
 

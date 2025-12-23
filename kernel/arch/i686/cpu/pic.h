@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_PIC_H
+#define I686_PIC_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -15,3 +16,5 @@ typedef struct
    void (*Mask)(int irq);
    void (*Unmask)(int irq);
 } PICDriver;
+
+#endif

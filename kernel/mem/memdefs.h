@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef MEMDEFS_H
+#define MEMDEFS_H
 
 #include <stdint.h>
 
@@ -52,3 +53,5 @@ typedef struct
 #define BUFFER_BASE_ADDR 0x00800000
 
 #define SYS_INFO_ADDR 0x0087D000
+
+#endif

@@ -1,3 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_USERMODE_H
+#define I686_USERMODE_H
+
+#endif

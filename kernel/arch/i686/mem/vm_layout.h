@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef VM_LAYOUT_H
-#define VM_LAYOUT_H
+#ifndef I686_VM_LAYOUT_H
+#define I686_VM_LAYOUT_H
 
 #include <stdint.h>
 

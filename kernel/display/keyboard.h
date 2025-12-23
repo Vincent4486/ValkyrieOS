@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef KEYBOARD_H
+#define KEYBOARD_H
 
 #include <stdint.h>
 
@@ -15,3 +16,5 @@ void Keyboard_HandleScancode(uint8_t scancode);
 /* Platform-independent line reading functions */
 int Keyboard_ReadlineNb(char *buf, int bufsize);
 int Keyboard_Readline(char *buf, int bufsize);
+
+#endif

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef BUFFER_TEXT_H
+#define BUFFER_TEXT_H
+
 #include <stdint.h>
 
 /* Export screen dimensions so other modules (keyboard, etc.) can reference
@@ -30,3 +32,5 @@ uint32_t Buffer_GetVisibleStart(void);
 /* Debug: draw a small overlay on row 0 with buffer internals (s_lines_used,
    s_head, s_scroll, max_scroll). This is temporary debugging aid. */
 void Buffer_DebugOverlay(void);
+
+#endif

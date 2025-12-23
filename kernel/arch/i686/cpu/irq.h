@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef I686_IRQ_H
+#define I686_IRQ_H
 
 #include <stdint.h>
 #include "isr.h"
@@ -17,3 +18,5 @@ typedef struct {
 void i686_IRQ_Initialize();
 void i686_IRQ_RegisterHandler(int irq, IRQHandler handler);
 void i686_IRQ_Unmask(int irq);
+
+#endif

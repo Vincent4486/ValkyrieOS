@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef PAGING_H
-#define PAGING_H
+#ifndef I686_PAGING_H
+#define I686_PAGING_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -18,7 +18,7 @@ void i686_Paging_Enable(void);
 
 // Page table management
 void *i686_Paging_CreatePageDirectory(void);
-void i686_i686_Paging_DestroyPageDirectory(void *page_dir);
+void i686_Paging_DestroyPageDirectory(void *page_dir);
 
 // Page mapping
 bool i686_Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,

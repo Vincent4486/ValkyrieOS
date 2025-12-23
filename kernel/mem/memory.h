@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef MEMORY_H
+#define MEMORY_H
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -29,3 +31,5 @@ void *memmove(void *dest, const void *src, size_t n);
 void *SegmentOffsetToLinear(void *addr);
 
 void MEM_Initialize();
+
+#endif

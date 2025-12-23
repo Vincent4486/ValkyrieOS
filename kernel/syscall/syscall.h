@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef SYSCALL_H
+#define SYSCALL_H
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -25,10 +27,12 @@ intptr_t sys_open(const char *path, int flags);
 intptr_t sys_close(int fd);
 intptr_t sys_read(int fd, void *buf, uint32_t count);
 intptr_t sys_write(int fd, const void *buf, uint32_t count);
-intptr_t sys_seek(int fd, int32_t offset, int whence);
+intptr_t sys_lseek(int fd, int32_t offset, int whence);
 
 /* Generic syscall dispatcher (arch code calls this)
  * syscall_num: syscall number
  * args: array of up to 6 arguments
  */
 intptr_t Syscall_Dispatch(uint32_t syscall_num, uint32_t *args);
+
+#endif

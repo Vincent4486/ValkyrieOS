@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef STACK_H
-#define STACK_H
+#ifndef I686_STACK_H
+#define I686_STACK_H
 
 #include <stdint.h>
 #include <mem/stack.h>

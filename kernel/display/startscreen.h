@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef START_SCREEN_H
+#define START_SCREEN_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -19,4 +20,6 @@ extern "C"
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

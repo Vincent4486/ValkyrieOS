@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#pragma once
+#ifndef STACK_H
+#define STACK_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -144,3 +145,5 @@ Stack *Stack_GetKernel(void);
  * @return 1 on success, 0 on failure
  */
 int stack_self_test(void);
+
+#endif
