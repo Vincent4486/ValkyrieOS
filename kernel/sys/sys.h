@@ -7,8 +7,8 @@
 #include <kernel/fs/disk/disk.h>
 #include <kernel/arch/i686/cpu/irq.h>
 
-extern __attribute__((cdecl)) get_arch(uint8_t *arch);
-extern __attribute__((cdecl)) get_cpu_count(uint32_t *cpu_count);
+extern __attribute__((cdecl)) void get_arch(uint8_t *arch);
+extern __attribute__((cdecl)) void get_cpu_count(uint32_t *cpu_count);
 extern __attribute__((cdecl)) void get_cpu_brand(char *brand);
 
 /* Architecture/CPU information */
