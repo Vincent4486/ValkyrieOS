@@ -1,11 +1,11 @@
-/* Minimal linker script for libtest dynamic library */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
 ENTRY(libmath_init)
 
 SECTIONS
 {
-    . = 0x05000000;  /* Base address for shared library */
+    . = 0x05000000;
     
-    /* Skip the ELF header - only executable and data sections are loaded */
     .text 0x05000000 :
     {
         *(.text)
