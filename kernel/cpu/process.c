@@ -70,47 +70,13 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
       const uint32_t stack_bottom = stack_top - stack_size;
 
       // Map stack pages into the process address space
-      uint32_t pages_needed = stack_size / PAGE_SIZE;
-      for (uint32_t i = 0; i < pages_needed; ++i)
+      if (Stack_ProcessInitialize(proc, stack_top, stack_size) != 0)
       {
-         uint32_t va = stack_bottom + (i * PAGE_SIZE);
-         uint32_t phys = PMM_AllocatePhysicalPage();
-         if (phys == 0)
-         {
-            printf("[process] create: PMM_AllocatePhysicalPage failed for stack\n");
-            // Cleanup already mapped stack pages
-            for (uint32_t j = 0; j < i; ++j)
-            {
-               uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
-               uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
-               i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
-               if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
-            }
-            i686_Paging_DestroyPageDirectory(proc->page_directory);
-            free(proc);
-            return NULL;
-         }
-         if (!i686_Paging_MapPage(proc->page_directory, va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER))
-         { // RW, Present, User
-            printf("[process] create: map_page failed for stack at 0x%08x\n", va);
-            PMM_FreePhysicalPage(phys);
-            // Cleanup already mapped stack pages
-            for (uint32_t j = 0; j < i; ++j)
-            {
-               uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
-               uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
-               i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
-               if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
-            }
-            i686_Paging_DestroyPageDirectory(proc->page_directory);
-            free(proc);
-            return NULL;
-         }
+         printf("[process] create: Stack_ProcessInitialize failed\n");
+         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         free(proc);
+         return NULL;
       }
-
-      // Set stack bounds in PCB
-      proc->stack_start = stack_bottom;
-      proc->stack_end = stack_top;
 
       // Prepare initial stack frame using generic stack helpers
       Stack tmp_stack = {
@@ -124,6 +90,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
         if (!kernel_pd) {
             printf("[process] ERROR: cannot get kernel page directory\n");
             // Cleanup: unmap already mapped stack pages
+            uint32_t pages_needed = stack_size / PAGE_SIZE;
             for (uint32_t j = 0; j < pages_needed; ++j) {
                 uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
                 uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);

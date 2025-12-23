@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <cpu/process.h>
 
 /**
  * Stack Management for ValkyrieOS
@@ -49,6 +50,16 @@ void Stack_InitializeKernel(void);
  * The stack grows downward (standard x86 behavior).
  */
 Stack *Stack_Create(size_t size);
+
+/**
+ * Initialize a process's user stack
+ * 
+ * @param proc Process to initialize stack for
+ * @param stack_top_va Virtual address of the top of the stack (e.g. 0xBFFFF000)
+ * @param size Size of the stack in bytes
+ * @return 0 on success, -1 on failure
+ */
+int Stack_ProcessInitialize(Process *proc, uint32_t stack_top_va, size_t size);
 
 /**
  * Destroy a user stack

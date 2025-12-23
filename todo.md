@@ -10,13 +10,17 @@
 ### Memory Management
 - [x] Virtual memory / paging (per-process address spaces)
 - [x] Heap management (brk/sbrk syscalls for malloc)
-- [x] Stack management (per-process user stacks)
+- [ ] Stack management (per-process user stacks)
+    - [x] Refactor user stack allocation (move from process.c to stack.c)
+    - [x] Implement `Stack_CreateUser` using PMM/Paging (not kmalloc)
+    - [ ] Map user-mode exit trampoline (fix GPF on return)
+    - [ ] Update TSS ESP0 on context switch
 - [ ] Memory protection (read/write/execute permissions)
 - [x] Page tables and MMU setup
 
 ### Process Management
 - [x] Process Control Block (PCB) structure
-- [ ] Process creation (fork/execve syscalls)
+- [ ] Process creation & destroy (fork/execve syscalls)
     - [ ] Add Kernel Stack to Process Struct
     - [ ] Allocate Kernel Stack in Process_Create
     - [ ] Free Kernel Stack in Process_Destroy
