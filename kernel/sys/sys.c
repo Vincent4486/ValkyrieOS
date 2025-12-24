@@ -19,12 +19,18 @@ void SYS_Initialize()
    g_SysInfo->initialized = 0;
 
    /* Populate architecture information */
-   get_arch(&g_SysInfo->arch.arch);
-   get_cpu_count(&g_SysInfo->arch.cpu_count);
+   uint8_t arch;
+   uint32_t cpu_count;
+   char cpu_brand[64];
+   get_arch(&arch);
+   get_cpu_count(&cpu_count);
+   get_cpu_brand(cpu_brand);
+   g_SysInfo->arch.arch = arch;
+   g_SysInfo->arch.cpu_count = cpu_count;
    g_SysInfo->arch.cpu_frequency = 1800; /* MHz - will be detected later */
    g_SysInfo->arch.cache_line_size = 32; /* Typical for i686 */
    g_SysInfo->arch.features = 0;         /* Features detection TODO */
-   get_cpu_brand(g_SysInfo->arch.cpu_brand);
+   memcpy(g_SysInfo->arch.cpu_brand, cpu_brand, 64);
 }
 
 /**
