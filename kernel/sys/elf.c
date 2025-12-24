@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "elf.h"
+#include <arch/i686/mem/paging.h>
+#include <cpu/process.h>
 #include <mem/memdefs.h>
 #include <mem/memory.h>
+#include <mem/pmm.h>
 #include <std/stdio.h>
 #include <std/string.h>
-#include <arch/i686/mem/paging.h>
-#include <mem/pmm.h>
-#include <cpu/process.h>
 
 #define EI_MAG0 0
 #define EI_MAG1 1
@@ -129,10 +129,10 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut)
    return true;
 }
 
-Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode)
+Process *ELF_LoadProcess(Partition *disk, const char *filename,
+                         bool kernel_mode)
 {
-   if (!disk || !filename)
-      return NULL;
+   if (!disk || !filename) return NULL;
 
    // Open ELF file from filesystem
    FAT_File *file = FAT_Open(disk, filename);
@@ -199,14 +199,14 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
 
       // Only load PT_LOAD segments
       const uint32_t PT_LOAD = 1;
-      if (phdr.p_type != PT_LOAD)
-         continue;
+      if (phdr.p_type != PT_LOAD) continue;
 
       uint32_t vaddr = phdr.p_vaddr;
       uint32_t memsz = phdr.p_memsz;
       uint32_t filesz = phdr.p_filesz;
 
-      printf("[ELF] LoadProcess: loading segment %u at 0x%08x (filesz=%u, memsz=%u)\n",
+      printf("[ELF] LoadProcess: loading segment %u at 0x%08x (filesz=%u, "
+             "memsz=%u)\n",
              i, vaddr, filesz, memsz);
 
       // Allocate pages in process's virtual address space
@@ -224,9 +224,11 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
          }
 
          // Map page into process's page directory (user mode, read+write)
-         if (!i686_Paging_MapPage(proc->page_directory, page_va, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER))
+         if (!i686_Paging_MapPage(proc->page_directory, page_va, phys,
+                                  PAGE_PRESENT | PAGE_RW | PAGE_USER))
          {
-            printf("[ELF] LoadProcess: i686_Paging_MapPage failed at 0x%08x\n", page_va);
+            printf("[ELF] LoadProcess: i686_Paging_MapPage failed at 0x%08x\n",
+                   page_va);
             PMM_FreePhysicalPage(phys);
             Process_Destroy(proc);
             FAT_Close(file);
@@ -254,7 +256,8 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
 
       while (remaining > 0)
       {
-         uint32_t chunk = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+         uint32_t chunk =
+             remaining < sizeof(buffer) ? remaining : sizeof(buffer);
          uint32_t bytes_read = FAT_Read(disk, file, chunk, buffer);
          if (bytes_read == 0)
          {
@@ -282,7 +285,8 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode
    }
 
    FAT_Close(file);
-   printf("[ELF] LoadProcess: successfully loaded %s into pid=%u at entry 0x%08x\n",
+   printf("[ELF] LoadProcess: successfully loaded %s into pid=%u at entry "
+          "0x%08x\n",
           filename, proc->pid, ehdr.e_entry);
    return proc;
 }

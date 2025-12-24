@@ -36,10 +36,7 @@ void ps2_keyboard_irq(Registers *regs)
 /**
  * Register PS/2 keyboard handler for i686 IRQ1
  */
-void ps2_keyboard_init(void)
-{
-   i686_IRQ_RegisterHandler(1, ps2_keyboard_irq);
-}
+void ps2_keyboard_init(void) { i686_IRQ_RegisterHandler(1, ps2_keyboard_irq); }
 
 /**
  * Non-blocking readline: returns number of bytes written into buf, 0 if no line

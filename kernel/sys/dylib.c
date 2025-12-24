@@ -143,7 +143,7 @@ int Dylib_MemoryInitialize(void)
 // ============================================================================
 
 int Dylib_AddGlobalSymbol(const char *name, uint32_t address,
-                            const char *lib_name, int is_kernel)
+                          const char *lib_name, int is_kernel)
 {
    if (global_symtab_count >= DYLIB_MAX_GLOBAL_SYMBOLS)
    {
@@ -989,7 +989,7 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
 }
 
 int Dylib_LoadFromDisk(Partition *partition, const char *name,
-                         const char *filepath)
+                       const char *filepath)
 {
    if (!dylib_mem_initialized) Dylib_MemoryInitialize();
 
@@ -1203,85 +1203,80 @@ static int load_libmath(Partition *partition)
    // Register libmath symbols in global symbol table for GOT patching
    printf("\n[*] Registering libmath symbols in global symbol table...\n");
    Dylib_AddGlobalSymbol("add", (uint32_t)Dylib_FindSymbol("libmath", "add"),
-                           "libmath", 0);
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("subtract",
-                           (uint32_t)Dylib_FindSymbol("libmath", "subtract"),
-                           "libmath", 0);
+                         (uint32_t)Dylib_FindSymbol("libmath", "subtract"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("multiply",
-                           (uint32_t)Dylib_FindSymbol("libmath", "multiply"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol("divide",
-                           (uint32_t)Dylib_FindSymbol("libmath", "divide"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol("modulo",
-                           (uint32_t)Dylib_FindSymbol("libmath", "modulo"),
-                           "libmath", 0);
+                         (uint32_t)Dylib_FindSymbol("libmath", "multiply"),
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "divide", (uint32_t)Dylib_FindSymbol("libmath", "divide"), "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "modulo", (uint32_t)Dylib_FindSymbol("libmath", "modulo"), "libmath", 0);
    Dylib_AddGlobalSymbol("abs_int",
-                           (uint32_t)Dylib_FindSymbol("libmath", "abs_int"),
-                           "libmath", 0);
+                         (uint32_t)Dylib_FindSymbol("libmath", "abs_int"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
        "fabsf", (uint32_t)Dylib_FindSymbol("libmath", "fabsf"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "fabs", (uint32_t)Dylib_FindSymbol("libmath", "fabs"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "sinf", (uint32_t)Dylib_FindSymbol("libmath", "sinf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("fabs", (uint32_t)Dylib_FindSymbol("libmath", "fabs"),
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol("sinf", (uint32_t)Dylib_FindSymbol("libmath", "sinf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("sin", (uint32_t)Dylib_FindSymbol("libmath", "sin"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "cosf", (uint32_t)Dylib_FindSymbol("libmath", "cosf"), "libmath", 0);
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol("cosf", (uint32_t)Dylib_FindSymbol("libmath", "cosf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("cos", (uint32_t)Dylib_FindSymbol("libmath", "cos"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "tanf", (uint32_t)Dylib_FindSymbol("libmath", "tanf"), "libmath", 0);
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol("tanf", (uint32_t)Dylib_FindSymbol("libmath", "tanf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("tan", (uint32_t)Dylib_FindSymbol("libmath", "tan"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "expf", (uint32_t)Dylib_FindSymbol("libmath", "expf"), "libmath", 0);
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol("expf", (uint32_t)Dylib_FindSymbol("libmath", "expf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("exp", (uint32_t)Dylib_FindSymbol("libmath", "exp"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "logf", (uint32_t)Dylib_FindSymbol("libmath", "logf"), "libmath", 0);
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol("logf", (uint32_t)Dylib_FindSymbol("libmath", "logf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("log", (uint32_t)Dylib_FindSymbol("libmath", "log"),
-                           "libmath", 0);
-   Dylib_AddGlobalSymbol("log10f",
-                           (uint32_t)Dylib_FindSymbol("libmath", "log10f"),
-                           "libmath", 0);
+                         "libmath", 0);
+   Dylib_AddGlobalSymbol(
+       "log10f", (uint32_t)Dylib_FindSymbol("libmath", "log10f"), "libmath", 0);
    Dylib_AddGlobalSymbol(
        "log10", (uint32_t)Dylib_FindSymbol("libmath", "log10"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "powf", (uint32_t)Dylib_FindSymbol("libmath", "powf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("powf", (uint32_t)Dylib_FindSymbol("libmath", "powf"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol("pow", (uint32_t)Dylib_FindSymbol("libmath", "pow"),
-                           "libmath", 0);
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
        "sqrtf", (uint32_t)Dylib_FindSymbol("libmath", "sqrtf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("sqrt", (uint32_t)Dylib_FindSymbol("libmath", "sqrt"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
-       "sqrt", (uint32_t)Dylib_FindSymbol("libmath", "sqrt"), "libmath", 0);
-   Dylib_AddGlobalSymbol("floorf",
-                           (uint32_t)Dylib_FindSymbol("libmath", "floorf"),
-                           "libmath", 0);
+       "floorf", (uint32_t)Dylib_FindSymbol("libmath", "floorf"), "libmath", 0);
    Dylib_AddGlobalSymbol(
        "floor", (uint32_t)Dylib_FindSymbol("libmath", "floor"), "libmath", 0);
    Dylib_AddGlobalSymbol(
        "ceilf", (uint32_t)Dylib_FindSymbol("libmath", "ceilf"), "libmath", 0);
+   Dylib_AddGlobalSymbol("ceil", (uint32_t)Dylib_FindSymbol("libmath", "ceil"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
-       "ceil", (uint32_t)Dylib_FindSymbol("libmath", "ceil"), "libmath", 0);
-   Dylib_AddGlobalSymbol("roundf",
-                           (uint32_t)Dylib_FindSymbol("libmath", "roundf"),
-                           "libmath", 0);
+       "roundf", (uint32_t)Dylib_FindSymbol("libmath", "roundf"), "libmath", 0);
    Dylib_AddGlobalSymbol(
        "round", (uint32_t)Dylib_FindSymbol("libmath", "round"), "libmath", 0);
    Dylib_AddGlobalSymbol(
        "fminf", (uint32_t)Dylib_FindSymbol("libmath", "fminf"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "fmin", (uint32_t)Dylib_FindSymbol("libmath", "fmin"), "libmath", 0);
+   Dylib_AddGlobalSymbol("fmin", (uint32_t)Dylib_FindSymbol("libmath", "fmin"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
        "fmaxf", (uint32_t)Dylib_FindSymbol("libmath", "fmaxf"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "fmax", (uint32_t)Dylib_FindSymbol("libmath", "fmax"), "libmath", 0);
+   Dylib_AddGlobalSymbol("fmax", (uint32_t)Dylib_FindSymbol("libmath", "fmax"),
+                         "libmath", 0);
    Dylib_AddGlobalSymbol(
        "fmodf", (uint32_t)Dylib_FindSymbol("libmath", "fmodf"), "libmath", 0);
-   Dylib_AddGlobalSymbol(
-       "fmod", (uint32_t)Dylib_FindSymbol("libmath", "fmod"), "libmath", 0);
+   Dylib_AddGlobalSymbol("fmod", (uint32_t)Dylib_FindSymbol("libmath", "fmod"),
+                         "libmath", 0);
    printf("[*] Symbols registered\n");
 
    // Apply kernel GOT/PLT relocations for libmath
@@ -1294,10 +1289,11 @@ static int load_libmath(Partition *partition)
 bool Dylib_Initialize(Partition *partition)
 {
    // Load math library
-   if (load_libmath(partition) != 0) {
+   if (load_libmath(partition) != 0)
+   {
       printf("[ERROR] Failed to initialize libmath\n");
       return false;
    }
-   
+
    return true;
 }

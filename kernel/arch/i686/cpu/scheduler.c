@@ -2,10 +2,6 @@
 
 #include "scheduler.h"
 
-void i686_Scheduler_SaveCpuState(){
+void i686_Scheduler_SaveCpuState() {}
 
-}
-
-void i686_Scheduler_RestoreCpuState(){
-    
-}
+void i686_Scheduler_RestoreCpuState() {}

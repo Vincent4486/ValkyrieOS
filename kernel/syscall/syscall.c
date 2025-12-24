@@ -11,17 +11,14 @@
 intptr_t sys_brk(void *addr)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    void *result = Heap_ProcessSbrk(proc, 0);  // Get current break
-   if (addr == NULL)
-      return (intptr_t)result;  // Return current break
+   if (addr == NULL) return (intptr_t)result; // Return current break
 
    // Calculate increment needed
    intptr_t increment = (intptr_t)addr - (intptr_t)result;
-   if (Heap_ProcessSbrk(proc, increment) == (void *)-1)
-      return -1;
+   if (Heap_ProcessSbrk(proc, increment) == (void *)-1) return -1;
 
    return (intptr_t)addr;
 }
@@ -29,8 +26,7 @@ intptr_t sys_brk(void *addr)
 void *sys_sbrk(intptr_t increment)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return (void *)-1;
+   if (!proc) return (void *)-1;
 
    return Heap_ProcessSbrk(proc, increment);
 }
@@ -39,8 +35,7 @@ void *sys_sbrk(intptr_t increment)
 intptr_t sys_open(const char *path, int flags)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    return FD_Open(proc, path, flags);
 }
@@ -48,8 +43,7 @@ intptr_t sys_open(const char *path, int flags)
 intptr_t sys_close(int fd)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    return FD_Close(proc, fd);
 }
@@ -57,8 +51,7 @@ intptr_t sys_close(int fd)
 intptr_t sys_read(int fd, void *buf, uint32_t count)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    return FD_Read(proc, fd, buf, count);
 }
@@ -66,8 +59,7 @@ intptr_t sys_read(int fd, void *buf, uint32_t count)
 intptr_t sys_write(int fd, const void *buf, uint32_t count)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    return FD_Write(proc, fd, buf, count);
 }
@@ -75,8 +67,7 @@ intptr_t sys_write(int fd, const void *buf, uint32_t count)
 intptr_t sys_lseek(int fd, int32_t offset, int whence)
 {
    Process *proc = Process_GetCurrent();
-   if (!proc)
-      return -1;
+   if (!proc) return -1;
 
    return FD_Lseek(proc, fd, offset, whence);
 }

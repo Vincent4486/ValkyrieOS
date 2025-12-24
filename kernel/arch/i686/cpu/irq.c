@@ -7,8 +7,8 @@
 #include <display/keyboard.h>
 #include <std/arrays.h>
 #include <std/stdio.h>
-#include <sys/sys.h>
 #include <stddef.h>
+#include <sys/sys.h>
 
 #define PIC_REMAP_OFFSET 0x20
 
@@ -69,7 +69,7 @@ void i686_IRQ_Initialize()
 
    /* Populate IRQ info in SYS_Info */
    g_SysInfo->irq.irq_count = 16;
-   g_SysInfo->irq.pic_type = 1; /* 8259 PIC */
+   g_SysInfo->irq.pic_type = 1;      /* 8259 PIC */
    g_SysInfo->irq.timer_freq = 1000; /* 1000 Hz timer */
 }
 

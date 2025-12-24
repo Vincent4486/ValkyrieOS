@@ -17,12 +17,9 @@ typedef IRQ_Info HAL_IRQ_Info;
 
 static inline void HAL_IRQ_RegisterHandler(int irq, HAL_IRQHandler handler)
 {
-	HAL_ARCH_IRQ_RegisterHandler(irq, handler);
+   HAL_ARCH_IRQ_RegisterHandler(irq, handler);
 }
 
-static inline void HAL_IRQ_Unmask(int irq)
-{
-	HAL_ARCH_IRQ_Unmask(irq);
-}
+static inline void HAL_IRQ_Unmask(int irq) { HAL_ARCH_IRQ_Unmask(irq); }
 
 #endif

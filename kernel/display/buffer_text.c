@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "buffer_text.h"
-#include <mem/memory.h>
 #include <mem/memdefs.h>
+#include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>

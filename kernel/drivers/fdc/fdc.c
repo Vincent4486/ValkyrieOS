@@ -64,7 +64,7 @@ static void fdc_dma_init(bool is_read)
 
    // Mask DMA channel 2
    HAL_outb(DMA_SINGLE_MASK,
-             0x06); // 0x06 = 0b0110 = mask set (bit 2) | channel 2
+            0x06); // 0x06 = 0b0110 = mask set (bit 2) | channel 2
 
    // Reset flip-flop
    HAL_outb(DMA_FLIP_FLOP_RESET, 0x0C);

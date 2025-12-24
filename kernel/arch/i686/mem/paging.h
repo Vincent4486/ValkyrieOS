@@ -3,9 +3,9 @@
 #ifndef I686_PAGING_H
 #define I686_PAGING_H
 
+#include <mem/memdefs.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <mem/memdefs.h>
 
 // Page flag helpers
 #define PAGE_PRESENT 0x001
@@ -22,7 +22,7 @@ void i686_Paging_DestroyPageDirectory(void *page_dir);
 
 // Page mapping
 bool i686_Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,
-                    uint32_t flags);
+                         uint32_t flags);
 bool i686_Paging_UnmapPage(void *page_dir, uint32_t vaddr);
 
 // Page lookup

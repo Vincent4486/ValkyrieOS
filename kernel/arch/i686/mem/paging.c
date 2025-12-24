@@ -144,7 +144,7 @@ static uint32_t *get_page_table(uint32_t *pd, uint32_t vaddr, bool create)
 }
 
 bool i686_Paging_MapPage(void *page_dir, uint32_t vaddr, uint32_t paddr,
-                    uint32_t flags)
+                         uint32_t flags)
 {
    uint32_t *pd = (uint32_t *)page_dir;
    uint32_t *pt = get_page_table(pd, vaddr, true);
@@ -203,7 +203,10 @@ void i686_Paging_SwitchPageDirectory(void *page_dir)
    load_cr3((uint32_t)page_dir);
 }
 
-void *i686_Paging_GetCurrentPageDirectory(void) { return current_page_directory; }
+void *i686_Paging_GetCurrentPageDirectory(void)
+{
+   return current_page_directory;
+}
 
 void *i686_Paging_AllocateKernelPages(int page_count)
 {
@@ -214,7 +217,8 @@ void *i686_Paging_AllocateKernelPages(int page_count)
       uint32_t phys = alloc_frame();
       if (i == 0) first_phys = phys;
       // identity map each page to keep it accessible
-      i686_Paging_MapPage(kernel_page_directory, phys, phys, PAGE_RW | PAGE_PRESENT);
+      i686_Paging_MapPage(kernel_page_directory, phys, phys,
+                          PAGE_RW | PAGE_PRESENT);
    }
    return (void *)first_phys;
 }
@@ -238,7 +242,7 @@ void paging_self_test(void)
    }
 
    if (!i686_Paging_MapPage(pd, test_va, (uint32_t)phys_page,
-                       PAGE_RW | PAGE_PRESENT))
+                            PAGE_RW | PAGE_PRESENT))
    {
       printf("[paging] self-test: map failed\n");
       return;

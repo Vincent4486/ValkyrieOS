@@ -358,6 +358,7 @@ int Keyboard_ReadlineNb(char *buf, int bufsize)
  */
 int Keyboard_Readline(char *buf, int bufsize)
 {
-   /* This should not be called directly - use platform-specific wrapper instead */
+   /* This should not be called directly - use platform-specific wrapper instead
+    */
    return Keyboard_ReadlineNb(buf, bufsize);
 }
