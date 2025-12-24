@@ -3,8 +3,8 @@
 #ifndef IO_H
 #define IO_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // Map architecture-specific primitives to generic names
 #if defined(I686)
@@ -26,56 +26,38 @@
 
 static inline void HAL_outb(uint16_t port, uint8_t value)
 {
-    HAL_ARCH_outb(port, value);
+   HAL_ARCH_outb(port, value);
 }
 
 static inline void HAL_outw(uint16_t port, uint16_t value)
 {
-    HAL_ARCH_outw(port, value);
+   HAL_ARCH_outw(port, value);
 }
 
 static inline void HAL_outl(uint16_t port, uint32_t value)
 {
-    HAL_ARCH_outl(port, value);
+   HAL_ARCH_outl(port, value);
 }
 
-static inline uint8_t HAL_inb(uint16_t port)
-{
-    return HAL_ARCH_inb(port);
-}
+static inline uint8_t HAL_inb(uint16_t port) { return HAL_ARCH_inb(port); }
 
-static inline uint16_t HAL_inw(uint16_t port)
-{
-    return HAL_ARCH_inw(port);
-}
+static inline uint16_t HAL_inw(uint16_t port) { return HAL_ARCH_inw(port); }
 
-static inline uint32_t HAL_inl(uint16_t port)
-{
-    return HAL_ARCH_inl(port);
-}
+static inline uint32_t HAL_inl(uint16_t port) { return HAL_ARCH_inl(port); }
 
 static inline uint8_t HAL_EnableInterrupts()
 {
-    return HAL_ARCH_EnableInterrupts();
+   return HAL_ARCH_EnableInterrupts();
 }
 
 static inline uint8_t HAL_DisableInterrupts()
 {
-    return HAL_ARCH_DisableInterrupts();
+   return HAL_ARCH_DisableInterrupts();
 }
 
-static inline void HAL_IOWait()
-{
-    HAL_ARCH_iowait();
-}
+static inline void HAL_IOWait() { HAL_ARCH_iowait(); }
 
-static inline void HAL_Halt()
-{
-    HAL_ARCH_Halt();
-}
+static inline void HAL_Halt() { HAL_ARCH_Halt(); }
 
-static inline void HAL_Panic()
-{
-    HAL_ARCH_Panic();
-}
+static inline void HAL_Panic() { HAL_ARCH_Panic(); }
 #endif

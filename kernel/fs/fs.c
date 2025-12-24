@@ -4,8 +4,8 @@
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
 #include <mem/memdefs.h>
-#include <sys/sys.h>
 #include <stdint.h>
+#include <sys/sys.h>
 
 /**
  * Initialize storage system: disk detection, partition detection, and FAT
@@ -84,7 +84,7 @@ bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
    {
       return false;
    }
-   
+
    /* Populate filesystem info in SYS_Info */
    g_SysInfo->fs.mounted = 1;
    g_SysInfo->fs.read_only = 0;

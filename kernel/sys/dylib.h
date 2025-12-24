@@ -89,7 +89,7 @@ int Dylib_ParseSymbols(LibRecord *lib);
 // Add a symbol to the global registry. Symbols are extracted from .dynsym
 // when libraries are loaded and registered here for relocation resolution.
 int Dylib_AddGlobalSymbol(const char *name, uint32_t address,
-                            const char *lib_name, int is_kernel);
+                          const char *lib_name, int is_kernel);
 
 // Look up a symbol in the global registry by name.
 // Returns the absolute address or 0 if not found.
@@ -125,7 +125,7 @@ int Dylib_MemoryFree(const char *lib_name);
 //   name: Library name to load
 //   filepath: Path to library file on disk (e.g., "/sys/graphics.so")
 int Dylib_LoadFromDisk(Partition *partition, const char *name,
-                         const char *filepath);
+                       const char *filepath);
 
 // Load a library from memory image. Returns 0 on success, -1 on failure.
 int Dylib_Load(const char *name, const void *image, uint32_t size);

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /* #include <stdio.h>
-#include <stddef.h>
-#include <unistd.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <ctype.h>
-#include <sys/wait.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 char *version = "1.0";
 
@@ -76,7 +76,7 @@ void set(const char *var, const char *value){
             return;
         }
     }
-    
+
     // Add new variable
     if(var_count < MAX_VARS) {
         vars[var_count].name = malloc(strlen(var) + 1);
@@ -102,17 +102,17 @@ const char *get_var(const char *name){
 char *find_executable_in_path(const char *executable){
     const char *path_str = get_var("PATH");
     if(path_str == NULL) return NULL;
-    
+
     // Make a copy of PATH since strtok modifies it
     char *path_copy = malloc(strlen(path_str) + 1);
     strcpy(path_copy, path_str);
-    
+
     char *dir = strtok(path_copy, ":");
     while(dir != NULL) {
         // Build full path
         char full_path[PATH_MAX];
         snprintf(full_path, PATH_MAX, "%s/%s", dir, executable);
-        
+
         // Check if file exists and is executable
         if(access(full_path, X_OK) == 0) {
             char *result = malloc(strlen(full_path) + 1);
@@ -120,17 +120,17 @@ char *find_executable_in_path(const char *executable){
             free(path_copy);
             return result;
         }
-        
+
         dir = strtok(NULL, ":");
     }
-    
+
     free(path_copy);
     return NULL;
 }
 
-void execute_with_redirect(const char *full_path, Command *command, int stdin_fd, int stdout_fd){
-    pid_t pid = fork();
-    
+void execute_with_redirect(const char *full_path, Command *command, int
+stdin_fd, int stdout_fd){ pid_t pid = fork();
+
     if(pid == 0) {
         // Child process
         // Redirect stdin if needed
@@ -143,7 +143,7 @@ void execute_with_redirect(const char *full_path, Command *command, int stdin_fd
             dup2(stdout_fd, STDOUT_FILENO);
             close(stdout_fd);
         }
-        
+
         // Build argv array
         char **argv = malloc(sizeof(char *) * (command->argc + 2));
         argv[0] = command->executable;
@@ -151,7 +151,7 @@ void execute_with_redirect(const char *full_path, Command *command, int stdin_fd
             argv[i + 1] = command->argv[i];
         }
         argv[command->argc + 1] = NULL;
-        
+
         execv(full_path, argv);
         perror("execv");
         exit(1);
@@ -159,7 +159,7 @@ void execute_with_redirect(const char *full_path, Command *command, int stdin_fd
         // Parent process
         if(stdin_fd != STDIN_FILENO) close(stdin_fd);
         if(stdout_fd != STDOUT_FILENO) close(stdout_fd);
-        
+
         int status;
         waitpid(pid, &status, 0);
     } else {
@@ -191,7 +191,7 @@ int open_output_file(const char *filename, int append){
 
 void execute_pipeline(Pipeline *pipeline){
     if(pipeline == NULL || pipeline->count == 0) return;
-    
+
     int **pipes = malloc(sizeof(int *) * (pipeline->count - 1));
     for(int i = 0; i < pipeline->count - 1; i++) {
         pipes[i] = malloc(sizeof(int) * 2);
@@ -200,20 +200,20 @@ void execute_pipeline(Pipeline *pipeline){
             return;
         }
     }
-    
+
     pid_t *pids = malloc(sizeof(pid_t) * pipeline->count);
-    
+
     for(int i = 0; i < pipeline->count; i++) {
         Command *cmd = pipeline->commands[i];
         char *full_path = find_executable_in_path(cmd->executable);
-        
+
         if(full_path == NULL) {
             printf("Unknown command: %s\n", cmd->executable);
             continue;
         }
-        
+
         pids[i] = fork();
-        
+
         if(pids[i] == 0) {
             // Child process
             // Set up stdin
@@ -226,7 +226,7 @@ void execute_pipeline(Pipeline *pipeline){
                     close(fd);
                 }
             }
-            
+
             // Set up stdout
             if(i < pipeline->count - 1) {
                 dup2(pipes[i][1], STDOUT_FILENO);
@@ -237,13 +237,13 @@ void execute_pipeline(Pipeline *pipeline){
                     close(fd);
                 }
             }
-            
+
             // Close all pipes in child
             for(int j = 0; j < pipeline->count - 1; j++) {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
-            
+
             // Build argv
             char **argv = malloc(sizeof(char *) * (cmd->argc + 2));
             argv[0] = cmd->executable;
@@ -251,17 +251,17 @@ void execute_pipeline(Pipeline *pipeline){
                 argv[j + 1] = cmd->argv[j];
             }
             argv[cmd->argc + 1] = NULL;
-            
+
             execv(full_path, argv);
             perror("execv");
             exit(1);
         } else if(pids[i] == -1) {
             perror("fork");
         }
-        
+
         free(full_path);
     }
-    
+
     // Parent closes all pipes
     for(int i = 0; i < pipeline->count - 1; i++) {
         close(pipes[i][0]);
@@ -269,7 +269,7 @@ void execute_pipeline(Pipeline *pipeline){
         free(pipes[i]);
     }
     free(pipes);
-    
+
     // Wait for all children
     for(int i = 0; i < pipeline->count; i++) {
         if(pids[i] > 0) {
@@ -284,11 +284,11 @@ Pipeline *parse_pipeline(char command[PATH_MAX]){
     // Count pipes
     int pipe_count = 0;
     for(int i = 0; command[i] != '\0'; i++) {
-        if(command[i] == '|' && (i == 0 || command[i-1] != '>' || command[i+1] != '>')) {
-            pipe_count++;
+        if(command[i] == '|' && (i == 0 || command[i-1] != '>' || command[i+1]
+!= '>')) { pipe_count++;
         }
     }
-    
+
     if(pipe_count == 0) {
         // No pipes, just parse as single command
         Pipeline *pipeline = malloc(sizeof(Pipeline));
@@ -297,29 +297,29 @@ Pipeline *parse_pipeline(char command[PATH_MAX]){
         pipeline->count = 1;
         return pipeline;
     }
-    
+
     // Split by pipes
     Pipeline *pipeline = malloc(sizeof(Pipeline));
     pipeline->commands = malloc(sizeof(Command *) * (pipe_count + 1));
     pipeline->count = pipe_count + 1;
-    
+
     char *copy = malloc(strlen(command) + 1);
     strcpy(copy, command);
-    
+
     char *cmd_str = copy;
     for(int i = 0; i <= pipe_count; i++) {
         char *pipe_pos = strchr(cmd_str, '|');
         if(pipe_pos != NULL) {
             *pipe_pos = '\0';
         }
-        
+
         pipeline->commands[i] = parse(cmd_str);
-        
+
         if(pipe_pos != NULL) {
             cmd_str = pipe_pos + 1;
         }
     }
-    
+
     free(copy);
     return pipeline;
 }
@@ -330,17 +330,17 @@ void Command_EXIT(Command *command){
     } else {
         char *endptr;
         long exit_code = strtol(command->argv[0], &endptr, 10);
-        
+
         if(*endptr != '\0') {
             printf("Error: invalid exit code '%s'\n", command->argv[0]);
             return;
         }
-        
+
         if(command->argc > 1) {
             printf("Error: unexpected tokens after exit code\n");
             return;
         }
-        
+
         printf("Exiting...\n");
         exit((int)exit_code);
     }
@@ -371,7 +371,7 @@ void Command_HELP(Command *command){
 
 void execute(Command *command){
     if(command == NULL) return;
-    
+
     if(strcmp(command->executable, "exit") == 0) {
         Command_EXIT(command);
     } else if(strcmp(command->executable, "cd") == 0) {
@@ -387,7 +387,7 @@ void execute(Command *command){
         const char *value = equal + 1;
         set(var, value);
         free(var);
-    } 
+    }
     else {
         // Try to find and execute in PATH
         char *full_path = find_executable_in_path(command->executable);
@@ -395,7 +395,7 @@ void execute(Command *command){
             // Handle input/output redirection
             int stdin_fd = STDIN_FILENO;
             int stdout_fd = STDOUT_FILENO;
-            
+
             if(command->input_file != NULL) {
                 stdin_fd = open_input_file(command->input_file);
                 if(stdin_fd == -1) {
@@ -403,23 +403,21 @@ void execute(Command *command){
                     goto cleanup;
                 }
             }
-            
+
             if(command->output_file != NULL) {
-                stdout_fd = open_output_file(command->output_file, command->append_output);
-                if(stdout_fd == -1) {
-                    if(stdin_fd != STDIN_FILENO) close(stdin_fd);
-                    free(full_path);
-                    goto cleanup;
+                stdout_fd = open_output_file(command->output_file,
+command->append_output); if(stdout_fd == -1) { if(stdin_fd != STDIN_FILENO)
+close(stdin_fd); free(full_path); goto cleanup;
                 }
             }
-            
+
             execute_with_redirect(full_path, command, stdin_fd, stdout_fd);
             free(full_path);
         } else {
             printf("Unknown command: %s\n", command->executable);
         }
     }
-    
+
 cleanup:
     free(command->executable);
     for(int i = 0; i < command->argc; i++) {
@@ -437,7 +435,7 @@ Command *parse(char command[PATH_MAX]){
     if(len > 0 && command[len - 1] == '\n') {
         command[len - 1] = '\0';
     }
-    
+
     // Check for && and split if found
     char *and_pos = strstr(command, "&&");
     if(and_pos != NULL) {
@@ -448,29 +446,29 @@ Command *parse(char command[PATH_MAX]){
     } else {
         remaining_command[0] = '\0';
     }
-    
+
     // Make a copy since strtok modifies the string
     char *copy = malloc(strlen(command) + 1);
     strcpy(copy, command);
-    
+
     const char *token = strtok(copy, " ");
-    
+
     if(token == NULL) {
         free(copy);
         return NULL;
     }
-    
+
     Command *cmd = malloc(sizeof(Command));
     cmd->executable = malloc(strlen(token) + 1);
     strcpy(cmd->executable, token);
     cmd->input_file = NULL;
     cmd->output_file = NULL;
     cmd->append_output = 0;
-    
+
     // Collect remaining tokens as argv with variable expansion and redirection
     char **argv = malloc(sizeof(char *) * 100);
     int argc = 0;
-    
+
     token = strtok(NULL, " ");
     while(token != NULL) {
         // Check for redirection operators
@@ -499,21 +497,21 @@ Command *parse(char command[PATH_MAX]){
             char expanded[PATH_MAX] = {0};
             int exp_pos = 0;
             int i = 0;
-            
+
             while(token[i] != '\0') {
                 if(token[i] == '$') {
                     // Extract variable name
                     int var_start = i + 1;
                     int var_end = var_start;
-                    while(token[var_end] != '\0' && (isalnum(token[var_end]) || token[var_end] == '_')) {
-                        var_end++;
+                    while(token[var_end] != '\0' && (isalnum(token[var_end]) ||
+token[var_end] == '_')) { var_end++;
                     }
-                    
+
                     // Extract variable name
                     char var_name[PATH_MAX];
                     strncpy(var_name, token + var_start, var_end - var_start);
                     var_name[var_end - var_start] = '\0';
-                    
+
                     // Get variable value
                     const char *var_value = get_var(var_name);
                     if(var_value != NULL) {
@@ -525,7 +523,7 @@ Command *parse(char command[PATH_MAX]){
                         strcpy(expanded + exp_pos, var_name);
                         exp_pos += strlen(var_name);
                     }
-                    
+
                     i = var_end;
                 } else {
                     expanded[exp_pos++] = token[i];
@@ -533,17 +531,17 @@ Command *parse(char command[PATH_MAX]){
                 }
             }
             expanded[exp_pos] = '\0';
-            
+
             argv[argc] = malloc(strlen(expanded) + 1);
             strcpy(argv[argc], expanded);
             argc++;
         }
         token = strtok(NULL, " ");
     }
-    
+
     cmd->argc = argc;
     cmd->argv = argv;
-    
+
     free(copy);
     return cmd;
 }
@@ -551,7 +549,7 @@ Command *parse(char command[PATH_MAX]){
 void loop(){
     while(true){
         printf("sh-%s %s %c ", g_Shell.version, g_Shell.cwd, g_Shell.starter);
-        
+
         char input[PATH_MAX];
         if(remaining_command[0] != '\0') {
             // Use remaining command from previous &&
@@ -560,7 +558,7 @@ void loop(){
         } else {
             fgets(input, PATH_MAX, stdin);
         }
-        
+
         Pipeline *pipeline = parse_pipeline(input);
         if(pipeline != NULL) {
             if(pipeline->count == 1 && pipeline->commands[0] != NULL) {
@@ -577,9 +575,9 @@ void loop(){
                             free(pipeline->commands[i]->argv[j]);
                         }
                         free(pipeline->commands[i]->argv);
-                        if(pipeline->commands[i]->input_file) free(pipeline->commands[i]->input_file);
-                        if(pipeline->commands[i]->output_file) free(pipeline->commands[i]->output_file);
-                        free(pipeline->commands[i]);
+                        if(pipeline->commands[i]->input_file)
+free(pipeline->commands[i]->input_file); if(pipeline->commands[i]->output_file)
+free(pipeline->commands[i]->output_file); free(pipeline->commands[i]);
                     }
                 }
                 free(pipeline->commands);
@@ -592,7 +590,7 @@ void loop(){
 void init(){
     g_Shell.version = version;
     g_Shell.starter = '$';
-    
+
     // Set up signal handler for Ctrl+C
     signal(SIGINT, sigint_handler);
 

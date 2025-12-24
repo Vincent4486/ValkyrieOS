@@ -3,18 +3,18 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#include <mem/memdefs.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <mem/memdefs.h>
 
 #define HEAP_MAX 0xC0000000u // Don't allow heap
 
 typedef struct
 {
-   uint32_t pid;   // Process ID
-   uint32_t ppid;  // Parent process ID
-   uint32_t state; // RUNNING, READY, BLOCKED, TERMINATED
+   uint32_t pid;     // Process ID
+   uint32_t ppid;    // Parent process ID
+   uint32_t state;   // RUNNING, READY, BLOCKED, TERMINATED
    bool kernel_mode; // true if running in kernel mode
 
    // Memory management

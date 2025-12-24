@@ -22,7 +22,7 @@ void VMM_Initialize(void);
  * If next_vaddr_state is NULL, uses the kernel allocator bump pointer.
  */
 void *VMM_AllocateInDir(void *page_dir, uint32_t *next_vaddr_state,
-					   uint32_t size, uint32_t flags);
+                        uint32_t size, uint32_t flags);
 
 /* Kernel convenience wrapper */
 void *VMM_Allocate(uint32_t size, uint32_t flags);
@@ -32,8 +32,8 @@ void VMM_FreeInDir(void *page_dir, void *vaddr, uint32_t size);
 void VMM_Free(void *vaddr, uint32_t size);
 
 /* Map existing physical memory */
-bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr,
-				  uint32_t size, uint32_t flags);
+bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr, uint32_t size,
+                  uint32_t flags);
 bool VMM_Map(uint32_t vaddr, uint32_t paddr, uint32_t size, uint32_t flags);
 
 /* Unmap virtual memory (does not free physical pages) */

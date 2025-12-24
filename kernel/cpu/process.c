@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "process.h"
-#include <mem/memdefs.h>
 #include <arch/i686/mem/paging.h>
+#include <fs/disk/partition.h>
+#include <fs/fat/fat.h>
+#include <fs/fd.h>
 #include <mem/heap.h>
-#include <mem/stack.h>
+#include <mem/memdefs.h>
 #include <mem/pmm.h>
+#include <mem/stack.h>
 #include <mem/vmm.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/elf.h>
-#include <fs/fat/fat.h>
-#include <fs/disk/partition.h>
-#include <fs/fd.h>
 
 static Process *current_process = NULL;
 static uint32_t next_pid = 1;
@@ -38,11 +38,13 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
 
    if (kernel_mode)
    {
-      // Kernel-mode: reuse current kernel page directory, no user heap/stack mapping
+      // Kernel-mode: reuse current kernel page directory, no user heap/stack
+      // mapping
       proc->page_directory = i686_Paging_GetCurrentPageDirectory();
       proc->heap_start = proc->heap_end = 0;
       proc->stack_start = proc->stack_end = 0;
-      proc->esp = proc->ebp = 0; // Not set here; kernel threads would set up elsewhere
+      proc->esp = proc->ebp =
+          0; // Not set here; kernel threads would set up elsewhere
    }
    else
    {
@@ -85,27 +87,31 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
           .current = stack_top,
           .data = (uint8_t *)stack_bottom,
       };
-        // Switch to process page directory so the user stack VA is mapped while we write to it
-        void *kernel_pd = VMM_GetPageDirectory();
-        if (!kernel_pd) {
-            printf("[process] ERROR: cannot get kernel page directory\n");
-            // Cleanup: unmap already mapped stack pages
-            uint32_t pages_needed = stack_size / PAGE_SIZE;
-            for (uint32_t j = 0; j < pages_needed; ++j) {
-                uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
-                uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(proc->page_directory, va_cleanup);
-                i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
-                if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
-            }
-            i686_Paging_DestroyPageDirectory(proc->page_directory);
-            free(proc);
-            return NULL;
-        }
-        
-        i686_Paging_SwitchPageDirectory(proc->page_directory);
-        Stack_SetupProcess(&tmp_stack, entry_point);
-        // Switch back to kernel page directory - critical for correctness
-        i686_Paging_SwitchPageDirectory(kernel_pd);
+      // Switch to process page directory so the user stack VA is mapped while
+      // we write to it
+      void *kernel_pd = VMM_GetPageDirectory();
+      if (!kernel_pd)
+      {
+         printf("[process] ERROR: cannot get kernel page directory\n");
+         // Cleanup: unmap already mapped stack pages
+         uint32_t pages_needed = stack_size / PAGE_SIZE;
+         for (uint32_t j = 0; j < pages_needed; ++j)
+         {
+            uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
+            uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(
+                proc->page_directory, va_cleanup);
+            i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+            if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
+         }
+         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         free(proc);
+         return NULL;
+      }
+
+      i686_Paging_SwitchPageDirectory(proc->page_directory);
+      Stack_SetupProcess(&tmp_stack, entry_point);
+      // Switch back to kernel page directory - critical for correctness
+      i686_Paging_SwitchPageDirectory(kernel_pd);
 
       // Record initial ESP/EBP after setup
       proc->esp = tmp_stack.current;
@@ -118,7 +124,8 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
    proc->esi = proc->edi = 0;
    proc->eflags = 0x202; // IF=1 (interrupts enabled)
 
-   // Initialize file descriptors (all NULL, reserved FDs 0/1/2 handled by syscalls)
+   // Initialize file descriptors (all NULL, reserved FDs 0/1/2 handled by
+   // syscalls)
    for (int i = 0; i < 16; ++i) proc->fd_table[i] = NULL;
 
    printf("[process] created: pid=%u, entry=0x%08x\n", proc->pid, entry_point);
@@ -139,7 +146,8 @@ void Process_Destroy(Process *proc)
          for (uint32_t i = 0; i < pages; ++i)
          {
             uint32_t va = proc->stack_start + (i * PAGE_SIZE);
-            uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
+            uint32_t phys =
+                i686_Paging_GetPhysicalAddress(proc->page_directory, va);
             i686_Paging_UnmapPage(proc->page_directory, va);
             if (phys) PMM_FreePhysicalPage(phys);
          }
@@ -148,11 +156,13 @@ void Process_Destroy(Process *proc)
       // Unmap and free heap pages
       if (proc->page_directory && proc->heap_start && proc->heap_end)
       {
-         uint32_t heap_pages = (proc->heap_end - proc->heap_start + PAGE_SIZE - 1) / PAGE_SIZE;
+         uint32_t heap_pages =
+             (proc->heap_end - proc->heap_start + PAGE_SIZE - 1) / PAGE_SIZE;
          for (uint32_t i = 0; i < heap_pages; ++i)
          {
             uint32_t va = proc->heap_start + (i * PAGE_SIZE);
-            uint32_t phys = i686_Paging_GetPhysicalAddress(proc->page_directory, va);
+            uint32_t phys =
+                i686_Paging_GetPhysicalAddress(proc->page_directory, va);
             i686_Paging_UnmapPage(proc->page_directory, va);
             if (phys) PMM_FreePhysicalPage(phys);
          }
@@ -189,8 +199,8 @@ void Process_SetCurrent(Process *proc)
    }
    else
    {
-       // Restore kernel page directory when no process is current
-       i686_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
+      // Restore kernel page directory when no process is current
+      i686_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
    }
 }
 
@@ -227,16 +237,17 @@ void process_self_test(void)
       return;
    }
 
-    // Test user stack mapping and write/read near top
-    volatile uint32_t *stack_test = (volatile uint32_t *)(p->stack_end - sizeof(uint32_t));
-    *stack_test = 0x11223344u;
-    uint32_t sval = *stack_test;
-    if (sval != 0x11223344u)
-    {
-       printf("[process] self-test: FAIL (stack write/read)\n");
-       Process_Destroy(p);
-       return;
-    }
+   // Test user stack mapping and write/read near top
+   volatile uint32_t *stack_test =
+       (volatile uint32_t *)(p->stack_end - sizeof(uint32_t));
+   *stack_test = 0x11223344u;
+   uint32_t sval = *stack_test;
+   if (sval != 0x11223344u)
+   {
+      printf("[process] self-test: FAIL (stack write/read)\n");
+      Process_Destroy(p);
+      return;
+   }
 
    printf("[process] self-test: PASS (pid=%u, heap+stack ok)\n", p->pid);
    Process_Destroy(p);

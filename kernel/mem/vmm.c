@@ -2,19 +2,20 @@
 
 #include "vmm.h"
 #include "pmm.h"
-#include <mem/memdefs.h>
 #include <arch/i686/mem/paging.h>
+#include <mem/memdefs.h>
+#include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <mem/memory.h>
 
 #define PAGE_ALIGN_DOWN(v) ((v) & ~(PAGE_SIZE - 1))
 #define PAGE_ALIGN_UP(v) (((v) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
 static void *kernel_page_dir = NULL;
-static uint32_t kernel_next_vaddr = 0x80000000u; // Start at 2 GiB for kernel mappings
+static uint32_t kernel_next_vaddr =
+    0x80000000u; // Start at 2 GiB for kernel mappings
 
 #ifndef KERNEL_BASE
 #define KERNEL_BASE 0xC0000000u
@@ -34,7 +35,7 @@ void VMM_Initialize(void)
 }
 
 void *VMM_AllocateInDir(void *page_dir, uint32_t *next_vaddr_state,
-                       uint32_t size, uint32_t flags)
+                        uint32_t size, uint32_t flags)
 {
    if (size == 0) return NULL;
 
@@ -89,7 +90,8 @@ fail_cleanup:
    for (uint32_t j = 0; j < mapped_pages; ++j)
    {
       uint32_t va_cleanup = vaddr + (j * PAGE_SIZE);
-      uint32_t pa_cleanup = i686_Paging_GetPhysicalAddress(page_dir, va_cleanup);
+      uint32_t pa_cleanup =
+          i686_Paging_GetPhysicalAddress(page_dir, va_cleanup);
       i686_Paging_UnmapPage(page_dir, va_cleanup);
       if (pa_cleanup) PMM_FreePhysicalPage(pa_cleanup);
    }
@@ -128,8 +130,8 @@ void VMM_Free(void *vaddr, uint32_t size)
    VMM_FreeInDir(kernel_page_dir, vaddr, size);
 }
 
-bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr,
-                  uint32_t size, uint32_t flags)
+bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr, uint32_t size,
+                  uint32_t flags)
 {
    if (size == 0) return false;
 

@@ -3,8 +3,8 @@
 #ifndef FD_H
 #define FD_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define FD_TABLE_SIZE 16
 #define O_RDONLY 0
@@ -14,13 +14,14 @@
 #define O_CREAT 0x0040
 #define O_TRUNC 0x0200
 
-typedef struct {
-    char path[256];
-    uint32_t offset;
-    bool readable;
-    bool writable;
-    void *inode;
-    uint32_t flags;
+typedef struct
+{
+   char path[256];
+   uint32_t offset;
+   bool readable;
+   bool writable;
+   void *inode;
+   uint32_t flags;
 } FileDescriptor;
 
 // Core FD operations

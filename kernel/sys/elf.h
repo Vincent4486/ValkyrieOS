@@ -4,10 +4,10 @@
 #ifndef ELF_H
 #define ELF_H
 
+#include <cpu/process.h>
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
-#include <cpu/process.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -52,6 +52,7 @@ bool ELF_Load(Partition *disk, FAT_File *file, void **entryOut);
 // Opens the file by name from the filesystem, parses the ELF header, allocates
 // pages in the process's page directory, and copies segments. Returns the new
 // Process on success, or NULL on failure.
-Process *ELF_LoadProcess(Partition *disk, const char *filename, bool kernel_mode);
+Process *ELF_LoadProcess(Partition *disk, const char *filename,
+                         bool kernel_mode);
 
 #endif
