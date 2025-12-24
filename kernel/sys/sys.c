@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#include <valkyrie/valkyrie.h>
+
 #include "sys.h"
 #include <mem/memdefs.h>
 #include <std/stdio.h>
@@ -11,9 +13,8 @@ SYS_Info *g_SysInfo = (SYS_Info *)SYS_INFO_ADDR;
 void SYS_Initialize()
 {
    /* Initialize SYS_Info structure */
-   g_SysInfo->kernel_major = 1;
-   g_SysInfo->kernel_minor = 0;
-   g_SysInfo->kernel_patch = 0;
+   g_SysInfo->kernel_major = KERNEL_MAJOR;
+   g_SysInfo->kernel_minor = KERNEL_MINOR;
    g_SysInfo->uptime_seconds = 0;
    g_SysInfo->initialized = 0;
 
@@ -37,7 +38,7 @@ void SYS_Finalize()
        "System finalized: kernel %u.%u.%u, arch=%u, cpus=%u, mem=%uMB "
        "total/%uMB avail, disks=%u, filesystems=%u, boot=0x%08x, video=%ux%u\n",
        g_SysInfo->kernel_major, g_SysInfo->kernel_minor,
-       g_SysInfo->kernel_patch, g_SysInfo->arch.arch, g_SysInfo->arch.cpu_count,
+      g_SysInfo->arch.arch, g_SysInfo->arch.cpu_count,
        g_SysInfo->memory.total_memory / (1024 * 1024),
        g_SysInfo->memory.available_memory / (1024 * 1024),
        g_SysInfo->disk_count, g_SysInfo->fs_count, g_SysInfo->boot_device,

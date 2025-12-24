@@ -29,7 +29,6 @@ typedef struct
    /* Kernel version and identification */
    uint16_t kernel_major;   /* Kernel major version */
    uint16_t kernel_minor;   /* Kernel minor version */
-   uint16_t kernel_patch;   /* Kernel patch version */
    uint32_t uptime_seconds; /* Uptime in seconds */
 
    /* Architecture and CPU */
