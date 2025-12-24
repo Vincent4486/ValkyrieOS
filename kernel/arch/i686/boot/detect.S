@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-.global get_arch
+.globl get_arch
 get_arch:
     pushl %ebp
     movl %esp, %ebp
@@ -29,7 +29,7 @@ get_cpu_count:
     cpuid
     
     # Check for Hyper-Threading Technology
-    testl $(1 << 28), %edx
+    testl $0x10000000, %edx
     jz .single_core
     
     # Get logical processor count from ebx[23:16]
