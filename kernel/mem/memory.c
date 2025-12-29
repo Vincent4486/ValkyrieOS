@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "memory.h"
-#include <arch/i686/mem/paging.h>
 #include <hal/io.h>
 #include <mem/heap.h>
 #include <mem/memory.h>
 #include <mem/pmm.h>
 #include <mem/stack.h>
 #include <mem/vmm.h>
+#include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/sys.h>
+#include <hal/paging.h>
 
 /* Runtime-controlled memory debug flag. Set non-zero to make the handler
  * call `i686_Panic()` when a memory safety fault is detected. Default is 0.
@@ -94,27 +95,96 @@ void *memmove(void *dest, const void *src, size_t n)
    return dest;
 }
 
-void MEM_Initialize()
+/**
+ * Parse Multiboot memory map to detect total system memory
+ * Returns total memory in bytes
+ */
+static uint32_t parse_multiboot_memory(multiboot_info_t *mbi)
 {
+   uint32_t total_mem = 0;
+   const uint32_t default_mem = 256 * 1024 * 1024; /* Default: 256 MB */
+
+   /* Validate pointer is in a reasonable range */
+   if (!mbi || (uint32_t)mbi < 0x1000 || (uint32_t)mbi > 0x100000)
+   {
+      return default_mem;
+   }
+
+   /* Check if memory info is available (flags bit 0) */
+   if (mbi->flags & 0x01)
+   {
+      /* mem_lower = KB below 1MB, mem_upper = KB above 1MB */
+      total_mem = (mbi->mem_lower + mbi->mem_upper) * 1024;
+      /* Sanity check: memory should be at least 16MB and less than 64GB */
+      if (total_mem >= 16 * 1024 * 1024 && total_mem <= 0xFFFFFFFF)
+      {
+         return total_mem;
+      }
+   }
+
+   /* Check if memory map is available (flags bit 6) */
+   if (mbi->flags & 0x40)
+   {
+      /* Validate mmap_addr is reasonable */
+      if (mbi->mmap_addr < 0x1000 || mbi->mmap_addr > 0x100000)
+      {
+         return default_mem;
+      }
+
+      multiboot_mmap_entry_t *mmap = (multiboot_mmap_entry_t *)mbi->mmap_addr;
+      multiboot_mmap_entry_t *mmap_end =
+          (multiboot_mmap_entry_t *)(mbi->mmap_addr + mbi->mmap_length);
+
+      while (mmap < mmap_end)
+      {
+         if (mmap->type == 1) /* Available RAM */
+         {
+            uint64_t region_end = mmap->base_addr + mmap->length;
+            if (region_end > total_mem)
+            {
+               total_mem = (uint32_t)region_end;
+            }
+         }
+         mmap = (multiboot_mmap_entry_t *)((uint32_t)mmap + mmap->size +
+                                           sizeof(mmap->size));
+      }
+
+      /* Sanity check result */
+      if (total_mem >= 16 * 1024 * 1024 && total_mem <= 0xFFFFFFFF)
+      {
+         return total_mem;
+      }
+   }
+
+   /* No valid memory info available, use default */
+   return default_mem;
+}
+
+void MEM_Initialize(void *multiboot_info_ptr)
+{
+   /* Detect total memory from Multiboot info */
+   uint32_t total_memory =
+       parse_multiboot_memory((multiboot_info_t *)multiboot_info_ptr);
+
    Heap_Initialize();
    heap_self_test();
    Stack_Initialize();
    stack_self_test();
-   i686_Paging_Initialize();
-   paging_self_test();
+   HAL_Paging_Initialize();
+   HAL_Paging_SelfTest();
 
    // Initialize physical and virtual memory managers
-   PMM_Initialize(256 * 1024 * 1024); // 256 MiB
+   PMM_Initialize(total_memory);
    pmm_self_test();
    VMM_Initialize();
    vmm_self_test();
 
    /* Populate memory info in SYS_Info */
-   g_SysInfo->memory.total_memory = 256 * 1024 * 1024;
-   g_SysInfo->memory.page_size = 4096;
+   g_SysInfo->memory.total_memory = total_memory;
+   g_SysInfo->memory.page_size = PAGE_SIZE;
    g_SysInfo->memory.kernel_start = (uint32_t)0x00A00000;
    g_SysInfo->memory.kernel_end =
-       (uint32_t)0x00A00000 + 0x100000; /* Approximate */
+       g_SysInfo->memory.kernel_start + 0x100000; /* Approximate */
    g_SysInfo->memory.user_start = (uint32_t)0x08000000;
    g_SysInfo->memory.user_end = (uint32_t)0xC0000000;
    g_SysInfo->memory.kernel_stack_size = 8192; /* 8KB kernel stack */

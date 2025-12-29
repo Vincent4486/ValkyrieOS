@@ -40,6 +40,7 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       g_SysInfo->disk.total_size = g_SysInfo->disk.total_sectors * 512;
       g_SysInfo->disk.removable = 1;
       g_SysInfo->disk.status = 1; /* Online */
+      g_SysInfo->disk_count = 1;
 
       return true;
    }
@@ -59,6 +60,7 @@ bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
       g_SysInfo->disk.sector_size = 512;
       g_SysInfo->disk.removable = 0;
       g_SysInfo->disk.status = 1; /* Online */
+      g_SysInfo->disk_count = 1;
 
       return true;
    }

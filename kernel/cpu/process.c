@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "process.h"
-#include <arch/i686/mem/paging.h>
 #include <fs/disk/partition.h>
 #include <fs/fat/fat.h>
 #include <fs/fd.h>
@@ -15,6 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/elf.h>
+#include <hal/paging.h>
 
 static Process *current_process = NULL;
 static uint32_t next_pid = 1;
@@ -40,7 +40,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
    {
       // Kernel-mode: reuse current kernel page directory, no user heap/stack
       // mapping
-      proc->page_directory = i686_Paging_GetCurrentPageDirectory();
+      proc->page_directory = HAL_Paging_GetCurrentPageDirectory();
       proc->heap_start = proc->heap_end = 0;
       proc->stack_start = proc->stack_end = 0;
       proc->esp = proc->ebp =
@@ -49,10 +49,10 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
    else
    {
       // Create page directory
-      proc->page_directory = i686_Paging_CreatePageDirectory();
+      proc->page_directory = HAL_Paging_CreatePageDirectory();
       if (!proc->page_directory)
       {
-         printf("[process] create: i686_Paging_CreatePageDirectory failed\n");
+         printf("[process] create: HAL_Paging_CreatePageDirectory failed\n");
          free(proc);
          return NULL;
       }
@@ -61,7 +61,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
       if (Heap_ProcessInitialize(proc, 0x10000000) == -1)
       {
          printf("[process] create: Heap_Initialize failed\n");
-         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         HAL_Paging_DestroyPageDirectory(proc->page_directory);
          free(proc);
          return NULL;
       }
@@ -75,7 +75,7 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
       if (Stack_ProcessInitialize(proc, stack_top, stack_size) != 0)
       {
          printf("[process] create: Stack_ProcessInitialize failed\n");
-         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         HAL_Paging_DestroyPageDirectory(proc->page_directory);
          free(proc);
          return NULL;
       }
@@ -98,20 +98,20 @@ Process *Process_Create(uint32_t entry_point, bool kernel_mode)
          for (uint32_t j = 0; j < pages_needed; ++j)
          {
             uint32_t va_cleanup = stack_bottom + (j * PAGE_SIZE);
-            uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(
+            uint32_t phys_cleanup = HAL_Paging_GetPhysicalAddress(
                 proc->page_directory, va_cleanup);
-            i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+            HAL_Paging_UnmapPage(proc->page_directory, va_cleanup);
             if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
          }
-         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         HAL_Paging_DestroyPageDirectory(proc->page_directory);
          free(proc);
          return NULL;
       }
 
-      i686_Paging_SwitchPageDirectory(proc->page_directory);
+      HAL_Paging_SwitchPageDirectory(proc->page_directory);
       Stack_SetupProcess(&tmp_stack, entry_point);
       // Switch back to kernel page directory - critical for correctness
-      i686_Paging_SwitchPageDirectory(kernel_pd);
+      HAL_Paging_SwitchPageDirectory(kernel_pd);
 
       // Record initial ESP/EBP after setup
       proc->esp = tmp_stack.current;
@@ -147,8 +147,8 @@ void Process_Destroy(Process *proc)
          {
             uint32_t va = proc->stack_start + (i * PAGE_SIZE);
             uint32_t phys =
-                i686_Paging_GetPhysicalAddress(proc->page_directory, va);
-            i686_Paging_UnmapPage(proc->page_directory, va);
+                HAL_Paging_GetPhysicalAddress(proc->page_directory, va);
+            HAL_Paging_UnmapPage(proc->page_directory, va);
             if (phys) PMM_FreePhysicalPage(phys);
          }
       }
@@ -162,8 +162,8 @@ void Process_Destroy(Process *proc)
          {
             uint32_t va = proc->heap_start + (i * PAGE_SIZE);
             uint32_t phys =
-                i686_Paging_GetPhysicalAddress(proc->page_directory, va);
-            i686_Paging_UnmapPage(proc->page_directory, va);
+                HAL_Paging_GetPhysicalAddress(proc->page_directory, va);
+            HAL_Paging_UnmapPage(proc->page_directory, va);
             if (phys) PMM_FreePhysicalPage(phys);
          }
       }
@@ -171,7 +171,7 @@ void Process_Destroy(Process *proc)
       // Only destroy page directory for user-mode processes
       if (proc->page_directory)
       {
-         i686_Paging_DestroyPageDirectory(proc->page_directory);
+         HAL_Paging_DestroyPageDirectory(proc->page_directory);
       }
    }
    // Kernel-mode: just free the PCB, don't touch page directory
@@ -184,7 +184,7 @@ void Process_Destroy(Process *proc)
    if (current_process == proc)
    {
       current_process = NULL;
-      i686_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
+      HAL_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
    }
 }
 
@@ -195,12 +195,12 @@ void Process_SetCurrent(Process *proc)
    current_process = proc;
    if (proc)
    {
-      i686_Paging_SwitchPageDirectory(proc->page_directory);
+      HAL_Paging_SwitchPageDirectory(proc->page_directory);
    }
    else
    {
       // Restore kernel page directory when no process is current
-      i686_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
+      HAL_Paging_SwitchPageDirectory(VMM_GetPageDirectory());
    }
 }
 

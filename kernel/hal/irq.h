@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef IRQ_H
-#define IRQ_H
+#ifndef HAL_IRQ_H
+#define HAL_IRQ_H
 
 #include <stdint.h>
 

@@ -354,8 +354,6 @@ int Dylib_ApplyKernelRelocations(void)
 
       if (rel_count > 0)
       {
-         printf("[DYLIB] Applying %d kernel .rel.dyn relocations...\n",
-                rel_count);
          uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
          uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
          if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr,
@@ -373,8 +371,6 @@ int Dylib_ApplyKernelRelocations(void)
 
       if (rel_count > 0)
       {
-         printf("[DYLIB] Applying %d kernel .rel.plt relocations...\n",
-                rel_count);
          uint32_t dynsym_addr = (uint32_t)_kernel_dynsym_start;
          uint32_t dynstr_addr = (uint32_t)_kernel_dynstr_start;
          if (apply_relocations(kernel_base, rel, rel_count, dynsym_addr,
@@ -383,7 +379,6 @@ int Dylib_ApplyKernelRelocations(void)
 
          /* Diagnostic: print GOT entries for JMP_SLOT relocations so we can
           * verify they point to the expected symbol addresses. */
-         printf("[DYLIB] Inspecting GOT entries for kernel .rel.plt...\n");
          for (int ri = 0; ri < rel_count; ri++)
          {
             int rtype = ELF32_R_TYPE(rel[ri].r_info);
@@ -405,8 +400,6 @@ int Dylib_ApplyKernelRelocations(void)
          }
       }
    }
-
-   printf("[DYLIB] Kernel relocation complete\n");
    return 0;
 }
 
@@ -429,9 +422,6 @@ uint32_t Dylib_MemoryAllocate(const char *lib_name, uint32_t size)
 
    uint32_t alloc_addr = dylib_mem_next_free;
    dylib_mem_next_free += aligned_size;
-
-   printf("[DYLIB] Allocated 0x%x bytes at 0x%x for %s\n", aligned_size,
-          alloc_addr, lib_name);
 
    return alloc_addr;
 }
@@ -488,8 +478,6 @@ int Dylib_ResolveDependencies(const char *name)
    if (idx < 0) return -1;
 
    ExtendedLibData *ext = &extended_data[idx];
-
-   printf("[*] Resolving dependencies for %s...\n", name);
 
    // Resolve each dependency
    for (int i = 0; i < ext->dep_count; i++)
@@ -796,8 +784,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
       if (sh->sh_type == 1 && (sh->sh_flags & 0x2)) // PROGBITS with ALLOC
       {
          text_section_file_offset = sh->sh_offset;
-         printf("[DYLIB] First loadable section (.text) at file offset 0x%x\n",
-                text_section_file_offset);
          break;
       }
    }
@@ -879,9 +865,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
       {
          strtab_addr = base_addr + sh->sh_offset;
          strtab_size = sh->sh_size;
-         printf("[DYLIB] Found associated .strtab at file offset 0x%x, memory "
-                "0x%x, size=%d\n",
-                sh->sh_offset, strtab_addr, strtab_size);
       }
    }
 
@@ -949,10 +932,6 @@ static int parse_elf_symbols(ExtendedLibData *ext, uint32_t base_addr,
    // If we later need to support non-PIC libraries, we should use formal
    // relocation sections (SHT_REL) instead of heuristic scanning.
 
-   printf("[DYLIB] Skipping heuristic address patching (library is PIC)\n");
-
-   // Now look for formal relocation sections (if they exist)
-   printf("[DYLIB] Looking for formal relocation sections...\n");
    for (int i = 0; i < e_shnum; i++)
    {
       Elf32_Shdr *sh = (Elf32_Shdr *)(elf_data + e_shoff + (i * e_shentsize));
@@ -1185,7 +1164,6 @@ static int load_libmath(Partition *partition)
       lib_registry[0].base = NULL;
       lib_registry[0].entry = NULL;
       lib_registry[0].size = 0;
-      printf("[DYLIB] Registered libmath in library registry\n");
    }
 
    // Load libmath from disk using the standard loader
@@ -1201,7 +1179,6 @@ static int load_libmath(Partition *partition)
    // Dylib_ListSymbols("libmath");
 
    // Register libmath symbols in global symbol table for GOT patching
-   printf("\n[*] Registering libmath symbols in global symbol table...\n");
    Dylib_AddGlobalSymbol("add", (uint32_t)Dylib_FindSymbol("libmath", "add"),
                          "libmath", 0);
    Dylib_AddGlobalSymbol("subtract",
@@ -1277,12 +1254,8 @@ static int load_libmath(Partition *partition)
        "fmodf", (uint32_t)Dylib_FindSymbol("libmath", "fmodf"), "libmath", 0);
    Dylib_AddGlobalSymbol("fmod", (uint32_t)Dylib_FindSymbol("libmath", "fmod"),
                          "libmath", 0);
-   printf("[*] Symbols registered\n");
 
-   // Apply kernel GOT/PLT relocations for libmath
-   printf("\n[*] Applying kernel GOT/PLT relocations...\n");
    Dylib_ApplyKernelRelocations();
-   printf("[*] Relocations applied\n");
    return 0;
 }
 

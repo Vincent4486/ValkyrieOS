@@ -604,10 +604,10 @@ void init(){
 
     set("PATH", "/usr/local/bin:/usr/bin:/bin");
 }
-
-int main(int argc, char **argv){
-    init();
-    loop();
-    return 0;
-}
 */
+int main(int argc, char **argv)
+{
+   // init();
+   // loop();
+   return 0;
+}

@@ -11,12 +11,12 @@
  */
 
 /* Initialize PS/2 keyboard for i686 */
-void ps2_keyboard_init(void);
+void i686_PS2_Initialize(void);
 
 /* i686-specific keyboard readline with platform idle */
-int ps2_Keyboard_Readline(char *buf, int bufsize);
+int i686_PS2_ReadLine(char *buf, int bufsize);
 
 /* Non-blocking readline */
-int ps2_Keyboard_ReadlineNb(char *buf, int bufsize);
+int i686_PS2_ReadLineNb(char *buf, int bufsize);
 
 #endif

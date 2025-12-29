@@ -51,13 +51,14 @@ void PMM_Initialize(uint32_t total_mem_bytes)
    // Allocate bitmap from lower memory (identity-mapped)
    // For now, use a static buffer to avoid chicken-and-egg
    // In a real system, you'd place this in a reserved region
-   static uint8_t bitmap_storage[16384]; // max ~131K pages (512 MiB)
+   static uint8_t bitmap_storage[131072]; // max ~1M pages (4 GiB)
    page_bitmap = bitmap_storage;
 
    if (bitmap_bytes > sizeof(bitmap_storage))
    {
       printf("[pmm] WARNING: bitmap too small for %u pages\n", total_pages);
       total_pages = sizeof(bitmap_storage) * BITS_PER_BYTE;
+      bitmap_bytes = sizeof(bitmap_storage);
    }
 
    // Initially all pages are free (bitmap = 0)

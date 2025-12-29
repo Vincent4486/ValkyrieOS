@@ -89,7 +89,7 @@ bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive)
    g_SysInfo->fs.mounted = 1;
    g_SysInfo->fs.read_only = 0;
    g_SysInfo->fs.block_size = 512;
-   g_SysInfo->fs.type = 2; /* FAT */
+   g_SysInfo->fs.type = FAT32; /* FAT */
    g_SysInfo->fs_count = 1;
 
    return true;

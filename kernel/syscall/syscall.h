@@ -6,10 +6,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Platform-independent syscall definitions and handlers
- *
- * Syscall numbers (must match arch-specific dispatcher)
- */
 #define SYS_BRK 45
 #define SYS_SBRK 186
 #define SYS_OPEN 5
@@ -33,6 +29,6 @@ intptr_t sys_lseek(int fd, int32_t offset, int whence);
  * syscall_num: syscall number
  * args: array of up to 6 arguments
  */
-intptr_t Syscall_Dispatch(uint32_t syscall_num, uint32_t *args);
+intptr_t syscall(uint32_t syscall_num, uint32_t *args);
 
 #endif

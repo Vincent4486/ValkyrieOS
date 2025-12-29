@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "elf.h"
-#include <arch/i686/mem/paging.h>
 #include <cpu/process.h>
 #include <mem/memdefs.h>
 #include <mem/memory.h>
 #include <mem/pmm.h>
 #include <std/stdio.h>
 #include <std/string.h>
+#include <hal/paging.h>
 
 #define EI_MAG0 0
 #define EI_MAG1 1
@@ -224,10 +224,10 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename,
          }
 
          // Map page into process's page directory (user mode, read+write)
-         if (!i686_Paging_MapPage(proc->page_directory, page_va, phys,
-                                  PAGE_PRESENT | PAGE_RW | PAGE_USER))
+         if (!HAL_Paging_MapPage(proc->page_directory, page_va, phys,
+                                  HAL_PAGE_PRESENT | HAL_PAGE_RW | HAL_PAGE_USER))
          {
-            printf("[ELF] LoadProcess: i686_Paging_MapPage failed at 0x%08x\n",
+            printf("[ELF] LoadProcess: HAL_Paging_MapPage failed at 0x%08x\n",
                    page_va);
             PMM_FreePhysicalPage(phys);
             Process_Destroy(proc);
@@ -246,8 +246,8 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename,
       }
 
       // Temporarily switch to process page directory to write to its memory
-      void *old_pdir = i686_Paging_GetCurrentPageDirectory();
-      i686_Paging_SwitchPageDirectory(proc->page_directory);
+      void *old_pdir = HAL_Paging_GetCurrentPageDirectory();
+      HAL_Paging_SwitchPageDirectory(proc->page_directory);
 
       // Read and copy file section
       uint8_t buffer[512];
@@ -262,7 +262,7 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename,
          if (bytes_read == 0)
          {
             printf("[ELF] LoadProcess: FAT_Read failed\n");
-            i686_Paging_SwitchPageDirectory(old_pdir);
+            HAL_Paging_SwitchPageDirectory(old_pdir);
             Process_Destroy(proc);
             FAT_Close(file);
             return NULL;
@@ -281,7 +281,7 @@ Process *ELF_LoadProcess(Partition *disk, const char *filename,
       }
 
       // Restore kernel page directory
-      i686_Paging_SwitchPageDirectory(old_pdir);
+      HAL_Paging_SwitchPageDirectory(old_pdir);
    }
 
    FAT_Close(file);

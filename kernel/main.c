@@ -9,6 +9,7 @@
 #include <fs/fs.h>
 #include <hal/hal.h>
 #include <hal/irq.h>
+#include <mem/heap.h>
 #include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
@@ -24,21 +25,21 @@ extern uint8_t __bss_start;
 extern uint8_t __end;
 extern void _init();
 
-void timer(Registers *regs) {}
-
 void __attribute__((section(".entry"))) start(uint16_t bootDrive,
-                                              void *partitionPtr)
+                                              void *multiboot_info_ptr)
 {
    // Init system
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
 
+   // Allocate SYS_Info before MEM_Initialize
+   g_SysInfo = kmalloc(sizeof(SYS_Info));
+   memset(g_SysInfo, 0, sizeof(SYS_Info));
+
+   MEM_Initialize(multiboot_info_ptr);
    SYS_Initialize();
-   MEM_Initialize();
    CPU_Initialize();
    HAL_Initialize();
-
-   HAL_IRQ_RegisterHandler(0, timer);
 
    DISK disk;
    Partition partition;
@@ -58,6 +59,23 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    /* Mark system as fully initialized */
    SYS_Finalize();
    ELF_LoadProcess(&partition, "/usr/bin/sh", false);
+
+   uint32_t last_uptime = 0;
+   while (g_SysInfo->uptime_seconds < 1000)
+   {
+      /* Update uptime from tick counter */
+      g_SysInfo->uptime_seconds = system_ticks / 1000;
+      if (g_SysInfo->uptime_seconds != last_uptime)
+      {
+         printf("\rSystem up for %u seconds", g_SysInfo->uptime_seconds);
+         last_uptime = g_SysInfo->uptime_seconds;
+      }
+
+      /* Idle efficiently until next interrupt: enable interrupts, HLT,
+         then disable again. Matches i686 PS/2 idle usage. */
+      __asm__ volatile("sti; hlt; cli");
+   }
+   printf("\n");
 
 end:
    for (;;);

@@ -31,8 +31,8 @@ _start:
     movl $0x90000, %esp
     movl %esp, %ebp
 
-	// Push args for C start(bootDrive, partitionPtr)
-    pushl $0        # partitionPtr (unused by main.c) = NULL
+	// Push args for C start(bootDrive, multiboot_info_ptr)
+    pushl %esi      # multiboot_info pointer
     pushl %ebx      # bootDrive (32-bit value; C will take low byte)
     call start
     jmp .

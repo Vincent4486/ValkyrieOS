@@ -45,6 +45,6 @@ void *i686_Paging_AllocateKernelPages(int page_count);
 void i686_Paging_FreeKernelPages(void *addr, int page_count);
 
 // Simple built-in self-test
-void paging_self_test(void);
+void i686_Paging_SelfTest(void);
 
 #endif

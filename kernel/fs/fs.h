@@ -7,10 +7,18 @@
 #include <fs/disk/partition.h>
 #include <stdint.h>
 
+typedef enum
+{
+   FAT12 = 1,
+   FAT16 = 2,
+   FAT32 = 3,
+   EXT2 = 4
+} FilesystemType;
+
 /* Filesystem device information */
 typedef struct
 {
-   uint8_t type;          /* Filesystem type (fat12, fat16, fat32, ext2, etc) */
+   FilesystemType type;       /* Filesystem type (fat12, fat16, fat32, ext2, etc) */
    uint32_t block_size;   /* Block size in bytes */
    uint32_t total_blocks; /* Total number of blocks */
    uint32_t used_blocks;  /* Used blocks */

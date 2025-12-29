@@ -13,6 +13,10 @@ Import('musl_lib')
 
 env = usermode_env.Clone()
 
+# Remove -static from LINKFLAGS if present
+if '-static' in env['LINKFLAGS']:
+    env['LINKFLAGS'].remove('-static')
+
 # Get source directory
 src_dir = Dir('#usr/libmath').abspath
 
@@ -23,6 +27,7 @@ env.Append(
     CXXFLAGS=['-fno-PIC'],
     LINKFLAGS=[
         '-shared',
+        '-Wl,-shared',
         '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
         '-Wl,-Map=' + env.File('libmath.map').path,
         '-Wl,--as-needed',

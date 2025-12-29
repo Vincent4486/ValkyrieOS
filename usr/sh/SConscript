@@ -23,6 +23,7 @@ env.Append(
     CXXFLAGS=['-fPIC'],
     LINKFLAGS=[
         '-Wl,-Map=' + env.File('sh.map').path,
+        '-Wl,-T', os.path.join(src_dir, 'linker.ld'),
         '-Wl,--as-needed',
         '-pie',  # Position-independent executable
     ],

@@ -230,7 +230,7 @@ void i686_Paging_FreeKernelPages(void *addr, int page_count)
    (void)page_count;
 }
 
-void paging_self_test(void)
+void i686_Paging_SelfTest(void)
 {
    const uint32_t test_va = 0x40000000u; // 1 GiB virtual address
    uint32_t *pd = (uint32_t *)i686_Paging_GetCurrentPageDirectory();

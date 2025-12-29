@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "stack.h"
-#include <arch/i686/mem/paging.h>
-#include <arch/i686/mem/stack.h>
+#include <hal/stack.h>
 #include <cpu/process.h>
 #include <mem/heap.h>
 #include <mem/memory.h>
@@ -11,6 +10,7 @@
 #include <std/stdio.h>
 #include <std/string.h>
 #include <sys/sys.h>
+#include <hal/paging.h>
 
 /**
  * Generic stack management implementation
@@ -30,7 +30,7 @@ void Stack_Initialize(void) { Stack_InitializeKernel(); }
 void Stack_InitializeKernel(void)
 {
    // Initialize architecture-specific kernel stack
-   i686_Stack_InitializeKernel();
+   HAL_Stack_InitializeKernel();
 
    // Get kernel stack size from system info (default 8KB if not set)
    uint32_t stack_size = (g_SysInfo && g_SysInfo->memory.kernel_stack_size)
@@ -103,17 +103,17 @@ int Stack_ProcessInitialize(Process *proc, uint32_t stack_top_va, size_t size)
          for (uint32_t j = 0; j < i; ++j)
          {
             uint32_t va_cleanup = stack_bottom_va + (j * PAGE_SIZE);
-            uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(
+            uint32_t phys_cleanup = HAL_Paging_GetPhysicalAddress(
                 proc->page_directory, va_cleanup);
-            i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+            HAL_Paging_UnmapPage(proc->page_directory, va_cleanup);
             if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
          }
          return -1;
       }
 
       // Map as User | RW | Present
-      if (!i686_Paging_MapPage(proc->page_directory, va, phys,
-                               PAGE_PRESENT | PAGE_RW | PAGE_USER))
+      if (!HAL_Paging_MapPage(proc->page_directory, va, phys,
+                               HAL_PAGE_PRESENT | HAL_PAGE_RW | HAL_PAGE_USER))
       {
          printf("[stack] ERROR: map_page failed for stack at 0x%08x\n", va);
          PMM_FreePhysicalPage(phys);
@@ -121,9 +121,9 @@ int Stack_ProcessInitialize(Process *proc, uint32_t stack_top_va, size_t size)
          for (uint32_t j = 0; j < i; ++j)
          {
             uint32_t va_cleanup = stack_bottom_va + (j * PAGE_SIZE);
-            uint32_t phys_cleanup = i686_Paging_GetPhysicalAddress(
+            uint32_t phys_cleanup = HAL_Paging_GetPhysicalAddress(
                 proc->page_directory, va_cleanup);
-            i686_Paging_UnmapPage(proc->page_directory, va_cleanup);
+            HAL_Paging_UnmapPage(proc->page_directory, va_cleanup);
             if (phys_cleanup) PMM_FreePhysicalPage(phys_cleanup);
          }
          return -1;
@@ -251,16 +251,16 @@ Stack *Stack_GetKernel(void) { return kernel_stack; }
 
 void Stack_SetupProcess(Stack *stack, uint32_t entry_point)
 {
-   i686_Stack_SetupProcess(stack, entry_point);
+   HAL_Stack_SetupProcess(stack, entry_point);
 }
 
-uint32_t Stack_GetESP(void) { return i686_Stack_GetESP(); }
+uint32_t Stack_GetESP(void) { return HAL_Stack_GetESP(); }
 
-uint32_t Stack_GetEBP(void) { return i686_Stack_GetEBP(); }
+uint32_t Stack_GetEBP(void) { return HAL_Stack_GetEBP(); }
 
 void Stack_SetRegisters(uint32_t esp, uint32_t ebp)
 {
-   i686_Stack_SetRegisters(esp, ebp);
+   HAL_Stack_SetRegisters(esp, ebp);
 }
 
 /**

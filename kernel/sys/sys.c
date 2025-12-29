@@ -6,9 +6,10 @@
 #include <mem/memdefs.h>
 #include <std/stdio.h>
 #include <std/string.h>
+#include <mem/heap.h>
 
-/* Global SYS_Info structure at fixed memory location */
-SYS_Info *g_SysInfo = (SYS_Info *)SYS_INFO_ADDR;
+/* Global SYS_Info structure (allocated in SYS_Initialize) */
+SYS_Info *g_SysInfo = NULL;
 
 void SYS_Initialize()
 {
@@ -25,12 +26,23 @@ void SYS_Initialize()
    get_arch(&arch);
    get_cpu_count(&cpu_count);
    get_cpu_brand(cpu_brand);
+   /* Ensure brand is NUL-terminated */
+   cpu_brand[63] = '\0';
    g_SysInfo->arch.arch = arch;
    g_SysInfo->arch.cpu_count = cpu_count;
-   g_SysInfo->arch.cpu_frequency = 1800; /* MHz - will be detected later */
-   g_SysInfo->arch.cache_line_size = 32; /* Typical for i686 */
-   g_SysInfo->arch.features = 0;         /* Features detection TODO */
+   /* Detect CPU frequency, cache line size, and feature flags via CPUID */
+   uint32_t freq = get_cpu_frequency();
+   g_SysInfo->arch.cpu_frequency = freq;
+
+   uint32_t cl = get_cache_line_size();
+   if (cl == 0)
+      cl = 32; /* fallback */
+   g_SysInfo->arch.cache_line_size = cl;
+
+   uint32_t feats = get_cpu_features();
+   g_SysInfo->arch.features = feats;
    memcpy(g_SysInfo->arch.cpu_brand, cpu_brand, 64);
+   g_SysInfo->arch.cpu_brand[63] = '\0';
 }
 
 /**
@@ -40,13 +52,26 @@ void SYS_Initialize()
 void SYS_Finalize()
 {
    g_SysInfo->initialized = 1;
-   printf(
-       "System finalized: kernel %u.%u.%u, arch=%u, cpus=%u, mem=%uMB "
-       "total/%uMB avail, disks=%u, filesystems=%u, boot=0x%08x, video=%ux%u\n",
-       g_SysInfo->kernel_major, g_SysInfo->kernel_minor,
-      g_SysInfo->arch.arch, g_SysInfo->arch.cpu_count,
-       g_SysInfo->memory.total_memory / (1024 * 1024),
-       g_SysInfo->memory.available_memory / (1024 * 1024),
-       g_SysInfo->disk_count, g_SysInfo->fs_count, g_SysInfo->boot_device,
-       g_SysInfo->video_width, g_SysInfo->video_height);
+
+   char *arch_str;
+   if (g_SysInfo->arch.arch == 1)
+      arch_str = "x86";
+   else if (g_SysInfo->arch.arch == 2)
+      arch_str = "x64";
+   else
+      arch_str = "aarch64";
+
+   printf("[SYS] Finalized, system info: \n");
+   printf("--> Kernel Version: %u.%u\n", g_SysInfo->kernel_major,
+          g_SysInfo->kernel_minor);
+   printf("--> Architecture: %d (%s)\n", g_SysInfo->arch.arch, arch_str);
+   printf("--> CPU Cores: %u\n", g_SysInfo->arch.cpu_count);
+   printf("--> CPU Frequency: %u Hz (%u MHz)\n",
+         g_SysInfo->arch.cpu_frequency,
+         g_SysInfo->arch.cpu_frequency / 1000 / 1000);
+   printf("--> CPU Brand: %s\n", g_SysInfo->arch.cpu_brand);
+   printf("--> Total Memory: %u (%u MiB)\n", g_SysInfo->memory.total_memory,
+          g_SysInfo->memory.total_memory / 1024 / 1024);
+   printf("--> Detected Disks: %u\n", g_SysInfo->disk_count);
+   printf("--> Mounted Filesystems: %u\n", g_SysInfo->fs_count);
 }

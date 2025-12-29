@@ -3,11 +3,11 @@
 #include "heap.h"
 #include "memory.h"
 #include "pmm.h"
-#include <arch/i686/mem/paging.h>
 #include <cpu/process.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <hal/paging.h>
 
 extern uint8_t __end; /* linker-provided end of kernel image */
 
@@ -32,7 +32,7 @@ int Heap_ProcessInitialize(Process *proc, uint32_t heap_start_va)
    }
 
    // Map to process page directory
-   if (!i686_Paging_MapPage(proc->page_directory, heap_start_va, phys, 0x007))
+   if (!HAL_Paging_MapPage(proc->page_directory, heap_start_va, phys, 0x007))
    { // RW, Present
       printf("[process] Heap_Initialize: map_page failed\n");
       PMM_FreePhysicalPage(phys);
@@ -68,7 +68,7 @@ int Heap_ProcessBrk(Process *proc, void *addr)
                    i, pages_needed);
             return -1;
          }
-         if (!i686_Paging_MapPage(proc->page_directory, va, phys, 0x007))
+         if (!HAL_Paging_MapPage(proc->page_directory, va, phys, 0x007))
          { // RW, Present
             printf("[process] brk: map_page failed at 0x%08x\n", va);
             PMM_FreePhysicalPage(phys);

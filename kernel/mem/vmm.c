@@ -2,13 +2,13 @@
 
 #include "vmm.h"
 #include "pmm.h"
-#include <arch/i686/mem/paging.h>
 #include <mem/memdefs.h>
 #include <mem/memory.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <hal/paging.h>
 
 #define PAGE_ALIGN_DOWN(v) ((v) & ~(PAGE_SIZE - 1))
 #define PAGE_ALIGN_UP(v) (((v) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
@@ -24,10 +24,11 @@ static uint32_t kernel_next_vaddr =
 void VMM_Initialize(void)
 {
    // Get the kernel page directory from paging subsystem
-   kernel_page_dir = i686_Paging_GetCurrentPageDirectory();
+   kernel_page_dir = HAL_Paging_GetCurrentPageDirectory();
    if (!kernel_page_dir)
    {
       printf("[vmm] ERROR: no kernel page directory!\n");
+      // Skip further VMM work to avoid faults
       return;
    }
    printf("[vmm] initialized with kernel page dir at 0x%08x\n",
@@ -69,7 +70,7 @@ void *VMM_AllocateInDir(void *page_dir, uint32_t *next_vaddr_state,
       }
 
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      if (!i686_Paging_MapPage(page_dir, va, paddr, flags | PAGE_PRESENT))
+      if (!HAL_Paging_MapPage(page_dir, va, paddr, flags | HAL_PAGE_PRESENT))
       {
          printf("[vmm] VMM_Allocate: failed to map page at 0x%08x\n", va);
          PMM_FreePhysicalPage(paddr);
@@ -77,7 +78,7 @@ void *VMM_AllocateInDir(void *page_dir, uint32_t *next_vaddr_state,
       }
 
       // Zero-fill only if we're in the same active address space
-      if (i686_Paging_GetCurrentPageDirectory() == page_dir)
+      if (HAL_Paging_GetCurrentPageDirectory() == page_dir)
       {
          memset((void *)va, 0, PAGE_SIZE);
       }
@@ -91,8 +92,8 @@ fail_cleanup:
    {
       uint32_t va_cleanup = vaddr + (j * PAGE_SIZE);
       uint32_t pa_cleanup =
-          i686_Paging_GetPhysicalAddress(page_dir, va_cleanup);
-      i686_Paging_UnmapPage(page_dir, va_cleanup);
+          HAL_Paging_GetPhysicalAddress(page_dir, va_cleanup);
+      HAL_Paging_UnmapPage(page_dir, va_cleanup);
       if (pa_cleanup) PMM_FreePhysicalPage(pa_cleanup);
    }
    return NULL;
@@ -115,11 +116,11 @@ void VMM_FreeInDir(void *page_dir, void *vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t page_va = va + (i * PAGE_SIZE);
-      uint32_t page_pa = i686_Paging_GetPhysicalAddress(page_dir, page_va);
+      uint32_t page_pa = HAL_Paging_GetPhysicalAddress(page_dir, page_va);
 
       if (page_pa != 0)
       {
-         i686_Paging_UnmapPage(page_dir, page_va);
+         HAL_Paging_UnmapPage(page_dir, page_va);
          PMM_FreePhysicalPage(page_pa);
       }
    }
@@ -144,7 +145,7 @@ bool VMM_MapInDir(void *page_dir, uint32_t vaddr, uint32_t paddr, uint32_t size,
       uint32_t va = vaddr + (i * PAGE_SIZE);
       uint32_t pa = paddr + (i * PAGE_SIZE);
 
-      if (!i686_Paging_MapPage(page_dir, va, pa, flags | PAGE_PRESENT))
+      if (!HAL_Paging_MapPage(page_dir, va, pa, flags | HAL_PAGE_PRESENT))
       {
          printf("[vmm] VMM_Map: failed at offset 0x%x\n", i * PAGE_SIZE);
          goto rollback;
@@ -158,7 +159,7 @@ rollback:
    for (uint32_t j = 0; j < mapped_pages; ++j)
    {
       uint32_t va_cleanup = vaddr + (j * PAGE_SIZE);
-      i686_Paging_UnmapPage(page_dir, va_cleanup);
+      HAL_Paging_UnmapPage(page_dir, va_cleanup);
    }
    return false;
 }
@@ -178,7 +179,7 @@ bool VMM_UnmapInDir(void *page_dir, uint32_t vaddr, uint32_t size)
    for (uint32_t i = 0; i < num_pages; ++i)
    {
       uint32_t va = vaddr + (i * PAGE_SIZE);
-      i686_Paging_UnmapPage(page_dir, va);
+      HAL_Paging_UnmapPage(page_dir, va);
    }
 
    return true;
@@ -191,7 +192,7 @@ bool VMM_Unmap(uint32_t vaddr, uint32_t size)
 
 uint32_t VMM_GetPhysInDir(void *page_dir, uint32_t vaddr)
 {
-   return i686_Paging_GetPhysicalAddress(page_dir, vaddr);
+   return HAL_Paging_GetPhysicalAddress(page_dir, vaddr);
 }
 
 uint32_t VMM_GetPhys(uint32_t vaddr)

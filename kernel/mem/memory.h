@@ -31,6 +31,6 @@ void *memmove(void *dest, const void *src, size_t n);
 
 void *SegmentOffsetToLinear(void *addr);
 
-void MEM_Initialize();
+void MEM_Initialize(void *multiboot_info_ptr);
 
 #endif

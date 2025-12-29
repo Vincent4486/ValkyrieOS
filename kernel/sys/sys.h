@@ -11,6 +11,32 @@
 extern __attribute__((cdecl)) void get_arch(uint8_t *arch);
 extern __attribute__((cdecl)) void get_cpu_count(uint32_t *cpu_count);
 extern __attribute__((cdecl)) void get_cpu_brand(char *brand);
+extern __attribute__((cdecl)) uint32_t get_cpu_frequency(void);
+extern __attribute__((cdecl)) uint32_t get_cache_line_size(void);
+extern __attribute__((cdecl)) uint32_t get_cpu_features(void);
+
+/* Multiboot structures for memory detection */
+typedef struct
+{
+   uint32_t flags;
+   uint32_t mem_lower; /* in KB */
+   uint32_t mem_upper; /* in KB */
+   uint32_t boot_device;
+   uint32_t cmdline;
+   uint32_t mods_count;
+   uint32_t mods_addr;
+   uint32_t syms[4];
+   uint32_t mmap_length;
+   uint32_t mmap_addr;
+} __attribute__((packed)) multiboot_info_t;
+
+typedef struct
+{
+   uint32_t size;
+   uint64_t base_addr;
+   uint64_t length;
+   uint32_t type; /* 1 = available RAM */
+} __attribute__((packed)) multiboot_mmap_entry_t;
 
 /* Architecture/CPU information */
 typedef struct
@@ -29,7 +55,7 @@ typedef struct
    /* Kernel version and identification */
    uint16_t kernel_major;   /* Kernel major version */
    uint16_t kernel_minor;   /* Kernel minor version */
-   uint32_t uptime_seconds; /* Uptime in seconds */
+   uint64_t uptime_seconds; /* Uptime in seconds */
 
    /* Architecture and CPU */
    ARCH_Info arch; /* Architecture information */

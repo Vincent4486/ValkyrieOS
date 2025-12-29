@@ -252,7 +252,15 @@ void Buffer_PutChar(char c)
 
    if (c == '\r')
    {
+      // Clear the current line and move cursor to start
+      int visible_start = compute_visible_start();
+      uint32_t rel_pos = (uint32_t)visible_start + (uint32_t)s_cursor_y;
+      if (rel_pos < s_lines_used) {
+         uint32_t idx = (s_head + rel_pos) % BUFFER_LINES;
+         memset(s_buffer[idx], 0, SCREEN_WIDTH);
+      }
       s_cursor_x = 0;
+      mark_row_dirty(s_cursor_y);
       setcursor(s_cursor_x, s_cursor_y);
       return;
    }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "syscall_dispatch.h"
+#include "syscall.h"
 #include <std/stdio.h>
 #include <stdint.h>
 #include <syscall/syscall.h>
@@ -11,7 +11,7 @@
  * Return value in EAX
  */
 
-void i686_syscall_handler(Registers *regs)
+void i686_Syscall_IRQ(Registers *regs)
 {
    uint32_t syscall_num = regs->eax;
    uint32_t args[6] = {regs->ebx, regs->ecx, regs->edx,
@@ -21,7 +21,7 @@ void i686_syscall_handler(Registers *regs)
           args[0], args[1], args[2]);
 
    // Call generic dispatcher
-   intptr_t result = Syscall_Dispatch(syscall_num, args);
+   intptr_t result = syscall(syscall_num, args);
 
    // Store result in EAX for return to user
    regs->eax = (uint32_t)result;

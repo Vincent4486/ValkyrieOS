@@ -1,7 +1,8 @@
 ## Current todo
 
-2) Add wrapper functions to `HAL` for functions under `arch/`
-3) Make SYS_Info being detected from OS not hard coded (Scan disks (4 ATA channels) & CPU info & memory & IRQ)
+3) Make SYS_Info being detected from OS not hard coded (Scan disks (4 ATA channels))
+4) Add FS wrappers and mount/unmount function
+5) ansi escape codes, and vga to arch/
 
 # ValkyrieOS glibc Implementation Roadmap
 

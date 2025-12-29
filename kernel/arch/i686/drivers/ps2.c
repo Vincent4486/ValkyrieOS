@@ -36,13 +36,13 @@ void ps2_keyboard_irq(Registers *regs)
 /**
  * Register PS/2 keyboard handler for i686 IRQ1
  */
-void ps2_keyboard_init(void) { i686_IRQ_RegisterHandler(1, ps2_keyboard_irq); }
+void i686_PS2_Initialize(void) { i686_IRQ_RegisterHandler(1, ps2_keyboard_irq); }
 
 /**
  * Non-blocking readline: returns number of bytes written into buf, 0 if no line
  * ready. This is the i686-specific wrapper.
  */
-int ps2_Keyboard_ReadlineNb(char *buf, int bufsize)
+int i686_PS2_ReadLineNb(char *buf, int bufsize)
 {
    return Keyboard_ReadlineNb(buf, bufsize);
 }
@@ -50,10 +50,10 @@ int ps2_Keyboard_ReadlineNb(char *buf, int bufsize)
 /**
  * Blocking readline for i686 with platform-specific idle (HLT instruction)
  */
-int ps2_Keyboard_Readline(char *buf, int bufsize)
+int i686_PS2_ReadLine(char *buf, int bufsize)
 {
    int n;
-   while ((n = ps2_Keyboard_ReadlineNb(buf, bufsize)) == 0)
+   while ((n = i686_PS2_ReadLineNb(buf, bufsize)) == 0)
    {
       /* i686-specific idle: execute HLT to reduce busy spin and wait for
        * interrupts */

@@ -77,7 +77,7 @@ intptr_t sys_lseek(int fd, int32_t offset, int whence)
  * Called by arch-specific handler after extracting parameters from registers.
  * Returns result in EAX (for x86).
  */
-intptr_t Syscall_Dispatch(uint32_t syscall_num, uint32_t *args)
+intptr_t syscall(uint32_t syscall_num, uint32_t *args)
 {
    switch (syscall_num)
    {

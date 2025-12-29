@@ -10,9 +10,10 @@
 #include <arch/i686/cpu/idt.h>
 #include <arch/i686/cpu/irq.h>
 #include <arch/i686/cpu/isr.h>
+#include <arch/i686/cpu/i8253.h>
 
 #include <arch/i686/drivers/ps2.h>
-#include <arch/i686/syscall/syscall_dispatch.h>
+#include <arch/i686/syscall/syscall.h>
 #else
 #error "Unsupported architecture for HAL"
 #endif

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef IO_H
-#define IO_H
+#ifndef HAL_IO_H
+#define HAL_IO_H
 
 #include <stdbool.h>
 #include <stdint.h>
