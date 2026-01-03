@@ -9,7 +9,7 @@
 #include <mem/heap.h>
 
 /* Global SYS_Info structure (allocated in SYS_Initialize) */
-SYS_Info *g_SysInfo = NULL;
+SYS_Info *g_SysInfo = (SYS_Info *)SYS_INFO_ADDR;
 
 void SYS_Initialize()
 {

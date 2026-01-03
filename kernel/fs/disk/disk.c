@@ -1,71 +1,76 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "disk.h"
+#include "partition.h"
 #include <drivers/ata/ata.h>
 #include <drivers/fdc/fdc.h>
+#include <std/stdio.h>
 #include <sys/sys.h>
 
 // Disk type constants
 #define DISK_TYPE_FLOPPY 0
 #define DISK_TYPE_ATA 1
 
-bool DISK_Initialize(DISK *disk, uint8_t driveNumber)
-{
-   uint8_t driveType;
-   uint16_t cylinders, sectors, heads;
+// Updated: Scan all disks and populate volumes
+int DISK_Initialize() {
+    printf("[DISK] Starting disk initialization\n");
+    DISK detectedDisks[32];  // Temp array for detected disks
+    int totalDisks = 0;
 
-   disk->id = driveNumber;
+    // Scan floppies
+    totalDisks += FDC_Scan(detectedDisks + totalDisks, 32 - totalDisks);
 
-   /* Detect disk type based on BIOS drive number convention:
-    * 0x00-0x7F: Floppy drives
-    * 0x80+:     Hard disks (ATA/SATA)
-    */
-   if (driveNumber < 0x80)
-   {
-      // Floppy drive detected
-      disk->type = DISK_TYPE_FLOPPY;
-      FDC_Reset();
-      cylinders = 80;
-      heads = 2;
-      sectors = 18;
-      disk->cylinders = cylinders;
-      disk->heads = heads;
-      disk->sectors = sectors;
+    // Scan ATA
+    totalDisks += ATA_Scan(detectedDisks + totalDisks, 32 - totalDisks);
 
-      /* Populate disk info in SYS_Info */
-      g_SysInfo->disk.type = DISK_TYPE_FLOPPY;
-      g_SysInfo->disk.interface = 0; /* Floppy */
-      g_SysInfo->disk.sector_size = 512;
-      g_SysInfo->disk.total_sectors = cylinders * heads * sectors;
-      g_SysInfo->disk.total_size = g_SysInfo->disk.total_sectors * 512;
-      g_SysInfo->disk.removable = 1;
-      g_SysInfo->disk.status = 1; /* Online */
-      g_SysInfo->disk_count = 1;
+    printf("[DISK] Total disks detected: %d\n", totalDisks);
 
-      return true;
-   }
-   else
-   {
-      // Hard disk (ATA) detected
-      disk->type = DISK_TYPE_ATA;
+    // Populate volume[] with detected disks and partitions
+    for (int i = 0; i < totalDisks; i++) {
+        DISK *disk = &detectedDisks[i];
+        int volumeIndex = -1;
+        for (int j = 0; j < 32; j++) {
+            if (g_SysInfo->volume[j].disk == NULL) {
+                volumeIndex = j;
+                break;
+            }
+        }
+        if (volumeIndex == -1) break;  // No slots
 
-      // Initialize ATA driver for primary master channel
-      // We'll use the standard primary master (IDE0 master) for hard disk
-      // access
-      ATA_Init(ATA_CHANNEL_PRIMARY, ATA_DRIVE_MASTER, 0, 0x100000);
-
-      /* Populate disk info in SYS_Info */
-      g_SysInfo->disk.type = DISK_TYPE_ATA;
-      g_SysInfo->disk.interface = 1; /* ATA/IDE */
-      g_SysInfo->disk.sector_size = 512;
-      g_SysInfo->disk.removable = 0;
-      g_SysInfo->disk.status = 1; /* Online */
-      g_SysInfo->disk_count = 1;
-
-      return true;
-   }
-
-   return false;
+        g_SysInfo->volume[volumeIndex].disk = disk;
+        if (disk->type == DISK_TYPE_FLOPPY) {
+            g_SysInfo->volume[volumeIndex].partitionOffset = 0;
+            g_SysInfo->volume[volumeIndex].partitionSize = disk->cylinders * disk->heads * disk->sectors;
+        } else {
+            // Detect partitions for ATA
+            uint8_t mbr_buffer[512];
+            if (DISK_ReadSectors(disk, 0, 1, mbr_buffer)) {
+                void *partition_entry = &mbr_buffer[446];
+                bool found = false;
+                for (int p = 0; p < 4; p++) {
+                    uint8_t *entry = (uint8_t *)partition_entry + (p * 16);
+                    uint8_t type = entry[4];
+                    if (type == 0x04 || type == 0x06 || type == 0x0B || type == 0x0C) {
+                        g_SysInfo->volume[volumeIndex].partitionOffset = *(uint32_t *)(entry + 8);
+                        g_SysInfo->volume[volumeIndex].partitionSize = *(uint32_t *)(entry + 12);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    g_SysInfo->volume[volumeIndex].partitionOffset = 16;
+                    g_SysInfo->volume[volumeIndex].partitionSize = 0x100000;
+                }
+            } else {
+                g_SysInfo->volume[volumeIndex].partitionOffset = 0;
+                g_SysInfo->volume[volumeIndex].partitionSize = 0x100000;
+            }
+        }
+        printf("[DISK] Populated volume[%d]: Offset=%u, Size=%u\n", volumeIndex, g_SysInfo->volume[volumeIndex].partitionOffset, g_SysInfo->volume[volumeIndex].partitionSize);
+    }
+    g_SysInfo->disk_count = totalDisks;
+    printf("[DISK] Disk initialization complete, disk_count=%u\n", g_SysInfo->disk_count);
+    return totalDisks > 0 ? totalDisks : -1;
 }
 
 void DISK_LBA2CHS(DISK *disk, uint32_t lba, uint16_t *cylinderOut,
@@ -91,7 +96,7 @@ bool DISK_ReadSectors(DISK *disk, uint32_t lba, uint8_t sectors, void *dataOut)
        * floppy controller. This avoids relying on BIOS INT13 services from
        * the kernel.
        */
-      int rc = FDC_ReadLba(lba, (uint8_t *)dataOut, sectors);
+      int rc = FDC_ReadLba(disk->id, lba, (uint8_t *)dataOut, sectors);
       if (rc != 0) return false;
       return true;
    }
@@ -119,7 +124,7 @@ bool DISK_WriteSectors(DISK *disk, uint32_t lba, uint8_t sectors,
       /* Floppy drive: use the kernel FDC driver which speaks directly to the
        * floppy controller.
        */
-      int rc = FDC_WriteLba(lba, (const uint8_t *)dataIn, sectors);
+      int rc = FDC_WriteLba(disk->id, lba, (const uint8_t *)dataIn, sectors);
       if (rc != 0) return false;
       return true;
    }

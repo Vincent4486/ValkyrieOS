@@ -18,24 +18,24 @@ extern __attribute__((cdecl)) uint32_t get_cpu_features(void);
 /* Multiboot structures for memory detection */
 typedef struct
 {
-   uint32_t flags;
-   uint32_t mem_lower; /* in KB */
-   uint32_t mem_upper; /* in KB */
-   uint32_t boot_device;
-   uint32_t cmdline;
-   uint32_t mods_count;
-   uint32_t mods_addr;
-   uint32_t syms[4];
-   uint32_t mmap_length;
-   uint32_t mmap_addr;
+    uint32_t flags;
+    uint32_t mem_lower;
+    uint32_t mem_upper;
+    uint32_t boot_device;
+    uint32_t cmdline;
+    uint32_t mods_count;
+    uint32_t mods_addr;
+    uint32_t syms[4];
+    uint32_t mmap_length;
+    uint32_t mmap_addr;
 } __attribute__((packed)) multiboot_info_t;
 
 typedef struct
 {
-   uint32_t size;
-   uint64_t base_addr;
-   uint64_t length;
-   uint32_t type; /* 1 = available RAM */
+    uint32_t size;
+    uint64_t base_addr;
+    uint64_t length;
+    uint32_t type; /* 1 = available RAM */
 } __attribute__((packed)) multiboot_mmap_entry_t;
 
 /* Architecture/CPU information */
@@ -47,7 +47,7 @@ typedef struct
    uint32_t cache_line_size; /* L1 cache line size */
    uint32_t features;        /* CPU feature flags (MMU, PAE, etc) */
    char cpu_brand[64];       /* CPU brand string */
-} __attribute__((packed)) ARCH_Info;
+} ARCH_Info;
 
 /* Master system information structure */
 typedef struct
@@ -64,11 +64,11 @@ typedef struct
    MEM_Info memory; /* Memory information */
 
    /* Storage */
-   DISK_Info disk;     /* Primary disk information */
+   Partition volume[32];     /* Primary disk information */
    uint8_t disk_count; /* Number of disk devices */
 
    /* Filesystem */
-   FS_Info fs;       /* Filesystem information */
+   Filesystem fs[32];       /* Filesystem information */
    uint8_t fs_count; /* Number of mounted filesystems */
 
    /* Interrupts */
@@ -83,7 +83,7 @@ typedef struct
    /* Status flags */
    uint8_t initialized; /* 1 if fully initialized, 0 otherwise */
    uint8_t reserved[3]; /* Padding for alignment */
-} __attribute__((packed)) SYS_Info;
+} SYS_Info;
 
 /* Global system info pointer (defined in sys.c) */
 extern SYS_Info *g_SysInfo;

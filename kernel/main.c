@@ -32,25 +32,22 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
    memset(&__bss_start, 0, (&__end) - (&__bss_start));
    _init();
 
-   // Allocate SYS_Info before MEM_Initialize
-   g_SysInfo = kmalloc(sizeof(SYS_Info));
    memset(g_SysInfo, 0, sizeof(SYS_Info));
+   g_SysInfo->boot_device = bootDrive;
 
    MEM_Initialize(multiboot_info_ptr);
    SYS_Initialize();
    CPU_Initialize();
    HAL_Initialize();
 
-   DISK disk;
-   Partition partition;
-
-   if (!FS_Initialize(&disk, &partition, bootDrive))
+   if (!FS_Initialize())
    {
       printf("FS initialization failed\n");
       goto end;
    }
-
-   if (!Dylib_Initialize(&partition))
+   FS_Mount(&g_SysInfo->volume[0]);
+   
+   if (!Dylib_Initialize(&g_SysInfo->volume[0]))
    {
       printf("Failed to load dynamic libraries...");
       goto end;
@@ -58,7 +55,7 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive,
 
    /* Mark system as fully initialized */
    SYS_Finalize();
-   ELF_LoadProcess(&partition, "/usr/bin/sh", false);
+   ELF_LoadProcess(&g_SysInfo->volume[0], "/usr/bin/sh", false);
 
    uint32_t last_uptime = 0;
    while (g_SysInfo->uptime_seconds < 1000)

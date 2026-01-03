@@ -1,7 +1,7 @@
 ## Current todo
 
-3) Make SYS_Info being detected from OS not hard coded (Scan disks (4 ATA channels))
-4) Add FS wrappers and mount/unmount function
+3) make drive id in ata and fdc be detected not hard coded (no 0x80 + n)
+4) Add FS wrappers and mount/unmount function + handle multiple disks + disk id (no disk ant partition in main, use sys info) + mount table without partiton as argument when interacting with fs + fat data to private data struct for each fs
 5) ansi escape codes, and vga to arch/
 
 # ValkyrieOS glibc Implementation Roadmap

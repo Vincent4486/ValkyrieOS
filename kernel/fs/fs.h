@@ -6,6 +6,7 @@
 #include <fs/disk/disk.h>
 #include <fs/disk/partition.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum
 {
@@ -28,8 +29,12 @@ typedef struct
    uint32_t free_inodes;  /* Free inodes */
    uint8_t mounted;       /* 1 if mounted, 0 otherwise */
    uint8_t read_only;     /* 1 if read-only, 0 if read-write */
-} __attribute__((packed)) FS_Info;
+   Partition *partition;
+} Filesystem;
 
-bool FS_Initialize(DISK *disk, Partition *partition, uint8_t bootDrive);
+bool FS_Initialize();
+int FS_Mount(Partition *volume);
+int FS_MountBootVolume();
+
 
 #endif

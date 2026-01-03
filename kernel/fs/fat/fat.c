@@ -139,9 +139,13 @@ bool FAT_Initialize(Partition *disk)
    static FAT_Data s_FatData;
    g_Data = &s_FatData;
 
+   uint8_t bootSector[512];
+   if(!Partition_ReadSectors(disk, 0, 1, bootSector)){
+      printf("[FAT] Failed to read boot sector\n");
+   }
+
    // Copy preloaded boot sector from stage2 location
-   uint8_t *preloaded_boot = (uint8_t *)MEMORY_FAT_ADDR;
-   memcpy(g_Data->BS.BootSectorBytes, preloaded_boot, SECTOR_SIZE);
+   memcpy(g_Data->BS.BootSectorBytes, &bootSector, SECTOR_SIZE);
 
    // Debug: print BPB values
    printf("[FAT] BPB BytesPerSector=%u, SectorsPerCluster=%u\n",
