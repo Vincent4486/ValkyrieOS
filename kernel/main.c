@@ -17,6 +17,7 @@
 #include <sys/dylib.h>
 #include <sys/elf.h>
 #include <sys/sys.h>
+#include <valkyrie/system.h>
 
 #include <display/startscreen.h>
 #include <libmath/math.h>

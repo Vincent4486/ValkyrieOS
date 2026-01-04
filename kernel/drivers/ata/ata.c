@@ -4,6 +4,8 @@
 #include <hal/io.h>
 #include <stdint.h>
 #include <std/stdio.h>
+#include <valkyrie/system.h>
+#include <sys/sys.h>
 
 // ATA register offsets from base port
 #define ATA_REG_DATA 0x00
@@ -391,6 +393,19 @@ int ATA_Scan(DISK *disks, int maxDisks) {
     // Channel 0 (Primary), Drive 1 (Slave)
     // Channel 1 (Secondary), Drive 0 (Master)
     // Channel 1 (Secondary), Drive 1 (Slave)
+    int driveStartIndex = 0x80;
+    for (int i = 0; i < MAX_DISKS; i++) {
+      // Check if the disk pointer is valid first
+      if (g_SysInfo->volume[i].disk == NULL)
+         continue;
+         
+      // Skip floppy drives (0x00-0x7F)
+      if (g_SysInfo->volume[i].disk->id < 0x80) 
+         continue;
+      
+      // Found a hard drive, increment start index
+      driveStartIndex++;
+    }
     
     for (int ch = 0; ch < 2; ch++) {
         for (int dr = 0; dr < 2; dr++) {
@@ -404,7 +419,7 @@ int ATA_Scan(DISK *disks, int maxDisks) {
 
             uint16_t identify_buffer[256];
             if (ATA_Identify(ch, dr, identify_buffer) == 0) {
-                disks[count].id = 0x80 + count; // Assign BIOS-style ID (0x80, 0x81...)
+                disks[count].id = driveStartIndex + count; // Assign BIOS-style ID (0x80, 0x81...)
                 disks[count].type = 1;  // DISK_TYPE_ATA
                 
                 // Extract model name (words 27-46, 40 chars)

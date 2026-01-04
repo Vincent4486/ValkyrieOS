@@ -12,6 +12,10 @@ typedef struct
    DISK *disk;
    uint32_t partitionOffset;
    uint32_t partitionSize;
+
+   uint32_t uuid;
+   char label[12];
+   bool isRootPartition;
 } Partition;
 
 void MBR_DetectPartition(Partition *part, DISK *disk, void *partition);

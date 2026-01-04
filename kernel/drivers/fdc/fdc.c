@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <std/stdio.h>
+#include <valkyrie/system.h>
+#include <sys/sys.h>
 
 #define FDC_BASE 0x3F0
 #define FDC_DOR (FDC_BASE + 2)
@@ -424,6 +426,20 @@ int FDC_Scan(DISK *disks, int maxDisks)
 {
    int count = 0;
    if (maxDisks <= 0) return 0;
+
+   int driveStartIndex = 0x0;
+    for (int i = 0; i < MAX_DISKS; i++) {
+      // Check if the disk pointer is valid first
+      if (g_SysInfo->volume[i].disk == NULL)
+         continue;
+         
+      // Skip floppy drives (0x00-0x7F)
+      if (g_SysInfo->volume[i].disk->id < 0x80) 
+         continue;
+      
+      // Found a hard drive, increment start index
+      driveStartIndex++;
+    }
 
    printf("[DISK] Scanning floppy controller\n");
 

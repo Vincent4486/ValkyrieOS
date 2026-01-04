@@ -2,11 +2,12 @@
 
 #ifndef SYS_H
 #define SYS_H
-#include <arch/i686/cpu/irq.h>
 #include <fs/disk/disk.h>
 #include <fs/fs.h>
 #include <mem/memory.h>
 #include <stdint.h>
+#include <valkyrie/system.h>
+#include <hal/irq.h>
 
 extern __attribute__((cdecl)) void get_arch(uint8_t *arch);
 extern __attribute__((cdecl)) void get_cpu_count(uint32_t *cpu_count);
@@ -64,11 +65,11 @@ typedef struct
    MEM_Info memory; /* Memory information */
 
    /* Storage */
-   Partition volume[32];     /* Primary disk information */
+   Partition volume[MAX_DISKS];     /* Primary disk information */
    uint8_t disk_count; /* Number of disk devices */
 
    /* Filesystem */
-   Filesystem fs[32];       /* Filesystem information */
+   Filesystem fs[MAX_DISKS];       /* Filesystem information */
    uint8_t fs_count; /* Number of mounted filesystems */
 
    /* Interrupts */
@@ -76,6 +77,7 @@ typedef struct
 
    /* Bootloader and hardware */
    uint32_t boot_device;  /* Device booted from */
+   uint32_t cmdline;
    uint32_t video_memory; /* Video memory size in bytes */
    uint16_t video_width;  /* Video width in pixels/chars */
    uint16_t video_height; /* Video height in pixels/chars */
