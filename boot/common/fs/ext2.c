@@ -10,8 +10,8 @@
 #include <dl/callback.h>
 #endif
 
-typedef struct FS_File FS_File;
-typedef struct FS_Operations FS_Operations;
+typedef struct EXT2_File EXT2_File;
+typedef struct EXT2_Operations EXT2_Operations;
 
 static int ext2_read_block(uint32_t block_idx, void *buffer);
 static int ext2_read_sector(uint64_t lba, void *buffer);
@@ -123,7 +123,7 @@ static int check_partition(uint8_t drive, int part_lba,
 #define EXT2_TIND_BLOCK 14
 #define EXT2_N_BLOCKS 15
 
-struct FS_File
+struct EXT2_File
 {
    int used;
    uint32_t inode;    /* inode number */
@@ -131,12 +131,12 @@ struct FS_File
    uint32_t position; /* current read position */
 };
 
-struct FS_Operations
+struct EXT2_Operations
 {
-   uint32_t EXT2_Initialize;
-   uint32_t EXT2_Open;
-   uint32_t EXT2_Read;
-   uint32_t EXT2_Close;
+   uint32_t Initialize;
+   uint32_t Open;
+   uint32_t Read;
+   uint32_t Close;
 };
 
 static uint8_t s_BootDrive = 0;
@@ -155,7 +155,7 @@ static uint32_t s_DescSize = 32;
 static uint32_t s_RootInode = 2;
 static uint32_t s_RootSize = 0;
 
-static FS_File s_OpenFiles[MAX_OPEN_FILES];
+static EXT2_File s_OpenFiles[MAX_OPEN_FILES];
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -899,7 +899,7 @@ int EXT2_Read(int fd, void *buffer, int count)
 {
    if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
 
-   FS_File *f = &s_OpenFiles[fd];
+   EXT2_File *f = &s_OpenFiles[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -952,12 +952,12 @@ int EXT2_Close(int fd)
 
 #ifdef COREFS
 
-static const FS_Operations fs_exports
+static const EXT2_Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .EXT2_Initialize = (uint32_t)EXT2_Initialize,
-        .EXT2_Open = (uint32_t)EXT2_Open,
-        .EXT2_Read = (uint32_t)EXT2_Read,
-        .EXT2_Close = (uint32_t)EXT2_Close,
+        .Initialize = (uint32_t)EXT2_Initialize,
+        .Open = (uint32_t)EXT2_Open,
+        .Read = (uint32_t)EXT2_Read,
+        .Close = (uint32_t)EXT2_Close,
 };
 
 #endif /* COREFS */

@@ -11,6 +11,10 @@
 #include <dl/callback.h>
 #undef DL_RESOLVE
 
+typedef struct Core_FsOperations Core_FsOperations;
+typedef struct Core_MbiTagFramebuffer Core_MbiTagFramebuffer;
+typedef struct Core_BootParams Core_BootParams;
+
 static void init_framebuffer_info(uint8_t *ptr);
 static void print_bios_drive_list(const uint8_t *drive_list,
                                   uint32_t drive_count);
@@ -27,16 +31,16 @@ static void print_stage3_fs_location(const Core_BootParams *boot_params);
 #define BUILD_TYPE "debug"
 #endif
 
-typedef struct
+struct Core_FsOperations
 {
    int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
                         const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
-} Core_FsOperations;
+};
 
-typedef struct
+struct Core_MbiTagFramebuffer
 {
    uint32_t type;
    uint32_t size;
@@ -54,9 +58,9 @@ typedef struct
    uint8_t blue_field_position;
    uint8_t blue_mask_size;
    uint8_t rgb_reserved[2];
-} Core_MbiTagFramebuffer;
+};
 
-typedef struct
+struct Core_BootParams
 {
    uint32_t mbi_addr;
    uint32_t corefs_addr;
@@ -66,7 +70,7 @@ typedef struct
    uint32_t bios_drive_list_count;
    uint32_t corefs_partition_uuid_addr;
    uint32_t corefs_partition_label_addr;
-} Core_BootParams;
+};
 
 int g_PrimaryOutputSystem = 0;
 int g_PreferredOutput = OUTPUT_VGATEXT;

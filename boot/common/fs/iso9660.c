@@ -9,8 +9,8 @@
 #include <dl/callback.h>
 #endif
 
-typedef struct FS_File FS_File;
-typedef struct FS_Operations FS_Operations;
+typedef struct ISO9660_File ISO9660_File;
+typedef struct ISO9660_Operations ISO9660_Operations;
 
 static int iso_read_sector(uint64_t iso_lba, void *buffer);
 static int parse_dir_record(const uint8_t *buf, int off, uint32_t *extent_lba,
@@ -48,7 +48,7 @@ static int resolve_path(const char *path, uint32_t *out_lba,
 
 #define MAX_OPEN_FILES 8
 
-struct FS_File
+struct ISO9660_File
 {
    int used;
    uint64_t start_lba; /* absolute LBA in native sector size */
@@ -56,12 +56,12 @@ struct FS_File
    uint32_t position;  /* current read position              */
 };
 
-struct FS_Operations
+struct ISO9660_Operations
 {
-   uint32_t ISO9660_Initialize;
-   uint32_t ISO9660_Open;
-   uint32_t ISO9660_Read;
-   uint32_t ISO9660_Close;
+   uint32_t Initialize;
+   uint32_t Open;
+   uint32_t Read;
+   uint32_t Close;
 };
 
 static uint32_t s_BootDrive = 0;
@@ -70,7 +70,7 @@ static uint32_t s_PartStart = 0;
 static uint64_t s_RootDirLBA = 0;
 static uint32_t s_RootDirSize = 0;
 
-static FS_File s_OpenFiles[MAX_OPEN_FILES];
+static ISO9660_File s_OpenFiles[MAX_OPEN_FILES];
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -506,7 +506,7 @@ int ISO9660_Read(int fd, void *buffer, int count)
 {
    if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
 
-   FS_File *f = &s_OpenFiles[fd];
+   ISO9660_File *f = &s_OpenFiles[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -553,12 +553,12 @@ int ISO9660_Close(int fd)
 
 #ifdef COREFS
 
-static const FS_Operations fs_exports
+static const ISO9660_Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .ISO9660_Initialize = (uint32_t)ISO9660_Initialize,
-        .ISO9660_Open = (uint32_t)ISO9660_Open,
-        .ISO9660_Read = (uint32_t)ISO9660_Read,
-        .ISO9660_Close = (uint32_t)ISO9660_Close,
+        .Initialize = (uint32_t)ISO9660_Initialize,
+        .Open = (uint32_t)ISO9660_Open,
+        .Read = (uint32_t)ISO9660_Read,
+        .Close = (uint32_t)ISO9660_Close,
 };
 
 #endif /* COREFS */
