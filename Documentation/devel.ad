@@ -142,9 +142,12 @@ typedef struct
    uint32_t size;
    FS_File  root_file;
 
-   // function pointer members: Subsystem_Name
-   int (*FS_Open)(const char *path, int flags);
-   void (*FS_Close)(int fd);
+   // function pointer members that have the structure as their parent subsystem: Name
+   int (*Open)(const char *path, int flags);
+   void (*Close)(int fd);
+
+   // function pointers that does not relate to the subsystem the structure is at: Subsystem_Name
+   int (*INODE_GetName)(int inode);
 } FS_Operations;
 ----
 
@@ -164,13 +167,21 @@ All macros and compile-time constants use `UPPER_SNAKE_CASE` with at most three 
 
 ==== Types and Structs
 
-Struct typedefs use `PascalCase` prefixed by the subsystem:
+Struct typedefs use `PascalCase` prefixed by the subsystem if that structure is global:
 
 [source,c]
 ----
 typedef struct { ... } FS_File;
 typedef struct { ... } MBR_PartitionEntry;
 typedef struct { ... } GDTEntry;
+----
+
+Private structures defined in C files should only have the *Name* in `PascalCase` with no subsystem declaration:
+
+[source,c]
+----
+typedef struct { ... } CoreFsOperations;
+typedef struct { ... } MbiTagFramebuffer;
 ----
 
 Enums follow the same pattern, with members prefixed by the enum name:

@@ -9,8 +9,8 @@
 #include <dl/callback.h>
 #endif
 
-typedef struct ISO9660_File ISO9660_File;
-typedef struct ISO9660_Operations ISO9660_Operations;
+typedef struct Iso9660File Iso9660File;
+typedef struct Iso9660Operations Iso9660Operations;
 
 static int iso_read_sector(uint64_t iso_lba, void *buffer);
 static int parse_dir_record(const uint8_t *buf, int off, uint32_t *extent_lba,
@@ -48,7 +48,7 @@ static int resolve_path(const char *path, uint32_t *out_lba,
 
 #define MAX_OPEN_FILES 8
 
-struct ISO9660_File
+struct Iso9660File
 {
    int used;
    uint64_t start_lba; /* absolute LBA in native sector size */
@@ -56,7 +56,7 @@ struct ISO9660_File
    uint32_t position;  /* current read position              */
 };
 
-struct ISO9660_Operations
+struct Iso9660Operations
 {
    uint32_t Initialize;
    uint32_t Open;
@@ -70,7 +70,7 @@ static uint32_t s_PartStart = 0;
 static uint64_t s_RootDirLBA = 0;
 static uint32_t s_RootDirSize = 0;
 
-static ISO9660_File s_OpenFiles[MAX_OPEN_FILES];
+static Iso9660File s_OpenFiles[MAX_OPEN_FILES];
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -506,7 +506,7 @@ int ISO9660_Read(int fd, void *buffer, int count)
 {
    if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
 
-   ISO9660_File *f = &s_OpenFiles[fd];
+   Iso9660File *f = &s_OpenFiles[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -553,7 +553,7 @@ int ISO9660_Close(int fd)
 
 #ifdef COREFS
 
-static const ISO9660_Operations fs_exports
+static const Iso9660Operations fs_exports
     __attribute__((section(".exports"), used)) = {
         .Initialize = (uint32_t)ISO9660_Initialize,
         .Open = (uint32_t)ISO9660_Open,

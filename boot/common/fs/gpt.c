@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef struct GptHeader GptHeader;
+typedef struct GptPartitionEntry GptPartitionEntry;
+
 static bool gpt_signature_valid(const uint8_t *sector);
 static bool gpt_guid_is_zero(const uint8_t *guid);
 static bool gpt_lba_to_chs(uint64_t lba, uint16_t *cylinder, uint8_t *head,
@@ -18,7 +21,7 @@ static bool gpt_lba_to_chs(uint64_t lba, uint16_t *cylinder, uint8_t *head,
    ((GPT_MAX_ENTRIES * GPT_ENTRY_SIZE + GPT_SECTOR_SIZE - 1) / GPT_SECTOR_SIZE)
 #define GPT_MAX_OFFSET 0x7FFFFFFF
 
-typedef struct
+struct __attribute__((packed)) GptHeader
 {
    uint8_t signature[GPT_SIGNATURE_SIZE];
    uint32_t revision;
@@ -34,9 +37,9 @@ typedef struct
    uint32_t num_partition_entries;
    uint32_t size_of_partition_entry;
    uint32_t partition_entry_array_crc32;
-} __attribute__((packed)) GPT_Header;
+};
 
-typedef struct
+struct __attribute__((packed)) GptPartitionEntry
 {
    uint8_t type_guid[16];
    uint8_t unique_guid[16];
@@ -44,7 +47,7 @@ typedef struct
    uint64_t last_lba;
    uint64_t attributes;
    uint16_t name[36];
-} __attribute__((packed)) GPT_PartitionEntry;
+};
 
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
@@ -112,7 +115,7 @@ int GPT_List(int drive_id, int **offsets_out)
 
    if (!gpt_signature_valid(header_sector)) return -1;
 
-   GPT_Header *header = (GPT_Header *)header_sector;
+   GptHeader *header = (GptHeader *)header_sector;
    if (header->size_of_partition_entry != GPT_ENTRY_SIZE) return -1;
 
    uint32_t entry_count = header->num_partition_entries;
@@ -141,8 +144,8 @@ int GPT_List(int drive_id, int **offsets_out)
    int count = 0;
    for (uint32_t i = 0; i < entry_count; i++)
    {
-      GPT_PartitionEntry *entry =
-          (GPT_PartitionEntry *)(entry_sectors + i * GPT_ENTRY_SIZE);
+      GptPartitionEntry *entry =
+          (GptPartitionEntry *)(entry_sectors + i * GPT_ENTRY_SIZE);
 
       if (gpt_guid_is_zero(entry->type_guid)) continue;
       if (entry->first_lba > GPT_MAX_OFFSET) continue;

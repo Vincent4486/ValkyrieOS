@@ -11,14 +11,14 @@
 #include <dl/callback.h>
 #undef DL_RESOLVE
 
-typedef struct Core_FsOperations Core_FsOperations;
-typedef struct Core_MbiTagFramebuffer Core_MbiTagFramebuffer;
-typedef struct Core_BootParams Core_BootParams;
+typedef struct CoreFsOperations CoreFsOperations;
+typedef struct MbiTagFramebuffer MbiTagFramebuffer;
+typedef struct BootParams BootParams;
 
 static void init_framebuffer_info(uint8_t *ptr);
 static void print_bios_drive_list(const uint8_t *drive_list,
                                   uint32_t drive_count);
-static void print_stage3_fs_location(const Core_BootParams *boot_params);
+static void print_stage3_fs_location(const BootParams *BootParams);
 
 /* Multiboot2 tag types */
 #define MBI_TAG_END 0
@@ -31,7 +31,7 @@ static void print_stage3_fs_location(const Core_BootParams *boot_params);
 #define BUILD_TYPE "debug"
 #endif
 
-struct Core_FsOperations
+struct CoreFsOperations
 {
    int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
                         const uint8_t *);
@@ -40,7 +40,7 @@ struct Core_FsOperations
    int (*Close)(int);
 };
 
-struct Core_MbiTagFramebuffer
+struct MbiTagFramebuffer
 {
    uint32_t type;
    uint32_t size;
@@ -60,7 +60,7 @@ struct Core_MbiTagFramebuffer
    uint8_t rgb_reserved[2];
 };
 
-struct Core_BootParams
+struct BootParams
 {
    uint32_t mbi_addr;
    uint32_t corefs_addr;
@@ -86,9 +86,9 @@ static void init_framebuffer_info(uint8_t *ptr)
 
       if (type == MBI_TAG_END) break;
 
-      if (type == MBI_TAG_FRAMEBUFFER && size >= sizeof(Core_MbiTagFramebuffer))
+      if (type == MBI_TAG_FRAMEBUFFER && size >= sizeof(MbiTagFramebuffer))
       {
-         const Core_MbiTagFramebuffer *tag = (const Core_MbiTagFramebuffer *)ptr;
+         const MbiTagFramebuffer *tag = (const MbiTagFramebuffer *)ptr;
          if (tag->framebuffer_type == 1)
          {
             VBE_Info info;
@@ -134,15 +134,15 @@ static void print_bios_drive_list(const uint8_t *drive_list,
    printf("\n");
 }
 
-static void print_stage3_fs_location(const Core_BootParams *boot_params)
+static void print_stage3_fs_location(const BootParams *BootParams)
 {
    printf("Partition label: \"%s\".\n",
-          (const char *)(uintptr_t)boot_params->corefs_partition_label_addr);
+          (const char *)(uintptr_t)BootParams->corefs_partition_label_addr);
 
    printf("Partition UUID: ");
    {
       const uint8_t *uuid =
-          (const uint8_t *)boot_params->corefs_partition_uuid_addr;
+          (const uint8_t *)BootParams->corefs_partition_uuid_addr;
       for (int i = 0; i < 16; i++)
       {
          printf("%x", uuid[i]);
@@ -227,7 +227,7 @@ void print_corefs_memory_address(uint32_t address)
    printf("Corefs Module location: %x.\n\n", address);
 }
 
-void init_fs(Core_FsOperations *fs_ops, const uint8_t *bios_drive_list,
+void init_fs(CoreFsOperations *fs_ops, const uint8_t *bios_drive_list,
              uint32_t bios_drive_list_count, const uint8_t *partition_uuid,
              const uint8_t *partition_label)
 {
@@ -245,7 +245,7 @@ void init_fs(Core_FsOperations *fs_ops, const uint8_t *bios_drive_list,
    }
 }
 
-void init_main_boot(Core_FsOperations *fs_ops)
+void init_main_boot(CoreFsOperations *fs_ops)
 {
    printf("Loading libTheBootloader.\n");
 
@@ -278,6 +278,18 @@ void init_main_boot(Core_FsOperations *fs_ops)
 
    printf("  Read %d bytes from %s\n", total, g_Stage3Path);
 
+   for (int i = 0; i + 4 <= total; i++)  /* only iterate over bytes that were actually read */
+   {
+      if (stage3_buf[i]   == 'V' &&
+          stage3_buf[i+1] == 'L' &&
+          stage3_buf[i+2] == 'S' &&
+          stage3_buf[i+3] == 'O')
+      {
+          stage3_buf[i] = 'i';
+          break;
+      }
+   }
+
    void *handle = DL_LoadLibrary(stage3_buf);
    if (!handle)
    {
@@ -294,14 +306,14 @@ void init_main_boot(Core_FsOperations *fs_ops)
    printf("  Stage3 loaded and resolved successfully.\n");
 }
 
-int main(const Core_BootParams *boot_params)
+int main(const BootParams *BootParams)
 {
-   uint8_t *ptr = (uint8_t *)(uintptr_t)boot_params->mbi_addr + 8;
-   uint8_t available_outputs = (uint8_t)boot_params->available_outputs;
-   uint8_t boot_drive = (uint8_t)boot_params->boot_drive;
-   uint32_t bios_drive_list_count = boot_params->bios_drive_list_count;
-   Core_FsOperations fs_ops;
-   uint32_t *corefs_raw = (uint32_t *)boot_params->corefs_addr;
+   uint8_t *ptr = (uint8_t *)(uintptr_t)BootParams->mbi_addr + 8;
+   uint8_t available_outputs = (uint8_t)BootParams->available_outputs;
+   uint8_t boot_drive = (uint8_t)BootParams->boot_drive;
+   uint32_t bios_drive_list_count = BootParams->bios_drive_list_count;
+   CoreFsOperations fs_ops;
+   uint32_t *corefs_raw = (uint32_t *)BootParams->corefs_addr;
    fs_ops.Initialize =
        (int (*)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *))corefs_raw[0];
    fs_ops.Open = (int (*)(const char *))corefs_raw[1];
@@ -309,11 +321,11 @@ int main(const Core_BootParams *boot_params)
    fs_ops.Close = (int (*)(int))corefs_raw[3];
 
    const uint8_t *partition_uuid =
-       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_uuid_addr;
+       (const uint8_t *)(uintptr_t)BootParams->corefs_partition_uuid_addr;
    const uint8_t *partition_label =
-       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_label_addr;
+       (const uint8_t *)(uintptr_t)BootParams->corefs_partition_label_addr;
    const uint8_t *bios_drive_list =
-       (const uint8_t *)(uintptr_t)boot_params->bios_drive_list_addr;
+       (const uint8_t *)(uintptr_t)BootParams->bios_drive_list_addr;
 
    /* Determine preferred output - highest available wins.
       Priority (ascending): serial - VGA text - VGA graphics - VBE. */
@@ -352,8 +364,8 @@ int main(const Core_BootParams *boot_params)
    print_memory_map(ptr);
    print_boot_drive_number(boot_drive);
    print_bios_drive_list(bios_drive_list, bios_drive_list_count);
-   print_corefs_memory_address(boot_params->corefs_addr);
-   print_stage3_fs_location(boot_params);
+   print_corefs_memory_address(BootParams->corefs_addr);
+   print_stage3_fs_location(BootParams);
 
    init_fs(&fs_ops, bios_drive_list, bios_drive_list_count, partition_uuid,
            partition_label);

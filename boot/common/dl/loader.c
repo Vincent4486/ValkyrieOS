@@ -6,6 +6,15 @@
 #include <constants.h>
 #include <dl/loader.h>
 
+typedef struct Elf32Ehdr Elf32Ehdr;
+typedef struct Elf32Shdr Elf32Shdr;
+typedef struct Elf32Symbol Elf32Symbol;
+typedef struct Elf64Ehdr Elf64Ehdr;
+typedef struct Elf64Shdr Elf64Shdr;
+typedef struct Elf64Symbol Elf64Symbol;
+
+typedef struct DlHandle DlHandle;
+
 /* ELF identification indices */
 #define EI_MAG0 0
 #define EI_MAG1 1
@@ -41,10 +50,10 @@
 #define STB_GLOBAL 1
 #define STT_FUNC 2
 
-/* Opaque handle buffer size (must match dl_handle layout below) */
+/* Opaque handle buffer size (must match DlHandle layout below) */
 #define DL_HANDLE_SIZE 32
 
-typedef struct
+struct __attribute__((packed)) Elf32Ehdr
 {
    unsigned char e_ident[16];
    uint16_t e_type;
@@ -60,9 +69,9 @@ typedef struct
    uint16_t e_shentsize;
    uint16_t e_shnum;
    uint16_t e_shstrndx;
-} __attribute__((packed)) elf32_ehdr;
+};
 
-typedef struct
+struct __attribute__((packed)) Elf32Shdr
 {
    uint32_t sh_name;
    uint32_t sh_type;
@@ -74,9 +83,9 @@ typedef struct
    uint32_t sh_info;
    uint32_t sh_addralign;
    uint32_t sh_entsize;
-} __attribute__((packed)) elf32_shdr;
+};
 
-typedef struct
+struct __attribute__((packed)) Elf32Symbol
 {
    uint32_t st_name;
    uint32_t st_value;
@@ -84,9 +93,9 @@ typedef struct
    uint8_t st_info;
    uint8_t st_other;
    uint16_t st_shndx;
-} __attribute__((packed)) elf32_sym;
+};
 
-typedef struct
+struct __attribute__((packed)) Elf64Ehdr
 {
    unsigned char e_ident[16];
    uint16_t e_type;
@@ -102,9 +111,9 @@ typedef struct
    uint16_t e_shentsize;
    uint16_t e_shnum;
    uint16_t e_shstrndx;
-} __attribute__((packed)) elf64_ehdr;
+};
 
-typedef struct
+struct __attribute__((packed)) Elf64Shdr
 {
    uint32_t sh_name;
    uint32_t sh_type;
@@ -116,9 +125,9 @@ typedef struct
    uint32_t sh_info;
    uint64_t sh_addralign;
    uint64_t sh_entsize;
-} __attribute__((packed)) elf64_shdr;
+};
 
-typedef struct
+struct __attribute__((packed)) Elf64Symbol
 {
    uint32_t st_name;
    uint8_t st_info;
@@ -126,23 +135,23 @@ typedef struct
    uint16_t st_shndx;
    uint64_t st_value;
    uint64_t st_size;
-} __attribute__((packed)) elf64_sym;
+};
 
-typedef struct
+struct DlHandle
 {
    void *symtab;  /* pointer to symbol table in file data */
    void *strtab;  /* pointer to string table in file data */
    int sym_count; /* number of symbol entries */
    int is_64bit;  /* 1 if 64-bit ELF, 0 if 32-bit */
-} dl_handle;
+};
 
 /* Internal handle storage — one library at a time */
-static dl_handle s_Handle;
+static DlHandle s_Handle;
 
 void *DL_LoadLibrary(void *file_data)
 {
    unsigned char *ident = (unsigned char *)file_data;
-   dl_handle *h = &s_Handle;
+   DlHandle *h = &s_Handle;
 
    /* Validate ELF magic */
    if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
@@ -155,8 +164,8 @@ void *DL_LoadLibrary(void *file_data)
 
    if (ident[EI_CLASS] == ELFCLASS32)
    {
-      elf32_ehdr *ehdr = (elf32_ehdr *)file_data;
-      elf32_shdr *shdr = (elf32_shdr *)((uintptr_t)file_data + ehdr->e_shoff);
+      Elf32Ehdr *ehdr = (Elf32Ehdr *)file_data;
+      Elf32Shdr *shdr = (Elf32Shdr *)((uintptr_t)file_data + ehdr->e_shoff);
 
       h->is_64bit = 0;
 
@@ -177,8 +186,8 @@ void *DL_LoadLibrary(void *file_data)
    }
    else if (ident[EI_CLASS] == ELFCLASS64)
    {
-      elf64_ehdr *ehdr = (elf64_ehdr *)file_data;
-      elf64_shdr *shdr = (elf64_shdr *)((uintptr_t)file_data + ehdr->e_shoff);
+      Elf64Ehdr *ehdr = (Elf64Ehdr *)file_data;
+      Elf64Shdr *shdr = (Elf64Shdr *)((uintptr_t)file_data + ehdr->e_shoff);
 
       h->is_64bit = 1;
 
@@ -202,13 +211,13 @@ void *DL_LoadLibrary(void *file_data)
 
 void *DL_LoadSymbol(void *handle, const char *symbol)
 {
-   dl_handle *h = (dl_handle *)handle;
+   DlHandle *h = (DlHandle *)handle;
 
    if (!h->symtab || !h->strtab || !symbol) return NULL;
 
    if (h->is_64bit)
    {
-      elf64_sym *sym = (elf64_sym *)h->symtab;
+      Elf64Symbol *sym = (Elf64Symbol *)h->symtab;
       char *strtab = (char *)h->strtab;
 
       for (int i = 0; i < h->sym_count; i++)
@@ -225,7 +234,7 @@ void *DL_LoadSymbol(void *handle, const char *symbol)
    }
    else
    {
-      elf32_sym *sym = (elf32_sym *)h->symtab;
+      Elf32Symbol *sym = (Elf32Symbol *)h->symtab;
       char *strtab = (char *)h->strtab;
 
       for (int i = 0; i < h->sym_count; i++)

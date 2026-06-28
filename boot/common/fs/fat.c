@@ -10,8 +10,8 @@
 #include <dl/callback.h>
 #endif
 
-typedef struct FAT_File FAT_File;
-typedef struct FAT_Operations FAT_Operations;
+typedef struct FatFile FatFile;
+typedef struct FatOperations FatOperations;
 
 static int fat_read_sector(uint64_t lba, void *buffer);
 static int fat_type_from_bpb(const uint8_t *bpb, uint32_t total_clusters);
@@ -121,7 +121,7 @@ static int check_partition(uint8_t drive, int part_lba,
 
 #define LFN_BUF_SIZE 256
 
-struct FAT_File
+struct FatFile
 {
    int used;
    uint32_t start_cluster;
@@ -132,7 +132,7 @@ struct FAT_File
    uint32_t position;
 };
 
-struct FAT_Operations
+struct FatOperations
 {
    uint32_t Initialize;
    uint32_t Open;
@@ -159,7 +159,7 @@ static uint32_t s_TotalClusters = 0;
 static uint32_t s_RootCluster = 0;
 static int s_FATType = 0;
 
-static FAT_File s_OpenFiles[MAX_OPEN_FILES];
+static FatFile s_OpenFiles[MAX_OPEN_FILES];
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -897,7 +897,7 @@ int FAT_Read(int fd, void *buffer, int count)
 {
    if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
 
-   FAT_File *f = &s_OpenFiles[fd];
+   FatFile *f = &s_OpenFiles[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -987,7 +987,7 @@ int FAT_Close(int fd)
 
 #ifdef COREFS
 
-static const FAT_Operations fs_exports
+static const FatOperations fs_exports
     __attribute__((section(".exports"), used)) = {
         .Initialize = (uint32_t)FAT_Initialize,
         .Open = (uint32_t)FAT_Open,

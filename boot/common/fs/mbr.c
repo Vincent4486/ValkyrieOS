@@ -4,11 +4,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef struct MBR_PartitionEntry MBR_PartitionEntry;
+
 #define MBR_PARTITION_COUNT 4
 #define MBR_SIGNATURE 0xAA55
 
 /* MBR partition entry (16 bytes) */
-typedef struct
+struct __attribute__((packed)) MBR_PartitionEntry
 {
    uint8_t boot_flag;     /* 0x80 = active/bootable               */
    uint8_t start_chs[3];  /* CHS address of first sector          */
@@ -16,7 +18,7 @@ typedef struct
    uint8_t end_chs[3];    /* CHS address of last sector           */
    uint32_t lba_start;    /* LBA of first sector (little-endian)  */
    uint32_t sector_count; /* number of sectors in partition       */
-} __attribute__((packed)) MBR_PartitionEntry;
+};
 
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
