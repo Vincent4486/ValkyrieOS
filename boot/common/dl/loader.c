@@ -139,10 +139,11 @@ struct __attribute__((packed)) Elf64Symbol
 
 struct DlHandle
 {
-   void *symtab;  /* pointer to symbol table in file data */
-   void *strtab;  /* pointer to string table in file data */
-   int sym_count; /* number of symbol entries */
-   int is_64bit;  /* 1 if 64-bit ELF, 0 if 32-bit */
+   void *symtab;     /* pointer to symbol table in file data */
+   void *strtab;     /* pointer to string table in file data */
+   void *image_base; /* base address where the ELF was loaded */
+   int sym_count;    /* number of symbol entries */
+   int is_64bit;     /* 1 if 64-bit ELF, 0 if 32-bit */
 };
 
 /* Internal handle storage — one library at a time */
@@ -160,6 +161,7 @@ void *DL_LoadLibrary(void *file_data)
 
    h->symtab = NULL;
    h->strtab = NULL;
+   h->image_base = file_data;
    h->sym_count = 0;
 
    if (ident[EI_CLASS] == ELFCLASS32)
@@ -229,7 +231,7 @@ void *DL_LoadSymbol(void *handle, const char *symbol)
          while (name[j] == symbol[j] && name[j] != '\0')
             j++;
          if (name[j] == '\0' && symbol[j] == '\0')
-            return (void *)(uintptr_t)sym[i].st_value;
+            return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
       }
    }
    else
@@ -246,7 +248,7 @@ void *DL_LoadSymbol(void *handle, const char *symbol)
          while (name[j] == symbol[j] && name[j] != '\0')
             j++;
          if (name[j] == '\0' && symbol[j] == '\0')
-            return (void *)(uintptr_t)sym[i].st_value;
+            return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
       }
    }
 

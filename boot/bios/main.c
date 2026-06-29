@@ -234,14 +234,47 @@ void print_corefs_memory_address(uint32_t address)
    printf("Corefs Module location: %x.\n\n", address);
 }
 
-void init_fs(CoreFsOperations *fs_ops, const uint8_t *bios_drive_list,
-             uint32_t bios_drive_list_count, const uint8_t *partition_uuid,
-             const uint8_t *partition_label)
+void print_logo()
+{
+   if (g_PreferredOutput == OUTPUT_VBE)
+   {
+      uint32_t logo_w, logo_h, pal_sz;
+      const uint8_t *pal, *data;
+      g_MainBootOperations.LOGO_GetValecium(&logo_w, &logo_h, &pal, &pal_sz,
+                                            &data);
+
+      if (g_PreferredOutput == OUTPUT_VBE)
+      {
+         uint32_t scr_w = VBE_GetWidth();
+         uint32_t scr_h = VBE_GetHeight();
+
+         /* Center the logo. */
+         int off_x = (int)((scr_w > logo_w) ? (scr_w - logo_w) / 2 : 0);
+         int off_y = (int)((scr_h > logo_h) ? (scr_h - logo_h) / 2 : 0);
+
+         for (uint32_t y = 0; y < logo_h; y++)
+         {
+            for (uint32_t x = 0; x < logo_w; x++)
+            {
+               /* Data is 4bpp: two pixels per byte, high nibble first. */
+               uint8_t byte = data[(y * logo_w + x) / 2];
+               uint8_t idx = (x & 1) ? (byte & 0x0F) : (byte >> 4);
+               uint32_t pixel = VBE_PackRGB(pal[idx * 3], pal[idx * 3 + 1],
+                                            pal[idx * 3 + 2]);
+               VBE_PutPixel(pixel, off_x + (int)x, off_y + (int)y);
+            }
+         }
+      }
+   }
+}
+
+void init_fs(const uint8_t *bios_drive_list, uint32_t bios_drive_list_count,
+             const uint8_t *partition_uuid, const uint8_t *partition_label)
 {
    printf("Entering filesystem setup.\n");
 
    int rc = s_FsOps.Initialize(bios_drive_list, bios_drive_list_count,
-                                partition_uuid, partition_label);
+                               partition_uuid, partition_label);
    if (rc != SUCCESS)
    {
       printf("  FS_Initialize failed: %d.\n", rc);
@@ -285,15 +318,24 @@ void init_main_boot(void)
 
    printf("  Read %d bytes from %s\n", total, g_Stage3Path);
 
-   for (int i = 0; i + 4 <= total; i++)  /* only iterate over bytes that were actually read */
+   // Populate s_DlCallbackOps
+   s_DlCallbackOps.DISK_Read = s_FsOps.DISK_Read;
+   s_DlCallbackOps.DISK_ReadLBA = s_FsOps.DISK_ReadLBA;
+
+   for (int i = 0; i + 4 <= total;
+        i++) /* only iterate over bytes that were actually read */
    {
-      if (stage3_buf[i]   == 'V' &&
-          stage3_buf[i+1] == 'L' &&
-          stage3_buf[i+2] == 'S' &&
-          stage3_buf[i+3] == 'O')
+      if (stage3_buf[i] == 'V' && stage3_buf[i + 1] == 'L' &&
+          stage3_buf[i + 2] == 'S' && stage3_buf[i + 3] == 'O')
       {
-          stage3_buf[i] = 'i';
-          break;
+#if defined(BIT32)
+         *(uint32_t *)(stage3_buf + i + 4) =
+             (uint32_t)(uintptr_t)&s_DlCallbackOps;
+#elif defined(BIT64)
+         *(uint64_t *)(stage3_buf + i + 4) =
+             (uint64_t)(uintptr_t)&s_DlCallbackOps;
+#endif
+         break;
       }
    }
 
@@ -380,6 +422,7 @@ int main(const BootParams *BootParams)
            partition_label);
    init_main_boot();
 
+   print_logo();
    for (;;)
       ;
 
