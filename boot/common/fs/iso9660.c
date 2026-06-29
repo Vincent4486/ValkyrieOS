@@ -58,13 +58,13 @@ struct Iso9660File
 
 struct Iso9660Operations
 {
-   uint32_t Initialize;
-   uint32_t Open;
-   uint32_t Read;
-   uint32_t Close;
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Open)(const char *);
+   int (*Read)(int, void *, int);
+   int (*Close)(int);
 #ifdef COREFS
-   uint32_t DISK_Read;
-   uint32_t DISK_ReadLBA;
+   int (*DISK_Read)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, void *);
+   int (*DISK_ReadLBA)(uint8_t, uint64_t, uint16_t, void *);
 #endif
 };
 
@@ -558,12 +558,12 @@ int ISO9660_Close(int fd)
 
 static const Iso9660Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .Initialize = (uint32_t)ISO9660_Initialize,
-        .Open = (uint32_t)ISO9660_Open,
-        .Read = (uint32_t)ISO9660_Read,
-        .Close = (uint32_t)ISO9660_Close,
-        .DISK_Read = (uint32_t)DISK_Read,
-        .DISK_ReadLBA = (uint32_t)DISK_ReadLBA,
+        .Initialize = ISO9660_Initialize,
+        .Open = ISO9660_Open,
+        .Read = ISO9660_Read,
+        .Close = ISO9660_Close,
+        .DISK_Read = DISK_Read,
+        .DISK_ReadLBA = DISK_ReadLBA,
 };
 
 #endif /* COREFS */

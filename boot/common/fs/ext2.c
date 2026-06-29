@@ -133,13 +133,13 @@ struct Ext2File
 
 struct Ext2Operations
 {
-   uint32_t Initialize;
-   uint32_t Open;
-   uint32_t Read;
-   uint32_t Close;
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Open)(const char *);
+   int (*Read)(int, void *, int);
+   int (*Close)(int);
 #ifdef COREFS
-   uint32_t DISK_Read;
-   uint32_t DISK_ReadLBA;
+   int (*DISK_Read)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, void *);
+   int (*DISK_ReadLBA)(uint8_t, uint64_t, uint16_t, void *);
 #endif
 };
 
@@ -958,12 +958,12 @@ int EXT2_Close(int fd)
 
 static const Ext2Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .Initialize = (uint32_t)EXT2_Initialize,
-        .Open = (uint32_t)EXT2_Open,
-        .Read = (uint32_t)EXT2_Read,
-        .Close = (uint32_t)EXT2_Close,
-        .DISK_Read = (uint32_t)DISK_Read,
-        .DISK_ReadLBA = (uint32_t)DISK_ReadLBA,
+        .Initialize = EXT2_Initialize,
+        .Open = EXT2_Open,
+        .Read = EXT2_Read,
+        .Close = EXT2_Close,
+        .DISK_Read = DISK_Read,
+        .DISK_ReadLBA = DISK_ReadLBA,
 };
 
 #endif /* COREFS */

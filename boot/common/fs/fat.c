@@ -134,13 +134,13 @@ struct FatFile
 
 struct FatOperations
 {
-   uint32_t Initialize;
-   uint32_t Open;
-   uint32_t Read;
-   uint32_t Close;
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Open)(const char *);
+   int (*Read)(int, void *, int);
+   int (*Close)(int);
 #ifdef COREFS
-   uint32_t DISK_Read;
-   uint32_t DISK_ReadLBA;
+   int (*DISK_Read)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, void *);
+   int (*DISK_ReadLBA)(uint8_t, uint64_t, uint16_t, void *);
 #endif
 };
 
@@ -993,12 +993,12 @@ int FAT_Close(int fd)
 
 static const FatOperations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .Initialize = (uint32_t)FAT_Initialize,
-        .Open = (uint32_t)FAT_Open,
-        .Read = (uint32_t)FAT_Read,
-        .Close = (uint32_t)FAT_Close,
-        .DISK_Read = (uint32_t)DISK_Read,
-        .DISK_ReadLBA = (uint32_t)DISK_ReadLBA,
+        .Initialize = FAT_Initialize,
+        .Open = FAT_Open,
+        .Read = FAT_Read,
+        .Close = FAT_Close,
+        .DISK_Read = DISK_Read,
+        .DISK_ReadLBA = DISK_ReadLBA,
 };
 
 #endif /* COREFS */

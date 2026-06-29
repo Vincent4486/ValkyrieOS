@@ -6,9 +6,9 @@
 #include <constants.h>
 
 #define DL_RESOLVE
+#include <dl/loader.h>
 #include <dl/binding_gen.h>
 #include <dl/callback.h>
-#include <dl/loader.h>
 #undef DL_RESOLVE
 
 typedef struct CoreFsOperations CoreFsOperations;
@@ -66,14 +66,14 @@ struct MbiTagFramebuffer
 
 struct BootParams
 {
-   uint32_t mbi_addr;
-   uint32_t corefs_addr;
+   uintptr_t mbi_addr;
+   uintptr_t corefs_addr;
    uint32_t available_outputs;
    uint32_t boot_drive;
-   uint32_t bios_drive_list_addr;
+   uintptr_t bios_drive_list_addr;
    uint32_t bios_drive_list_count;
-   uint32_t corefs_partition_uuid_addr;
-   uint32_t corefs_partition_label_addr;
+   uintptr_t corefs_partition_uuid_addr;
+   uintptr_t corefs_partition_label_addr;
 };
 
 int g_PrimaryOutputSystem = 0;
@@ -229,7 +229,7 @@ void print_boot_drive_number(int boot_drive)
    printf("  Booted from a %s.\n\n", driveType);
 }
 
-void print_corefs_memory_address(uint32_t address)
+void print_corefs_memory_address(uintptr_t address)
 {
    printf("Corefs Module location: %x.\n\n", address);
 }
