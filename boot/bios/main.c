@@ -6,9 +6,9 @@
 #include <constants.h>
 
 #define DL_RESOLVE
-#include <dl/loader.h>
 #include <dl/binding_gen.h>
 #include <dl/callback.h>
+#include <dl/loader.h>
 #undef DL_RESOLVE
 
 typedef struct CoreFsOperations CoreFsOperations;
