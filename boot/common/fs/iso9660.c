@@ -62,6 +62,10 @@ struct Iso9660Operations
    uint32_t Open;
    uint32_t Read;
    uint32_t Close;
+#ifdef COREFS
+   uint32_t DISK_Read;
+   uint32_t DISK_ReadLBA;
+#endif
 };
 
 static uint32_t s_BootDrive = 0;
@@ -559,6 +563,8 @@ static const Iso9660Operations fs_exports
         .Open = (uint32_t)ISO9660_Open,
         .Read = (uint32_t)ISO9660_Read,
         .Close = (uint32_t)ISO9660_Close,
+        .DISK_Read = (uint32_t)DISK_Read,
+        .DISK_ReadLBA = (uint32_t)DISK_ReadLBA,
 };
 
 #endif /* COREFS */

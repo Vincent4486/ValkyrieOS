@@ -138,6 +138,10 @@ struct FatOperations
    uint32_t Open;
    uint32_t Read;
    uint32_t Close;
+#ifdef COREFS
+   uint32_t DISK_Read;
+   uint32_t DISK_ReadLBA;
+#endif
 };
 
 static uint8_t s_BootDrive = 0;
@@ -993,6 +997,8 @@ static const FatOperations fs_exports
         .Open = (uint32_t)FAT_Open,
         .Read = (uint32_t)FAT_Read,
         .Close = (uint32_t)FAT_Close,
+        .DISK_Read = (uint32_t)DISK_Read,
+        .DISK_ReadLBA = (uint32_t)DISK_ReadLBA,
 };
 
 #endif /* COREFS */

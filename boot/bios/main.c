@@ -34,10 +34,14 @@ static void print_stage3_fs_location(const BootParams *BootParams);
 struct CoreFsOperations
 {
    int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
-                        const uint8_t *);
+                     const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
+   int (*DISK_Read)(uint8_t drive, uint16_t cylinder, uint8_t sector,
+                    uint8_t head, uint8_t count, void *buffer);
+   int (*DISK_ReadLBA)(uint8_t drive, uint64_t lba, uint16_t count,
+                       void *buffer);
 };
 
 struct MbiTagFramebuffer
@@ -312,13 +316,16 @@ int main(const BootParams *BootParams)
    uint8_t available_outputs = (uint8_t)BootParams->available_outputs;
    uint8_t boot_drive = (uint8_t)BootParams->boot_drive;
    uint32_t bios_drive_list_count = BootParams->bios_drive_list_count;
-   CoreFsOperations fs_ops;
    uint32_t *corefs_raw = (uint32_t *)BootParams->corefs_addr;
-   fs_ops.Initialize =
-       (int (*)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *))corefs_raw[0];
-   fs_ops.Open = (int (*)(const char *))corefs_raw[1];
-   fs_ops.Read = (int (*)(int, void *, int))corefs_raw[2];
-   fs_ops.Close = (int (*)(int))corefs_raw[3];
+   s_FsOps.Initialize = (int (*)(const uint8_t *, uint32_t, const uint8_t *,
+                                 const uint8_t *))corefs_raw[0];
+   s_FsOps.Open = (int (*)(const char *))corefs_raw[1];
+   s_FsOps.Read = (int (*)(int, void *, int))corefs_raw[2];
+   s_FsOps.Close = (int (*)(int))corefs_raw[3];
+   s_FsOps.DISK_Read = (int (*)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t,
+                                void *))corefs_raw[4];
+   s_FsOps.DISK_ReadLBA =
+       (int (*)(uint8_t, uint64_t, uint16_t, void *))corefs_raw[5];
 
    const uint8_t *partition_uuid =
        (const uint8_t *)(uintptr_t)BootParams->corefs_partition_uuid_addr;
