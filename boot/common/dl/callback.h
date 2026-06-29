@@ -12,7 +12,6 @@ struct __attribute__((packed)) DL_CallbackOperations
                     uint8_t head, uint8_t count, void *buffer);
    int (*DISK_ReadLBA)(uint8_t drive, uint64_t lba, uint16_t count,
                        void *buffer);
-
 };
 
 struct __attribute__((packed)) DL_CallbackOpsPatch
