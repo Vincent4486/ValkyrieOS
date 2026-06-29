@@ -50,6 +50,22 @@ typedef struct DlHandle DlHandle;
 #define STB_GLOBAL 1
 #define STT_FUNC 2
 
+#if defined(BIT32)
+#define ElfEhdr    Elf32Ehdr
+#define ElfShdr    Elf32Shdr
+#define ElfSymbol  Elf32Symbol
+#define ELF_ST_BIND(i) ELF32_ST_BIND(i)
+#define ELF_ST_TYPE(i) ELF32_ST_TYPE(i)
+#define ELFCLASS_EXPECTED ELFCLASS32
+#elif defined(BIT64)
+#define ElfEhdr    Elf64Ehdr
+#define ElfShdr    Elf64Shdr
+#define ElfSymbol  Elf64Symbol
+#define ELF_ST_BIND(i) ELF64_ST_BIND(i)
+#define ELF_ST_TYPE(i) ELF64_ST_TYPE(i)
+#define ELFCLASS_EXPECTED ELFCLASS64
+#endif
+
 /* Opaque handle buffer size (must match DlHandle layout below) */
 #define DL_HANDLE_SIZE 32
 
@@ -143,7 +159,6 @@ struct DlHandle
    void *strtab;     /* pointer to string table in file data */
    void *image_base; /* base address where the ELF was loaded */
    int sym_count;    /* number of symbol entries */
-   int is_64bit;     /* 1 if 64-bit ELF, 0 if 32-bit */
 };
 
 /* Internal handle storage — one library at a time */
@@ -154,9 +169,10 @@ void *DL_LoadLibrary(void *file_data)
    unsigned char *ident = (unsigned char *)file_data;
    DlHandle *h = &s_Handle;
 
-   /* Validate ELF magic */
+   /* Validate ELF magic and class */
    if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
-       ident[EI_MAG2] != ELFMAG2 || ident[EI_MAG3] != ELFMAG3)
+       ident[EI_MAG2] != ELFMAG2 || ident[EI_MAG3] != ELFMAG3 ||
+       ident[EI_CLASS] != ELFCLASS_EXPECTED)
       return NULL;
 
    h->symtab = NULL;
@@ -164,47 +180,20 @@ void *DL_LoadLibrary(void *file_data)
    h->image_base = file_data;
    h->sym_count = 0;
 
-   if (ident[EI_CLASS] == ELFCLASS32)
+   ElfEhdr *ehdr = (ElfEhdr *)file_data;
+   ElfShdr *shdr = (ElfShdr *)((uintptr_t)file_data + ehdr->e_shoff);
+
+   for (int i = 0; i < ehdr->e_shnum; i++)
    {
-      Elf32Ehdr *ehdr = (Elf32Ehdr *)file_data;
-      Elf32Shdr *shdr = (Elf32Shdr *)((uintptr_t)file_data + ehdr->e_shoff);
-
-      h->is_64bit = 0;
-
-      for (int i = 0; i < ehdr->e_shnum; i++)
+      if (shdr[i].sh_type == SHT_SYMTAB || shdr[i].sh_type == SHT_DYNSYM)
       {
-         if (shdr[i].sh_type == SHT_SYMTAB || shdr[i].sh_type == SHT_DYNSYM)
-         {
-            h->symtab = (void *)((uintptr_t)file_data + shdr[i].sh_offset);
-            h->sym_count = shdr[i].sh_size / shdr[i].sh_entsize;
+         h->symtab = (void *)((uintptr_t)file_data + shdr[i].sh_offset);
+         h->sym_count = shdr[i].sh_size / shdr[i].sh_entsize;
 
-            /* Companion string table is pointed to by sh_link */
-            if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum)
-               h->strtab = (void *)((uintptr_t)file_data +
-                                    shdr[shdr[i].sh_link].sh_offset);
-            return h;
-         }
-      }
-   }
-   else if (ident[EI_CLASS] == ELFCLASS64)
-   {
-      Elf64Ehdr *ehdr = (Elf64Ehdr *)file_data;
-      Elf64Shdr *shdr = (Elf64Shdr *)((uintptr_t)file_data + ehdr->e_shoff);
-
-      h->is_64bit = 1;
-
-      for (int i = 0; i < ehdr->e_shnum; i++)
-      {
-         if (shdr[i].sh_type == SHT_SYMTAB || shdr[i].sh_type == SHT_DYNSYM)
-         {
-            h->symtab = (void *)((uintptr_t)file_data + shdr[i].sh_offset);
-            h->sym_count = shdr[i].sh_size / shdr[i].sh_entsize;
-
-            if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum)
-               h->strtab = (void *)((uintptr_t)file_data +
-                                    shdr[shdr[i].sh_link].sh_offset);
-            return h;
-         }
+         if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum)
+            h->strtab = (void *)((uintptr_t)file_data +
+                                 shdr[shdr[i].sh_link].sh_offset);
+         return h;
       }
    }
 
@@ -217,39 +206,19 @@ void *DL_LoadSymbol(void *handle, const char *symbol)
 
    if (!h->symtab || !h->strtab || !symbol) return NULL;
 
-   if (h->is_64bit)
+   ElfSymbol *sym = (ElfSymbol *)h->symtab;
+   char *strtab = (char *)h->strtab;
+
+   for (int i = 0; i < h->sym_count; i++)
    {
-      Elf64Symbol *sym = (Elf64Symbol *)h->symtab;
-      char *strtab = (char *)h->strtab;
+      char *name = strtab + sym[i].st_name;
+      if (name[0] == '\0') continue;
 
-      for (int i = 0; i < h->sym_count; i++)
-      {
-         char *name = strtab + sym[i].st_name;
-         if (name[0] == '\0') continue;
-
-         int j = 0;
-         while (name[j] == symbol[j] && name[j] != '\0')
-            j++;
-         if (name[j] == '\0' && symbol[j] == '\0')
-            return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
-      }
-   }
-   else
-   {
-      Elf32Symbol *sym = (Elf32Symbol *)h->symtab;
-      char *strtab = (char *)h->strtab;
-
-      for (int i = 0; i < h->sym_count; i++)
-      {
-         char *name = strtab + sym[i].st_name;
-         if (name[0] == '\0') continue;
-
-         int j = 0;
-         while (name[j] == symbol[j] && name[j] != '\0')
-            j++;
-         if (name[j] == '\0' && symbol[j] == '\0')
-            return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
-      }
+      int j = 0;
+      while (name[j] == symbol[j] && name[j] != '\0')
+         j++;
+      if (name[j] == '\0' && symbol[j] == '\0')
+         return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
    }
 
    return NULL;
