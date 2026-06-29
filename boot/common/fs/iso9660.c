@@ -74,7 +74,7 @@ static uint32_t s_PartStart = 0;
 static uint64_t s_RootDirLBA = 0;
 static uint32_t s_RootDirSize = 0;
 
-static Iso9660File s_OpenFiles[MAX_OPEN_FILES];
+static Iso9660File s_OpenFiles[MAX_OPEN_FILES] = {0};
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -337,8 +337,7 @@ static int lookup_component(uint64_t dir_lba, uint32_t dir_size,
          }
 
          /* Try Rock Ridge NM name first (handles long filenames). */
-         if (suspend_match_nm(buf, off, rec_len, name_len,
-                              component, comp_len))
+         if (suspend_match_nm(buf, off, rec_len, name_len, component, comp_len))
          {
             *out_lba = extent_lba;
             *out_size = extent_size;

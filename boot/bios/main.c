@@ -81,6 +81,9 @@ int g_PreferredOutput = OUTPUT_VGATEXT;
 const char *g_Stage3Path =
     "/boot/libTheBootloader-" OS_VERSION "_" BUILD_TYPE ".so";
 
+static CoreFsOperations s_FsOps = {0};
+static DL_CallbackOperations s_DlCallbackOps = {0};
+
 static void init_framebuffer_info(uint8_t *ptr)
 {
    for (;;)
@@ -237,7 +240,7 @@ void init_fs(CoreFsOperations *fs_ops, const uint8_t *bios_drive_list,
 {
    printf("Entering filesystem setup.\n");
 
-   int rc = fs_ops->Initialize(bios_drive_list, bios_drive_list_count,
+   int rc = s_FsOps.Initialize(bios_drive_list, bios_drive_list_count,
                                 partition_uuid, partition_label);
    if (rc != SUCCESS)
    {
@@ -249,11 +252,11 @@ void init_fs(CoreFsOperations *fs_ops, const uint8_t *bios_drive_list,
    }
 }
 
-void init_main_boot(CoreFsOperations *fs_ops)
+void init_main_boot(void)
 {
    printf("Loading libTheBootloader.\n");
 
-   int fd = fs_ops->Open(g_Stage3Path);
+   int fd = s_FsOps.Open(g_Stage3Path);
    if (fd < 0)
    {
       printf("  Failed to open %s: %d\n", g_Stage3Path, fd);
@@ -266,13 +269,13 @@ void init_main_boot(CoreFsOperations *fs_ops)
 
    while (total < (int)sizeof(stage3_buf))
    {
-      rc = fs_ops->Read(fd, stage3_buf + total,
-                        (int)sizeof(stage3_buf) - total);
+      rc =
+          s_FsOps.Read(fd, stage3_buf + total, (int)sizeof(stage3_buf) - total);
       if (rc <= 0) break;
       total += rc;
    }
 
-   fs_ops->Close(fd);
+   s_FsOps.Close(fd);
 
    if (rc < 0 || total == 0)
    {
@@ -373,10 +376,9 @@ int main(const BootParams *BootParams)
    print_bios_drive_list(bios_drive_list, bios_drive_list_count);
    print_corefs_memory_address(BootParams->corefs_addr);
    print_stage3_fs_location(BootParams);
-
-   init_fs(&fs_ops, bios_drive_list, bios_drive_list_count, partition_uuid,
+   init_fs(bios_drive_list, bios_drive_list_count, partition_uuid,
            partition_label);
-   init_main_boot(&fs_ops);
+   init_main_boot();
 
    for (;;)
       ;

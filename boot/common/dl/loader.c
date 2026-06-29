@@ -146,7 +146,7 @@ struct DlHandle
 };
 
 /* Internal handle storage — one library at a time */
-static DlHandle s_Handle;
+static DlHandle s_Handle = {0};
 
 void *DL_LoadLibrary(void *file_data)
 {

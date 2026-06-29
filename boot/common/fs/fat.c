@@ -163,7 +163,7 @@ static uint32_t s_TotalClusters = 0;
 static uint32_t s_RootCluster = 0;
 static int s_FATType = 0;
 
-static FatFile s_OpenFiles[MAX_OPEN_FILES];
+static FatFile s_OpenFiles[MAX_OPEN_FILES] = {0};
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,

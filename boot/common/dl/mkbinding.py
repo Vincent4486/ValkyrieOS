@@ -236,23 +236,22 @@ def GenerateHeader(Functions: list[tuple[str, str]]) -> str:
         "",
         "#ifdef DL_RESOLVE",
         "",
-        "// Backing storage and public pointer - populated by dl_resolve_all().",
-        "static MainBootOperations s_MainBootOperations;",
-        "MainBootOperations *g_MainBootOperations = NULL;",
+        "// Public struct - populated by dl_resolve_all().",
+        "MainBootOperations g_MainBootOperations;",
         "",
         "// Resolver - call once during init. Returns 0 on success, -1 on failure.",
         "static inline int dl_resolve_all(void *handle)",
         "{",
-        "    g_MainBootOperations = &s_MainBootOperations;",
+        "    g_MainBootOperations = (MainBootOperations){0};",
     ]
 
     # --- dlsym calls ---
     for Name, _Sig in Functions:
         FpType = FunctionPointerType(_Sig, Name)
         Lines.append(
-            f'    g_MainBootOperations->{Name} = ({FpType})DL_LoadSymbol(handle, "{Name}");'
+            f'    g_MainBootOperations.{Name} = ({FpType})DL_LoadSymbol(handle, "{Name}");'
         )
-        Lines.append(f"    if (!g_MainBootOperations->{Name}) return -1;")
+        Lines.append(f"    if (!g_MainBootOperations.{Name}) return -1;")
 
     Lines += [
         "    return 0;",
@@ -261,7 +260,7 @@ def GenerateHeader(Functions: list[tuple[str, str]]) -> str:
         "#else",
         "",
         "// Extern declaration \u2013 defined in the DL_RESOLVE compilation unit (main.c in core).",
-        "extern MainBootOperations *g_MainBootOperations;",
+        "extern MainBootOperations g_MainBootOperations;",
         "#endif /* DL_RESOLVE */",
         "",
     ]

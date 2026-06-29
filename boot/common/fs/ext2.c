@@ -159,7 +159,7 @@ static uint32_t s_DescSize = 32;
 static uint32_t s_RootInode = 2;
 static uint32_t s_RootSize = 0;
 
-static Ext2File s_OpenFiles[MAX_OPEN_FILES];
+static Ext2File s_OpenFiles[MAX_OPEN_FILES] = {0};
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
