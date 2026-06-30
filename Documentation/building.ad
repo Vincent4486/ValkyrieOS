@@ -74,7 +74,7 @@ toolchain = '../os_toolchain'
 KernelName = 'valeciumx'
 BootSystem = 'system'
 BootType = 'bios'
-ProjVersion = '0.28'
+ProjVersion = '0.29'
 ----
 
 === Step 1: Install Dependencies
@@ -176,7 +176,7 @@ Pass variables to `scons` to customize the build. Common options:
 | `BootSystem` | `grub`, `system` | `system`
 | `BootType` | `bios`, `efi` | `bios`
 | `KernelName` | Kernel binary name | `valeciumx`
-| `ProjVersion` | Version string | `0.28`
+| `ProjVersion` | Version string | `0.29`
 |===
 
 === Examples

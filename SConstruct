@@ -78,7 +78,7 @@ if not ConfigPath.exists():
     DefaultConfig = {
         "BuildConfig": "debug",
         "BuildArch": "i686",
-        "ProjVersion": "0.28",
+        "ProjVersion": "0.29",
         "BuildType": "full",
         "KernelName": "valeciumx",
         "BootType": "bios",
@@ -126,7 +126,7 @@ Vars.AddVariables(
 Vars.Add("KernelName", help="Kernel executable name", default="valeciumx")
 
 Vars.Add(
-    "ProjVersion", help="Kernel version string in MAJOR.MINOR form", default="0.28"
+    "ProjVersion", help="Kernel version string in MAJOR.MINOR form", default="0.29"
 )
 
 Deps = {

@@ -25,7 +25,7 @@ Valecium OS is built with the following principles:
 * *Well-documented* — Code and systems are documented for learning purposes
 * *Custom bootloader* — A two-stage BIOS real-mode → protected mode bootloader is under development alongside GRUB support
 
-=== Current State (v0.28)
+=== Current State (v0.29)
 
 The i686 BIOS path is the most mature. The kernel boots, initializes memory management (PMM, VMM, heap), sets up interrupt handling (GDT, IDT, ISR, IRQ), mounts a FAT12/16/32 root filesystem, and launches userspace processes (selftest, shell). The syscall layer supports file I/O, process creation (fork/execve), memory management (brk/sbrk), and process signaling (partial). The custom bootloader's stage1 (MBR) and stage2 (protected mode entry) exist but do not yet load the kernel.
 

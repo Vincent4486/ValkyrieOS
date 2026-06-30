@@ -13,7 +13,7 @@ Thank you for your interest in contributing to Valecium OS. Please read this gui
 
 Building is covered in detail in link:building.html[Building Valecium OS]. The build system uses SCons. Key files are:
 
-* `SConstruct` — Top-level build configuration (version 0.28)
+* `SConstruct` — Top-level build configuration (version 0.29)
 * `kernel/SConscript` — Kernel build configuration
 * `scripts/scons/arch.py` — Architecture detection (i686, x86_64, aarch64)
 * `scripts/base/toolchain.py` — Cross-compiler builder (binutils 2.45 + musl 1.2.6 + GCC 15.2.0)
