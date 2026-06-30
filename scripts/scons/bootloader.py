@@ -74,7 +74,7 @@ def GetBootloaderBuildConfig(
     Config["Architecture"] = Architecture
     Config["Version"] = Version
     Config["BuildConfig"] = BuildConfig
-    Config["OutputName"] = f"TheBootloader-{Version}_{BuildConfig}"
+    Config["OutputName"] = f"TheBootloader-{Version}_{BuildConfig}.so"
 
     return Config
 
