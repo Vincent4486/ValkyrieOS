@@ -15,7 +15,7 @@ typedef struct CoreFsOperations CoreFsOperations;
 typedef struct MbiTagFramebuffer MbiTagFramebuffer;
 typedef struct BootParams BootParams;
 
-static void init_framebuffer_info(uint8_t *ptr);
+static void init_framebuffer_info();
 static void print_bios_drive_list(void);
 static void print_stage3_fs_location(void);
 
@@ -65,7 +65,7 @@ struct MbiTagFramebuffer
 
 struct __attribute__((packed)) BootParams
 {
-   void *mbi_addr;
+   MbiTagFramebuffer *mbi_tags;
    CoreFsOperations *corefs_ops;
    uint8_t available_outputs;
    uint8_t boot_drive;
@@ -83,18 +83,15 @@ const char *g_Stage3Path =
 static BootParams s_BootParams = {0};
 static DL_CallbackOperations s_DlCallbackOps = {0};
 
-static void init_framebuffer_info(uint8_t *ptr)
+static void init_framebuffer_info()
 {
+   MbiTagFramebuffer *tag = s_BootParams.mbi_tags;
    for (;;)
    {
-      uint32_t type = *(uint32_t *)ptr;
-      uint32_t size = *(uint32_t *)(ptr + 4);
+      if (tag->type == MBI_TAG_END) break;
 
-      if (type == MBI_TAG_END) break;
-
-      if (type == MBI_TAG_FRAMEBUFFER && size >= sizeof(MbiTagFramebuffer))
+      if (tag->type == MBI_TAG_FRAMEBUFFER && tag->size >= sizeof(MbiTagFramebuffer))
       {
-         const MbiTagFramebuffer *tag = (const MbiTagFramebuffer *)ptr;
          if (tag->framebuffer_type == 1)
          {
             VBE_Info info;
@@ -113,9 +110,9 @@ static void init_framebuffer_info(uint8_t *ptr)
          }
       }
 
-      /* Advance to next tag (8-byte aligned) */
-      ptr += size;
-      ptr = (uint8_t *)(((uintptr_t)ptr + 7) & ~(uintptr_t)7);
+      /* Advance to next tag (8-byte aligned); size is in bytes. */
+      tag = (MbiTagFramebuffer *)((uint8_t *)tag + tag->size);
+      tag = (MbiTagFramebuffer *)(((uintptr_t)tag + 7) & ~(uintptr_t)7);
    }
 }
 
@@ -154,8 +151,9 @@ static void print_stage3_fs_location(void)
    printf(".\n\n");
 }
 
-void print_memory_map(uint8_t *ptr)
+void print_memory_map(void)
 {
+   uint8_t *ptr = (uint8_t *)s_BootParams.mbi_tags;
    printf("Memory Map:\n");
    for (;;)
    {
@@ -317,6 +315,7 @@ void init_main_boot(void)
    s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
    s_DlCallbackOps.DISK_ReadLBA = s_BootParams.corefs_ops->DISK_ReadLBA;
 
+   // Check for VLSO to patch callback address
    for (int i = 0; i + 4 <= total;
         i++) /* only iterate over bytes that were actually read */
    {
@@ -353,9 +352,8 @@ void init_main_boot(void)
 int main(const BootParams *boot_params)
 {
    s_BootParams = *boot_params;
-   uint8_t *ptr = (uint8_t *)(uintptr_t)boot_params->mbi_addr + 8;
    
-   init_framebuffer_info(ptr);
+   init_framebuffer_info();
 
    g_PreferredOutput = OUTPUT_SERIAL; /* fallback  */
    if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
@@ -383,7 +381,7 @@ int main(const BootParams *boot_params)
    g_PrimaryOutputSystem = s_BootParams.available_outputs;
 
    print_available_outputs();
-   print_memory_map(ptr);
+   print_memory_map();
    print_boot_drive_number();
    print_bios_drive_list();
    print_corefs_memory_address();

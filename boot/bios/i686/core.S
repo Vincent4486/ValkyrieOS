@@ -65,7 +65,7 @@ protected_mode_entry:
 	movw %ax, %ss
 	movl $0x9fc00, %esp
 
-	movl	$MBI_BASE, %eax
+	movl	$(MBI_BASE + 8), %eax
 	movl	%eax, boot_params
 	movl	corefs_start_address, %eax
 	movl	%eax, boot_params + 4
@@ -133,7 +133,7 @@ corefs_partition_uuid:
 
 	.balign 4
 boot_params:
-	.long 0 /* mbi_addr */
+	.long 0 /* mbi_tags */
 	.long 0 /* corefs_ops */
 	.byte 0 /* available_outputs */
 	.byte 0 /* boot_drive */
