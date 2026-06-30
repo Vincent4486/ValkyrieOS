@@ -141,15 +141,15 @@ static void print_bios_drive_list(const uint8_t *drive_list,
    printf("\n");
 }
 
-static void print_stage3_fs_location(const BootParams *BootParams)
+static void print_stage3_fs_location(const BootParams *boot_params)
 {
    printf("Partition label: \"%s\".\n",
-          (const char *)(uintptr_t)BootParams->corefs_partition_label_addr);
+          (const char *)(uintptr_t)boot_params->corefs_partition_label_addr);
 
    printf("Partition UUID: ");
    {
       const uint8_t *uuid =
-          (const uint8_t *)BootParams->corefs_partition_uuid_addr;
+          (const uint8_t *)boot_params->corefs_partition_uuid_addr;
       for (int i = 0; i < 16; i++)
       {
          printf("%x", uuid[i]);
@@ -355,13 +355,13 @@ void init_main_boot(void)
    printf("  Stage3 loaded and resolved successfully.\n");
 }
 
-int main(const BootParams *BootParams)
+int main(const BootParams *boot_params)
 {
-   uint8_t *ptr = (uint8_t *)(uintptr_t)BootParams->mbi_addr + 8;
-   uint8_t available_outputs = (uint8_t)BootParams->available_outputs;
-   uint8_t boot_drive = (uint8_t)BootParams->boot_drive;
-   uint32_t bios_drive_list_count = BootParams->bios_drive_list_count;
-   uint32_t *corefs_raw = (uint32_t *)BootParams->corefs_addr;
+   uint8_t *ptr = (uint8_t *)(uintptr_t)boot_params->mbi_addr + 8;
+   uint8_t available_outputs = (uint8_t)boot_params->available_outputs;
+   uint8_t boot_drive = (uint8_t)boot_params->boot_drive;
+   uint32_t bios_drive_list_count = boot_params->bios_drive_list_count;
+   uint32_t *corefs_raw = (uint32_t *)boot_params->corefs_addr;
    s_FsOps.Initialize = (int (*)(const uint8_t *, uint32_t, const uint8_t *,
                                  const uint8_t *))corefs_raw[0];
    s_FsOps.Open = (int (*)(const char *))corefs_raw[1];
@@ -373,11 +373,11 @@ int main(const BootParams *BootParams)
        (int (*)(uint8_t, uint64_t, uint16_t, void *))corefs_raw[5];
 
    const uint8_t *partition_uuid =
-       (const uint8_t *)(uintptr_t)BootParams->corefs_partition_uuid_addr;
+       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_uuid_addr;
    const uint8_t *partition_label =
-       (const uint8_t *)(uintptr_t)BootParams->corefs_partition_label_addr;
+       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_label_addr;
    const uint8_t *bios_drive_list =
-       (const uint8_t *)(uintptr_t)BootParams->bios_drive_list_addr;
+       (const uint8_t *)(uintptr_t)boot_params->bios_drive_list_addr;
 
    /* Determine preferred output - highest available wins.
       Priority (ascending): serial - VGA text - VGA graphics - VBE. */
@@ -416,8 +416,8 @@ int main(const BootParams *BootParams)
    print_memory_map(ptr);
    print_boot_drive_number(boot_drive);
    print_bios_drive_list(bios_drive_list, bios_drive_list_count);
-   print_corefs_memory_address(BootParams->corefs_addr);
-   print_stage3_fs_location(BootParams);
+   print_corefs_memory_address(boot_params->corefs_addr);
+   print_stage3_fs_location(boot_params);
    init_fs(bios_drive_list, bios_drive_list_count, partition_uuid,
            partition_label);
    init_main_boot();
