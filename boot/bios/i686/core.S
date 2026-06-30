@@ -69,18 +69,18 @@ protected_mode_entry:
 	movl	%eax, boot_params
 	movl	corefs_start_address, %eax
 	movl	%eax, boot_params + 4
-	movzbl	available_outputs, %eax
-	movl	%eax, boot_params + 8
-	movzbl	boot_drive, %eax
-	movl	%eax, boot_params + 12
+	movb	available_outputs, %al
+	movb	%al, boot_params + 8
+	movb	boot_drive, %al
+	movb	%al, boot_params + 9
 	movl	BIOS_DRIVE_LIST_PTR, %eax
-	movl	%eax, boot_params + 16
-	movl	BIOS_DRIVE_LIST_COUNT, %eax
-	movl	%eax, boot_params + 20
+	movl	%eax, boot_params + 10
+	movb	BIOS_DRIVE_LIST_COUNT, %al
+	movb	%al, boot_params + 14
 	leal	corefs_partition_uuid, %eax
-	movl	%eax, boot_params + 24
+	movl	%eax, boot_params + 15
 	leal	corefs_partition_label, %eax
-	movl	%eax, boot_params + 28
+	movl	%eax, boot_params + 19
 
 	pushl	$boot_params
 	call	main
@@ -133,14 +133,14 @@ corefs_partition_uuid:
 
 	.balign 4
 boot_params:
-	.long 0 /* mbiAddr */
-	.long 0 /* corefsAddr */
-	.long 0 /* availableOutputs */
-	.long 0 /* bootDrive */
-	.long 0 /* biosDriveListAddr */
-	.long 0 /* corefsPartitionLabelAddr */
-	.long 0 /* biosDriveListCount */
-	.long 0 /* corefsPartitionUuidAddr */
+	.long 0 /* mbi_addr */
+	.long 0 /* corefs_ops */
+	.byte 0 /* available_outputs */
+	.byte 0 /* boot_drive */
+	.long 0 /* bios_drive_list */
+	.byte 0 /* bios_drive_count */
+	.long 0 /* corefs_partition_uuid */
+	.long 0 /* corefs_partition_label */
 
 	/* ---- String constants ---- */
 	stage2_message:

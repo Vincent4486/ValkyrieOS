@@ -16,9 +16,8 @@ typedef struct MbiTagFramebuffer MbiTagFramebuffer;
 typedef struct BootParams BootParams;
 
 static void init_framebuffer_info(uint8_t *ptr);
-static void print_bios_drive_list(const uint8_t *drive_list,
-                                  uint32_t drive_count);
-static void print_stage3_fs_location(const BootParams *BootParams);
+static void print_bios_drive_list(void);
+static void print_stage3_fs_location(void);
 
 /* Multiboot2 tag types */
 #define MBI_TAG_END 0
@@ -64,16 +63,16 @@ struct MbiTagFramebuffer
    uint8_t rgb_reserved[2];
 };
 
-struct BootParams
+struct __attribute__((packed)) BootParams
 {
-   uintptr_t mbi_addr;
-   uintptr_t corefs_addr;
-   uint32_t available_outputs;
-   uint32_t boot_drive;
-   uintptr_t bios_drive_list_addr;
-   uint32_t bios_drive_list_count;
-   uintptr_t corefs_partition_uuid_addr;
-   uintptr_t corefs_partition_label_addr;
+   void *mbi_addr;
+   CoreFsOperations *corefs_ops;
+   uint8_t available_outputs;
+   uint8_t boot_drive;
+   uint8_t *bios_drive_list;
+   uint8_t bios_drive_count;
+   uint8_t *corefs_partition_uuid;
+   uint8_t *corefs_partition_label;
 };
 
 int g_PrimaryOutputSystem = 0;
@@ -81,7 +80,7 @@ int g_PreferredOutput = OUTPUT_VGATEXT;
 const char *g_Stage3Path =
     "/boot/libTheBootloader-" OS_VERSION "_" BUILD_TYPE ".so";
 
-static CoreFsOperations s_FsOps = {0};
+static BootParams s_BootParams = {0};
 static DL_CallbackOperations s_DlCallbackOps = {0};
 
 static void init_framebuffer_info(uint8_t *ptr)
@@ -120,39 +119,36 @@ static void init_framebuffer_info(uint8_t *ptr)
    }
 }
 
-static void print_bios_drive_list(const uint8_t *drive_list,
-                                  uint32_t drive_count)
+static void print_bios_drive_list(void)
 {
    uint32_t i;
 
    printf("Detected BIOS drives:\n");
 
-   if (!drive_list || drive_count == 0)
+   if (!s_BootParams.bios_drive_list || s_BootParams.bios_drive_count == 0)
    {
       printf("  (none)\n\n");
       return;
    }
 
-   for (i = 0; i < drive_count; i++)
+   for (i = 0; i < s_BootParams.bios_drive_count; i++)
    {
-      printf("  0x%x\n", drive_list[i]);
+      printf("  0x%x\n", s_BootParams.bios_drive_list[i]);
    }
 
    printf("\n");
 }
 
-static void print_stage3_fs_location(const BootParams *boot_params)
+static void print_stage3_fs_location(void)
 {
    printf("Partition label: \"%s\".\n",
-          (const char *)(uintptr_t)boot_params->corefs_partition_label_addr);
+          s_BootParams.corefs_partition_label);
 
    printf("Partition UUID: ");
    {
-      const uint8_t *uuid =
-          (const uint8_t *)boot_params->corefs_partition_uuid_addr;
       for (int i = 0; i < 16; i++)
       {
-         printf("%x", uuid[i]);
+         printf("%x", s_BootParams.corefs_partition_uuid[i]);
       }
    }
    printf(".\n\n");
@@ -200,41 +196,41 @@ void print_memory_map(uint8_t *ptr)
 }
 
 /* Print which output systems are reported as available. */
-void print_available_outputs(uint8_t available_outputs)
+void print_available_outputs(void)
 {
    printf("Available outputs:\n");
 
-   if (available_outputs & (1 << OUTPUT_VBE)) printf("  VBE\n");
-   if (available_outputs & (1 << OUTPUT_VGA)) printf("  VGA graphics\n");
-   if (available_outputs & (1 << OUTPUT_VGATEXT)) printf("  VGA text\n");
-   if (available_outputs & (1 << OUTPUT_SERIAL)) printf("  Serial (COM1)\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VBE)) printf("  VBE\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA)) printf("  VGA graphics\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT)) printf("  VGA text\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_SERIAL)) printf("  Serial (COM1)\n");
 
    printf("\n");
 }
 
-void print_boot_drive_number(int boot_drive)
+void print_boot_drive_number(void)
 {
    char *driveType;
-   if (boot_drive == 0xe0)
+   if (s_BootParams.boot_drive == 0xe0)
       driveType = "CD/DVD";
-   else if (boot_drive < 0x80)
+   else if (s_BootParams.boot_drive < 0x80)
       driveType = "Floppy Disk";
    else
       driveType = "Hard Disk";
 
    printf("Boot drive information:\n");
 
-   printf("  Boot Drive Number: 0x%x.\n", boot_drive);
+   printf("  Boot Drive Number: 0x%x.\n", s_BootParams.boot_drive);
 
    printf("  Booted from a %s.\n\n", driveType);
 }
 
-void print_corefs_memory_address(uintptr_t address)
+void print_corefs_memory_address(void)
 {
-   printf("Corefs Module location: %x.\n\n", address);
+   printf("Corefs Module location: %x.\n\n", s_BootParams.corefs_ops);
 }
 
-void print_logo()
+void print_logo(void)
 {
    if (g_PreferredOutput == OUTPUT_VBE)
    {
@@ -268,13 +264,12 @@ void print_logo()
    }
 }
 
-void init_fs(const uint8_t *bios_drive_list, uint32_t bios_drive_list_count,
-             const uint8_t *partition_uuid, const uint8_t *partition_label)
+void init_fs(void)
 {
    printf("Entering filesystem setup.\n");
 
-   int rc = s_FsOps.Initialize(bios_drive_list, bios_drive_list_count,
-                               partition_uuid, partition_label);
+   int rc = s_BootParams.corefs_ops->Initialize(s_BootParams.bios_drive_list, s_BootParams.bios_drive_count,
+                               s_BootParams.corefs_partition_uuid, s_BootParams.corefs_partition_label);
    if (rc != SUCCESS)
    {
       printf("  FS_Initialize failed: %d.\n", rc);
@@ -289,7 +284,7 @@ void init_main_boot(void)
 {
    printf("Loading libTheBootloader.\n");
 
-   int fd = s_FsOps.Open(g_Stage3Path);
+   int fd = s_BootParams.corefs_ops->Open(g_Stage3Path);
    if (fd < 0)
    {
       printf("  Failed to open %s: %d\n", g_Stage3Path, fd);
@@ -303,12 +298,12 @@ void init_main_boot(void)
    while (total < (int)sizeof(stage3_buf))
    {
       rc =
-          s_FsOps.Read(fd, stage3_buf + total, (int)sizeof(stage3_buf) - total);
+          s_BootParams.corefs_ops->Read(fd, stage3_buf + total, (int)sizeof(stage3_buf) - total);
       if (rc <= 0) break;
       total += rc;
    }
 
-   s_FsOps.Close(fd);
+   s_BootParams.corefs_ops->Close(fd);
 
    if (rc < 0 || total == 0)
    {
@@ -319,8 +314,8 @@ void init_main_boot(void)
    printf("  Read %d bytes from %s\n", total, g_Stage3Path);
 
    // Populate s_DlCallbackOps
-   s_DlCallbackOps.DISK_Read = s_FsOps.DISK_Read;
-   s_DlCallbackOps.DISK_ReadLBA = s_FsOps.DISK_ReadLBA;
+   s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
+   s_DlCallbackOps.DISK_ReadLBA = s_BootParams.corefs_ops->DISK_ReadLBA;
 
    for (int i = 0; i + 4 <= total;
         i++) /* only iterate over bytes that were actually read */
@@ -357,43 +352,18 @@ void init_main_boot(void)
 
 int main(const BootParams *boot_params)
 {
+   s_BootParams = *boot_params;
    uint8_t *ptr = (uint8_t *)(uintptr_t)boot_params->mbi_addr + 8;
-   uint8_t available_outputs = (uint8_t)boot_params->available_outputs;
-   uint8_t boot_drive = (uint8_t)boot_params->boot_drive;
-   uint32_t bios_drive_list_count = boot_params->bios_drive_list_count;
-   uint32_t *corefs_raw = (uint32_t *)boot_params->corefs_addr;
-   s_FsOps.Initialize = (int (*)(const uint8_t *, uint32_t, const uint8_t *,
-                                 const uint8_t *))corefs_raw[0];
-   s_FsOps.Open = (int (*)(const char *))corefs_raw[1];
-   s_FsOps.Read = (int (*)(int, void *, int))corefs_raw[2];
-   s_FsOps.Close = (int (*)(int))corefs_raw[3];
-   s_FsOps.DISK_Read = (int (*)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t,
-                                void *))corefs_raw[4];
-   s_FsOps.DISK_ReadLBA =
-       (int (*)(uint8_t, uint64_t, uint16_t, void *))corefs_raw[5];
-
-   const uint8_t *partition_uuid =
-       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_uuid_addr;
-   const uint8_t *partition_label =
-       (const uint8_t *)(uintptr_t)boot_params->corefs_partition_label_addr;
-   const uint8_t *bios_drive_list =
-       (const uint8_t *)(uintptr_t)boot_params->bios_drive_list_addr;
-
-   /* Determine preferred output - highest available wins.
-      Priority (ascending): serial - VGA text - VGA graphics - VBE. */
+   
    init_framebuffer_info(ptr);
 
    g_PreferredOutput = OUTPUT_SERIAL; /* fallback  */
-   if (available_outputs & (1 << OUTPUT_VGATEXT))
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
       g_PreferredOutput = OUTPUT_VGATEXT;
-   if (available_outputs & (1 << OUTPUT_VGA)) g_PreferredOutput = OUTPUT_VGA;
-   if ((available_outputs & (1 << OUTPUT_VBE)) && VBE_HasInfo())
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA)) g_PreferredOutput = OUTPUT_VGA;
+   if ((s_BootParams.available_outputs & (1 << OUTPUT_VBE)) && VBE_HasInfo())
       g_PreferredOutput = OUTPUT_VBE;
 
-   /* Initialise ONLY the chosen output system.
-      VGA/VBE switch the hardware to graphics mode, which destroys text-mode
-      output - so they must NOT be initialised unless they are the final pick.
-    */
    switch (g_PreferredOutput)
    {
    case OUTPUT_SERIAL:
@@ -410,16 +380,16 @@ int main(const BootParams *boot_params)
       break;
    }
 
-   g_PrimaryOutputSystem = available_outputs;
+   g_PrimaryOutputSystem = s_BootParams.available_outputs;
 
-   print_available_outputs(available_outputs);
+   print_available_outputs();
    print_memory_map(ptr);
-   print_boot_drive_number(boot_drive);
-   print_bios_drive_list(bios_drive_list, bios_drive_list_count);
-   print_corefs_memory_address(boot_params->corefs_addr);
-   print_stage3_fs_location(boot_params);
-   init_fs(bios_drive_list, bios_drive_list_count, partition_uuid,
-           partition_label);
+   print_boot_drive_number();
+   print_bios_drive_list();
+   print_corefs_memory_address();
+   print_stage3_fs_location();
+
+   init_fs();
    init_main_boot();
 
    print_logo();
