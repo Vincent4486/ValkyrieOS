@@ -10,9 +10,14 @@
 #endif
 
 typedef struct Iso9660File Iso9660File;
-typedef struct Iso9660Operations Iso9660Operations;
+typedef struct Iso9660Drive Iso9660Drive;
 
-static int iso_read_sector(uint64_t iso_lba, void *buffer);
+#ifdef COREFS
+typedef struct Iso9660Operations Iso9660Operations;
+#endif
+
+static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba,
+                           void *buffer);
 static int parse_dir_record(const uint8_t *buf, int off, uint32_t *extent_lba,
                             uint32_t *extent_size, uint8_t *flags,
                             uint8_t *name_len);
@@ -23,12 +28,12 @@ static int label_match(const uint8_t *iso_label, const uint8_t *expected);
 static int check_partition(uint8_t drive, int part_lba,
                            const uint8_t *expected_label,
                            const uint8_t *expected_uuid);
-static int lookup_component(uint64_t dir_lba, uint32_t dir_size,
-                            const char *component, int comp_len,
-                            uint32_t *out_lba, uint32_t *out_size,
-                            uint8_t *out_flags);
-static int resolve_path(const char *path, uint32_t *out_lba,
-                        uint32_t *out_size);
+static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
+                            uint32_t dir_size, const char *component,
+                            int comp_len, uint32_t *out_lba,
+                            uint32_t *out_size, uint8_t *out_flags);
+static int resolve_path(Iso9660Drive *drive, const char *path,
+                        uint32_t *out_lba, uint32_t *out_size);
 
 #define SECTOR_SIZE_ISO 2048
 #define SECTOR_SIZE_CHS 512
@@ -47,6 +52,7 @@ static int resolve_path(const char *path, uint32_t *out_lba,
 #define ISO_SIGNATURE "CD001"
 
 #define MAX_OPEN_FILES 8
+#define MAX_DRIVES 4
 
 struct Iso9660File
 {
@@ -56,25 +62,27 @@ struct Iso9660File
    uint32_t position;  /* current read position              */
 };
 
+struct Iso9660Drive
+{
+   int used;
+   uint8_t boot_drive;
+   uint32_t part_start;
+   uint64_t root_dir_lba;
+   uint32_t root_dir_size;
+   Iso9660File open_files[MAX_OPEN_FILES];
+};
+
+#ifdef COREFS
 struct Iso9660Operations
 {
    int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
-#ifdef COREFS
    int (*DISK_Read)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, void *);
    int (*DISK_ReadLBA)(uint8_t, uint64_t, uint16_t, void *);
-#endif
 };
-
-static uint32_t s_BootDrive = 0;
-static uint32_t s_PartStart = 0;
-
-static uint64_t s_RootDirLBA = 0;
-static uint32_t s_RootDirSize = 0;
-
-static Iso9660File s_OpenFiles[MAX_OPEN_FILES] = {0};
+#endif
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -85,6 +93,13 @@ extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
 #endif
+
+static Iso9660Drive s_Drives[MAX_DRIVES] = {0};
+
+#ifdef COREFS
+static int s_CoreFsDriveId = -1;
+#endif
+
 extern bool MBR_Probe(int drive_id);
 extern int MBR_List(int drive_id, int **offset);
 extern bool GPT_Probe(int drive_id);
@@ -101,30 +116,31 @@ static inline int mem_eq(const void *a, const void *b, int len)
    return 1;
 }
 
-static int iso_read_sector(uint64_t iso_lba, void *buffer)
+static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba,
+                           void *buffer)
 {
-   uint8_t drive = (uint8_t)s_BootDrive;
+   uint8_t bios_drive = drive->boot_drive;
    uint64_t lba;
    uint16_t count;
 
-   if (drive >= 0xE0)
+   if (bios_drive >= 0xE0)
    {
-      lba = (uint64_t)s_PartStart + iso_lba;
+      lba = (uint64_t)drive->part_start + iso_lba;
       count = 1;
    }
    else
    {
-      lba = (uint64_t)s_PartStart + iso_lba * 4;
+      lba = (uint64_t)drive->part_start + iso_lba * 4;
       count = 4;
    }
 
-   if (drive >= 0xE0)
+   if (bios_drive >= 0xE0)
    {
       /* First read may return stale data (BIOS CD-ROM cache). */
-      DISK_ReadLBA(drive, lba, count, buffer);
+      DISK_ReadLBA(bios_drive, lba, count, buffer);
    }
 
-   return DISK_ReadLBA(drive, lba, count, buffer);
+   return DISK_ReadLBA(bios_drive, lba, count, buffer);
 }
 
 static int parse_dir_record(const uint8_t *buf, int off, uint32_t *extent_lba,
@@ -306,10 +322,10 @@ static int suspend_match_nm(const uint8_t *buf, int off, int rec_len,
    return 0;
 }
 
-static int lookup_component(uint64_t dir_lba, uint32_t dir_size,
-                            const char *component, int comp_len,
-                            uint32_t *out_lba, uint32_t *out_size,
-                            uint8_t *out_flags)
+static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
+                            uint32_t dir_size, const char *component,
+                            int comp_len, uint32_t *out_lba,
+                            uint32_t *out_size, uint8_t *out_flags)
 {
    uint8_t buf[SECTOR_SIZE_ISO];
    uint32_t bytes_read = 0;
@@ -318,7 +334,7 @@ static int lookup_component(uint64_t dir_lba, uint32_t dir_size,
    {
       uint64_t sector_idx = bytes_read / SECTOR_SIZE_ISO;
 
-      if (iso_read_sector(dir_lba + sector_idx, buf) != 0) return -EIO;
+      if (iso_read_sector(drive, dir_lba + sector_idx, buf) != 0) return -EIO;
 
       int off = 0;
       while (off < SECTOR_SIZE_ISO)
@@ -364,10 +380,11 @@ static int lookup_component(uint64_t dir_lba, uint32_t dir_size,
    return -ENOENT;
 }
 
-static int resolve_path(const char *path, uint32_t *out_lba, uint32_t *out_size)
+static int resolve_path(Iso9660Drive *drive, const char *path,
+                        uint32_t *out_lba, uint32_t *out_size)
 {
-   uint64_t dir_lba = s_RootDirLBA;
-   uint32_t dir_size = s_RootDirSize;
+   uint64_t dir_lba = drive->root_dir_lba;
+   uint32_t dir_size = drive->root_dir_size;
    uint8_t dir_flags = 2;
 
    if (*path == '/') path++;
@@ -390,8 +407,8 @@ static int resolve_path(const char *path, uint32_t *out_lba, uint32_t *out_size)
 
       uint32_t child_lba, child_size;
       uint8_t child_flags;
-      int rc = lookup_component(dir_lba, dir_size, start, comp_len, &child_lba,
-                                &child_size, &child_flags);
+      int rc = lookup_component(drive, dir_lba, dir_size, start, comp_len,
+                                &child_lba, &child_size, &child_flags);
 
       if (rc != 0) return rc;
 
@@ -414,28 +431,40 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
                        const uint8_t *partition_label)
 {
    uint8_t buf[SECTOR_SIZE_ISO];
+   int drive_id;
+   Iso9660Drive *drive;
 
    if (!bios_drive_list || bios_drive_list_count == 0) return -EINVAL;
+
+   /* Find a free drive slot. */
+   for (drive_id = 0; drive_id < MAX_DRIVES; drive_id++)
+   {
+      if (!s_Drives[drive_id].used) break;
+   }
+   if (drive_id == MAX_DRIVES) return -EMFILE;
+
+   drive = &s_Drives[drive_id];
 
    {
       int found = 0;
       for (uint32_t i = 0; i < bios_drive_list_count && !found; i++)
       {
-         uint8_t drive = bios_drive_list[i];
+         uint8_t bios_drive = bios_drive_list[i];
          int *offsets = NULL;
          int count = -1;
 
-         if (GPT_Probe(drive))
-            count = GPT_List(drive, &offsets);
-         else if (MBR_Probe(drive))
-            count = MBR_List(drive, &offsets);
+         if (GPT_Probe(bios_drive))
+            count = GPT_List(bios_drive, &offsets);
+         else if (MBR_Probe(bios_drive))
+            count = MBR_List(bios_drive, &offsets);
 
          if (count <= 0)
          {
-            if (check_partition(drive, 0, partition_label, partition_uuid) == 1)
+            if (check_partition(bios_drive, 0, partition_label,
+                                partition_uuid) == 1)
             {
-               s_BootDrive = drive;
-               s_PartStart = 0;
+               drive->boot_drive = bios_drive;
+               drive->part_start = 0;
                found = 1;
             }
             continue;
@@ -443,11 +472,11 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
 
          for (int j = 0; j < count && !found; j++)
          {
-            if (check_partition(drive, offsets[j], partition_label,
+            if (check_partition(bios_drive, offsets[j], partition_label,
                                 partition_uuid) == 1)
             {
-               s_BootDrive = drive;
-               s_PartStart = offsets[j];
+               drive->boot_drive = bios_drive;
+               drive->part_start = (uint32_t)offsets[j];
                found = 1;
             }
          }
@@ -455,7 +484,7 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
       if (!found) return -ENODEV;
    }
 
-   if (iso_read_sector(PVD_LBA, buf) != 0) return -EIO;
+   if (iso_read_sector(drive, PVD_LBA, buf) != 0) return -EIO;
    if (buf[0] != 1) return -EINVAL;
    if (!mem_eq(&buf[1], ISO_SIGNATURE, 5)) return -EINVAL;
 
@@ -467,49 +496,64 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
       if (rl == 0) return -EINVAL;
       if (!(root_flags & 2)) return -EINVAL;
 
-      s_RootDirLBA = root_lba;
-      s_RootDirSize = root_size;
+      drive->root_dir_lba = root_lba;
+      drive->root_dir_size = root_size;
    }
 
-   return SUCCESS;
+   drive->used = 1;
+   return drive_id;
 }
 
-int ISO9660_Open(const char *path)
+int ISO9660_Open(int drive_id, const char *path)
 {
    uint32_t file_lba, file_size;
+   Iso9660Drive *drive;
+
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
 
    if (!path || *path == '\0') return -EINVAL;
 
-   int rc = resolve_path(path, &file_lba, &file_size);
+   int rc = resolve_path(drive, path, &file_lba, &file_size);
    if (rc != 0) return rc;
 
    int fd;
    for (fd = 0; fd < MAX_OPEN_FILES; fd++)
    {
-      if (!s_OpenFiles[fd].used) break;
+      if (!drive->open_files[fd].used) break;
    }
    if (fd == MAX_OPEN_FILES) return -EMFILE;
 
-   uint8_t drive = (uint8_t)s_BootDrive;
+   uint8_t bios_drive = drive->boot_drive;
    uint64_t abs_lba;
-   if (drive >= 0xE0)
-      abs_lba = (uint64_t)s_PartStart + (uint64_t)file_lba;
+   if (bios_drive >= 0xE0)
+      abs_lba = (uint64_t)drive->part_start + (uint64_t)file_lba;
    else
-      abs_lba = (uint64_t)s_PartStart + (uint64_t)file_lba * 4;
+      abs_lba = (uint64_t)drive->part_start + (uint64_t)file_lba * 4;
 
-   s_OpenFiles[fd].used = 1;
-   s_OpenFiles[fd].start_lba = abs_lba;
-   s_OpenFiles[fd].size = file_size;
-   s_OpenFiles[fd].position = 0;
+   drive->open_files[fd].used = 1;
+   drive->open_files[fd].start_lba = abs_lba;
+   drive->open_files[fd].size = file_size;
+   drive->open_files[fd].position = 0;
 
    return fd;
 }
 
-int ISO9660_Read(int fd, void *buffer, int count)
+int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
 {
-   if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
+   Iso9660Drive *drive;
 
-   Iso9660File *f = &s_OpenFiles[fd];
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
+
+   if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+      return -EBADF;
+
+   Iso9660File *f = &drive->open_files[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -518,8 +562,8 @@ int ISO9660_Read(int fd, void *buffer, int count)
    uint32_t remaining = f->size - f->position;
    if ((uint32_t)count > remaining) count = (int)remaining;
 
-   uint8_t drive = (uint8_t)s_BootDrive;
-   uint32_t phys_ss = (drive >= 0xE0) ? SECTOR_SIZE_ISO : SECTOR_SIZE_CHS;
+   uint8_t bios_drive = drive->boot_drive;
+   uint32_t phys_ss = (bios_drive >= 0xE0) ? SECTOR_SIZE_ISO : SECTOR_SIZE_CHS;
    uint32_t bytes_done = 0;
 
    while (bytes_done < (uint32_t)count)
@@ -533,8 +577,8 @@ int ISO9660_Read(int fd, void *buffer, int count)
          chunk = (uint32_t)count - bytes_done;
 
       uint8_t tmp[SECTOR_SIZE_ISO];
-      if (DISK_ReadLBA(drive, phys_sector, 1, tmp) != 0)
-         return (bytes_done > 0) ? (int)bytes_done : EIO;
+      if (DISK_ReadLBA(bios_drive, phys_sector, 1, tmp) != 0)
+         return (bytes_done > 0) ? (int)bytes_done : -EIO;
 
       for (uint32_t i = 0; i < chunk; i++)
          buf[bytes_done + i] = tmp[phys_off + i];
@@ -546,22 +590,56 @@ int ISO9660_Read(int fd, void *buffer, int count)
    return (int)bytes_done;
 }
 
-int ISO9660_Close(int fd)
+int ISO9660_Close(int drive_id, int fd)
 {
-   if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
+   Iso9660Drive *drive;
 
-   s_OpenFiles[fd].used = 0;
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
+
+   if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+      return -EBADF;
+
+   drive->open_files[fd].used = 0;
    return SUCCESS;
 }
 
 #ifdef COREFS
 
+static int corefs_Initialize(const uint8_t *bios_drive_list,
+                             uint32_t bios_drive_list_count,
+                             const uint8_t *partition_uuid,
+                             const uint8_t *partition_label)
+{
+   int id = ISO9660_Initialize(bios_drive_list, bios_drive_list_count,
+                               partition_uuid, partition_label);
+   if (id >= 0) s_CoreFsDriveId = id;
+   return id;
+}
+
+static int corefs_Open(const char *path)
+{
+   return ISO9660_Open(s_CoreFsDriveId, path);
+}
+
+static int corefs_Read(int fd, void *buffer, int count)
+{
+   return ISO9660_Read(s_CoreFsDriveId, fd, buffer, count);
+}
+
+static int corefs_Close(int fd)
+{
+   return ISO9660_Close(s_CoreFsDriveId, fd);
+}
+
 static const Iso9660Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .Initialize = ISO9660_Initialize,
-        .Open = ISO9660_Open,
-        .Read = ISO9660_Read,
-        .Close = ISO9660_Close,
+        .Initialize = corefs_Initialize,
+        .Open = corefs_Open,
+        .Read = corefs_Read,
+        .Close = corefs_Close,
         .DISK_Read = DISK_Read,
         .DISK_ReadLBA = DISK_ReadLBA,
 };

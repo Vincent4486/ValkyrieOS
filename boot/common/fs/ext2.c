@@ -11,20 +11,28 @@
 #endif
 
 typedef struct Ext2File Ext2File;
-typedef struct Ext2Operations Ext2Operations;
+typedef struct Ext2Drive Ext2Drive;
 
-static int ext2_read_block(uint32_t block_idx, void *buffer);
-static int ext2_read_sector(uint64_t lba, void *buffer);
-static int ext2_bgdt_offset(void);
-static int read_superblock(uint8_t drive, uint32_t part_lba);
-static int read_inode(uint32_t inode_num, uint8_t *out);
-static uint32_t ext2_find_block(uint32_t inode_block_ptr, uint32_t *indirect,
-                                int level, uint32_t block_index);
-static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index);
-static int ext2_lookup(uint32_t dir_inode, const char *component, int comp_len,
+#ifdef COREFS
+typedef struct Ext2Operations Ext2Operations;
+#endif
+
+static int ext2_read_block(Ext2Drive *drive, uint32_t block_idx,
+                           void *buffer);
+static int ext2_read_sector(Ext2Drive *drive, uint64_t lba, void *buffer);
+static int ext2_bgdt_offset(Ext2Drive *drive);
+static int read_superblock(Ext2Drive *drive);
+static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out);
+static uint32_t ext2_find_block(Ext2Drive *drive, uint32_t inode_block_ptr,
+                                uint32_t *indirect, int level,
+                                uint32_t block_index);
+static uint32_t inode_get_block(Ext2Drive *drive, uint8_t *inode,
+                                uint32_t block_index);
+static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
+                       const char *component, int comp_len,
                        uint32_t *out_inode, uint32_t *out_size);
-static int ext2_resolve(const char *path, uint32_t *out_inode,
-                        uint32_t *out_size);
+static int ext2_resolve(Ext2Drive *drive, const char *path,
+                        uint32_t *out_inode, uint32_t *out_size);
 static int check_partition(uint8_t drive, int part_lba,
                            const uint8_t *expected_label,
                            const uint8_t *expected_uuid);
@@ -123,6 +131,8 @@ static int check_partition(uint8_t drive, int part_lba,
 #define EXT2_TIND_BLOCK 14
 #define EXT2_N_BLOCKS 15
 
+#define MAX_DRIVES 4
+
 struct Ext2File
 {
    int used;
@@ -131,35 +141,35 @@ struct Ext2File
    uint32_t position; /* current read position */
 };
 
+struct Ext2Drive
+{
+   int used;
+   uint8_t boot_drive;
+   uint32_t part_start;
+   uint32_t block_size;
+   uint32_t blocks_per_group;
+   uint32_t inodes_per_group;
+   uint32_t inode_size;
+   uint32_t first_data_block;
+   uint32_t total_inodes;
+   uint32_t rev_level;
+   uint32_t desc_size;
+   uint32_t root_inode;
+   uint32_t root_size;
+   Ext2File open_files[MAX_OPEN_FILES];
+};
+
+#ifdef COREFS
 struct Ext2Operations
 {
    int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
-#ifdef COREFS
    int (*DISK_Read)(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, void *);
    int (*DISK_ReadLBA)(uint8_t, uint64_t, uint16_t, void *);
-#endif
 };
-
-static uint8_t s_BootDrive = 0;
-static uint32_t s_PartStart = 0;
-
-static uint32_t s_BlockSize = 1024;
-static uint32_t s_BlocksPerGroup = 0;
-static uint32_t s_InodesPerGroup = 0;
-static uint32_t s_InodeSize = 128;
-static uint32_t s_FirstDataBlock = 0;
-static uint32_t s_TotalInodes = 0;
-static uint32_t s_RevLevel = 0;
-
-static uint32_t s_DescSize = 32;
-
-static uint32_t s_RootInode = 2;
-static uint32_t s_RootSize = 0;
-
-static Ext2File s_OpenFiles[MAX_OPEN_FILES] = {0};
+#endif
 
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
@@ -170,146 +180,120 @@ extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
 #endif
+
+static Ext2Drive s_Drives[MAX_DRIVES] = {0};
+
+#ifdef COREFS
+static int s_CoreFsDriveId = -1;
+#endif
+
 extern bool MBR_Probe(int drive_id);
 extern int MBR_List(int drive_id, int **offset);
 extern bool GPT_Probe(int drive_id);
 extern int GPT_List(int drive_id, int **offset);
 
-static int ext2_read_sector(uint64_t lba, void *buffer)
+static int ext2_read_sector(Ext2Drive *drive, uint64_t lba, void *buffer)
 {
-   return DISK_ReadLBA(s_BootDrive, (uint64_t)s_PartStart + lba, 1, buffer);
+   return DISK_ReadLBA(drive->boot_drive, (uint64_t)drive->part_start + lba,
+                       1, buffer);
 }
 
-static int ext2_read_block(uint32_t block_idx, void *buffer)
+static int ext2_read_block(Ext2Drive *drive, uint32_t block_idx, void *buffer)
 {
-   uint32_t sectors_per_block = s_BlockSize / SECTOR_SIZE;
+   uint32_t sectors_per_block = drive->block_size / SECTOR_SIZE;
    uint32_t first_lba;
 
-   if (s_BlockSize == 1024)
+   if (drive->block_size == 1024)
    {
-      // Block numbers are in 1024-byte units; block 0 = LBA 0
-      // Superblock is at byte offset 1024 = block 1
-      // Data blocks start at block 0
       first_lba = block_idx * (1024 / SECTOR_SIZE);
    }
    else
    {
-      // Block size > 1024: block 0 is at byte offset 0 (LBA 0)
-      // But first_data_block is usually 0 in this case
-      first_lba = block_idx * (s_BlockSize / SECTOR_SIZE);
+      first_lba = block_idx * (drive->block_size / SECTOR_SIZE);
    }
 
-   return DISK_ReadLBA(s_BootDrive, (uint64_t)s_PartStart + first_lba,
+   return DISK_ReadLBA(drive->boot_drive,
+                       (uint64_t)drive->part_start + first_lba,
                        (uint16_t)sectors_per_block, buffer);
 }
 
-static int read_superblock(uint8_t drive, uint32_t part_lba)
+static int read_superblock(Ext2Drive *drive)
 {
    uint8_t buf[SECTOR_SIZE];
-   uint8_t saved_drive = s_BootDrive;
-   uint32_t saved_part = s_PartStart;
-   s_BootDrive = drive;
-   s_PartStart = part_lba;
 
-   // Superblock is at byte offset 1024 from partition start.
-   // This spans 2 sectors for 512-byte sectors.
    uint32_t sb_lba = SUPERBLOCK_OFFSET / SECTOR_SIZE;
    uint32_t sb_off = SUPERBLOCK_OFFSET % SECTOR_SIZE;
 
-   if (ext2_read_sector(sb_lba, buf) != 0)
-   {
-      s_BootDrive = saved_drive;
-      s_PartStart = saved_part;
-      return -EIO;
-   }
+   if (ext2_read_sector(drive, sb_lba, buf) != 0) return -EIO;
 
-   // Verify ext2 magic
    uint16_t magic = (uint16_t)buf[sb_off + SB_MAGIC_OFF] |
                     ((uint16_t)buf[sb_off + SB_MAGIC_OFF + 1] << 8);
-   if (magic != EXT2_MAGIC)
-   {
-      s_BootDrive = saved_drive;
-      s_PartStart = saved_part;
-      return -EINVAL;
-   }
+   if (magic != EXT2_MAGIC) return -EINVAL;
 
    uint32_t log_block_size =
        (uint32_t)buf[sb_off + SB_LOG_BLOCK_SIZE_OFF] |
        ((uint32_t)buf[sb_off + SB_LOG_BLOCK_SIZE_OFF + 1] << 8) |
        ((uint32_t)buf[sb_off + SB_LOG_BLOCK_SIZE_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_LOG_BLOCK_SIZE_OFF + 3] << 24);
-   s_BlockSize = 1024 << log_block_size;
+   drive->block_size = 1024 << log_block_size;
 
-   s_BlocksPerGroup =
+   drive->blocks_per_group =
        (uint32_t)buf[sb_off + SB_BLOCKS_PER_GROUP_OFF] |
        ((uint32_t)buf[sb_off + SB_BLOCKS_PER_GROUP_OFF + 1] << 8) |
        ((uint32_t)buf[sb_off + SB_BLOCKS_PER_GROUP_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_BLOCKS_PER_GROUP_OFF + 3] << 24);
 
-   s_InodesPerGroup =
+   drive->inodes_per_group =
        (uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF] |
        ((uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF + 1] << 8) |
        ((uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF + 3] << 24);
 
-   s_TotalInodes = (uint32_t)buf[sb_off + SB_INODES_COUNT_OFF] |
-                   ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 1] << 8) |
-                   ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 2] << 16) |
-                   ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 3] << 24);
+   drive->total_inodes = (uint32_t)buf[sb_off + SB_INODES_COUNT_OFF] |
+                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 1] << 8) |
+                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 2] << 16) |
+                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 3] << 24);
 
-   s_FirstDataBlock =
+   drive->first_data_block =
        (uint32_t)buf[sb_off + SB_FIRST_DATA_BLOCK_OFF] |
        ((uint32_t)buf[sb_off + SB_FIRST_DATA_BLOCK_OFF + 1] << 8) |
        ((uint32_t)buf[sb_off + SB_FIRST_DATA_BLOCK_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_FIRST_DATA_BLOCK_OFF + 3] << 24);
 
-   s_RevLevel = (uint32_t)buf[sb_off + SB_REV_LEVEL_OFF] |
-                ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 1] << 8) |
-                ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 2] << 16) |
-                ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 3] << 24);
+   drive->rev_level = (uint32_t)buf[sb_off + SB_REV_LEVEL_OFF] |
+                      ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 1] << 8) |
+                      ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 2] << 16) |
+                      ((uint32_t)buf[sb_off + SB_REV_LEVEL_OFF + 3] << 24);
 
-   s_InodeSize = (uint32_t)buf[sb_off + SB_INODE_SIZE_OFF] |
-                 ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 1] << 8) |
-                 ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 2] << 16) |
-                 ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 3] << 24);
-   if (s_InodeSize < 128) s_InodeSize = 128;
+   drive->inode_size = (uint32_t)buf[sb_off + SB_INODE_SIZE_OFF] |
+                       ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 1] << 8) |
+                       ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 2] << 16) |
+                       ((uint32_t)buf[sb_off + SB_INODE_SIZE_OFF + 3] << 24);
+   if (drive->inode_size < 128) drive->inode_size = 128;
 
-   // Read incompatible features.  Modern mke2fs writes feature flags at the
-   // standard offsets (92, 96, 100) even when s_rev_level is 0, reusing the
-   // old s_reserved area which must be zero for plain ext2.
    uint32_t incompat =
        (uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF] |
        ((uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF + 1] << 8) |
        ((uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF + 3] << 24);
 
-   if (incompat & ~EXT2_INCOMPAT_HANDLED)
-   {
-      s_BootDrive = saved_drive;
-      s_PartStart = saved_part;
-      return -EINVAL;
-   }
+   if (incompat & ~EXT2_INCOMPAT_HANDLED) return -EINVAL;
 
-   // Block group descriptor size.
-   // When INCOMPAT_64BIT is set, descriptors are 64 bytes even if
-   // s_desc_size in the superblock is 0 (rev 0 filesystems).
-   s_DescSize = 32;
-   if (s_RevLevel >= EXT2_DYNAMIC_REV)
+   drive->desc_size = 32;
+   if (drive->rev_level >= EXT2_DYNAMIC_REV)
    {
       uint32_t ds = (uint32_t)buf[sb_off + SB_DESC_SIZE_OFF] |
                     ((uint32_t)buf[sb_off + SB_DESC_SIZE_OFF + 1] << 8) |
                     ((uint32_t)buf[sb_off + SB_DESC_SIZE_OFF + 2] << 16) |
                     ((uint32_t)buf[sb_off + SB_DESC_SIZE_OFF + 3] << 24);
       if (ds >= 64)
-         s_DescSize = 64;
+         drive->desc_size = 64;
       else if (ds >= 32)
-         s_DescSize = 32;
+         drive->desc_size = 32;
    }
-   if (s_DescSize < 64 && (incompat & EXT2_FEATURE_INCOMPAT_64BIT))
-      s_DescSize = 64;
+   if (drive->desc_size < 64 && (incompat & EXT2_FEATURE_INCOMPAT_64BIT))
+      drive->desc_size = 64;
 
-   s_BootDrive = saved_drive;
-   s_PartStart = saved_part;
    return SUCCESS;
 }
 
@@ -317,75 +301,59 @@ static int read_superblock(uint8_t drive, uint32_t part_lba)
  * Calculate offset (in bytes from partition start) of the
  * block group descriptor table.
  */
-static int ext2_bgdt_offset(void)
+static int ext2_bgdt_offset(Ext2Drive *drive)
 {
-   // BGDT starts in the block following the superblock.
-   // Superblock is in block 1 (for 1024-byte block size) or block 0.
-   // For 1024-byte blocks: superblock in block 1, BGDT in block 2.
-   // For larger blocks: superblock in block 0 (but spanning byte 1024),
-   //   BGDT starts at byte s_BlockSize.
-   if (s_BlockSize == 1024)
-      return 2 * s_BlockSize; // Block 2
+   if (drive->block_size == 1024)
+      return 2 * drive->block_size;
    else
-      return s_BlockSize; // Block 1 (superblock is in block 0)
+      return drive->block_size;
 }
 
-static int read_inode(uint32_t inode_num, uint8_t *out)
+static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
 {
-   // Inode numbers are 1-based
    if (inode_num == 0) return -EINVAL;
 
-   uint32_t group = (inode_num - 1) / s_InodesPerGroup;
-   uint32_t index = (inode_num - 1) % s_InodesPerGroup;
+   uint32_t group = (inode_num - 1) / drive->inodes_per_group;
+   uint32_t index = (inode_num - 1) % drive->inodes_per_group;
 
-   // Read block group descriptor (32 or 64 bytes)
    uint8_t bgdt_buf[64];
-   int bgdt_off = ext2_bgdt_offset();
-   uint32_t bgdt_block = (uint32_t)bgdt_off / s_BlockSize;
-   uint32_t bgdt_byte = (uint32_t)bgdt_off % s_BlockSize;
+   int bgdt_off = ext2_bgdt_offset(drive);
+   uint32_t bgdt_block = (uint32_t)bgdt_off / drive->block_size;
+   uint32_t bgdt_byte = (uint32_t)bgdt_off % drive->block_size;
 
    {
-      uint8_t block_buf[4096]; // Max block size 4096
-      if (ext2_read_block(bgdt_block, block_buf) != 0) return -EIO;
+      uint8_t block_buf[4096];
+      if (ext2_read_block(drive, bgdt_block, block_buf) != 0) return -EIO;
 
-      uint32_t bgdt_entry_off = bgdt_byte + group * s_DescSize;
-      for (uint32_t i = 0; i < s_DescSize && i < 64; i++)
+      uint32_t bgdt_entry_off = bgdt_byte + group * drive->desc_size;
+      for (uint32_t i = 0; i < drive->desc_size && i < 64; i++)
          bgdt_buf[i] = block_buf[bgdt_entry_off + i];
    }
 
-   // Block numbers in BGDT are at the same offsets for 32b and 64b entries
    uint32_t inode_table_block =
        (uint32_t)bgdt_buf[BG_INODE_TABLE_OFF] |
        ((uint32_t)bgdt_buf[BG_INODE_TABLE_OFF + 1] << 8) |
        ((uint32_t)bgdt_buf[BG_INODE_TABLE_OFF + 2] << 16) |
        ((uint32_t)bgdt_buf[BG_INODE_TABLE_OFF + 3] << 24);
 
-   // Inodes per block
-   uint32_t inodes_per_block = s_BlockSize / s_InodeSize;
+   uint32_t inodes_per_block = drive->block_size / drive->inode_size;
    uint32_t inode_block_idx = inode_table_block + (index / inodes_per_block);
-   uint32_t inode_byte_off = (index % inodes_per_block) * s_InodeSize;
+   uint32_t inode_byte_off = (index % inodes_per_block) * drive->inode_size;
 
    uint8_t block_buf[4096];
-   if (ext2_read_block(inode_block_idx, block_buf) != 0) return -EIO;
+   if (ext2_read_block(drive, inode_block_idx, block_buf) != 0) return -EIO;
 
-   for (uint32_t i = 0; i < s_InodeSize && i < 128; i++)
+   for (uint32_t i = 0; i < drive->inode_size && i < 128; i++)
       out[i] = block_buf[inode_byte_off + i];
 
    return SUCCESS;
 }
 
-/**
- * Follow indirect block chain to find the physical block for a given
- * logical block index.
- *
- * level 0 = single indirect (pointers to data blocks)
- * level 1 = double indirect (pointers to indirect blocks)
- * level 2 = triple indirect
- */
-static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
-                                int level, uint32_t block_index)
+static uint32_t ext2_find_block(Ext2Drive *drive, uint32_t block_ptr,
+                                uint32_t *indirect, int level,
+                                uint32_t block_index)
 {
-   uint32_t ptrs_per_block = s_BlockSize / 4;
+   uint32_t ptrs_per_block = drive->block_size / 4;
 
    if (level == 0)
    {
@@ -394,7 +362,7 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
       {
          // Lazy init: read the indirect block
          uint8_t buf[4096];
-         if (ext2_read_block(block_ptr, buf) != 0) return 0;
+         if (ext2_read_block(drive, block_ptr, buf) != 0) return 0;
          for (uint32_t i = 0; i < ptrs_per_block; i++)
          {
             indirect[i] = (uint32_t)buf[i * 4] |
@@ -414,7 +382,7 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
    {
       // Double indirect: block_ptr points to array of indirect block pointers
       uint8_t buf[4096];
-      if (ext2_read_block(block_ptr, buf) != 0) return 0;
+      if (ext2_read_block(drive, block_ptr, buf) != 0) return 0;
       uint32_t child_block = (uint32_t)buf[child_idx * 4] |
                              ((uint32_t)buf[child_idx * 4 + 1] << 8) |
                              ((uint32_t)buf[child_idx * 4 + 2] << 16) |
@@ -423,7 +391,7 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
 
       // Now resolve single indirect
       uint8_t child_buf[4096];
-      if (ext2_read_block(child_block, child_buf) != 0) return 0;
+      if (ext2_read_block(drive, child_block, child_buf) != 0) return 0;
       return (uint32_t)child_buf[sub_idx * 4] |
              ((uint32_t)child_buf[sub_idx * 4 + 1] << 8) |
              ((uint32_t)child_buf[sub_idx * 4 + 2] << 16) |
@@ -433,7 +401,7 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
    // Triple indirect
    {
       uint8_t buf[4096];
-      if (ext2_read_block(block_ptr, buf) != 0) return 0;
+      if (ext2_read_block(drive, block_ptr, buf) != 0) return 0;
       uint32_t l1_block = (uint32_t)buf[child_idx * 4] |
                           ((uint32_t)buf[child_idx * 4 + 1] << 8) |
                           ((uint32_t)buf[child_idx * 4 + 2] << 16) |
@@ -443,14 +411,14 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
       uint32_t l2_idx = sub_idx / ptrs_per_block;
       uint32_t l2_sub = sub_idx % ptrs_per_block;
 
-      if (ext2_read_block(l1_block, buf) != 0) return 0;
+      if (ext2_read_block(drive, l1_block, buf) != 0) return 0;
       uint32_t l2_block = (uint32_t)buf[l2_idx * 4] |
                           ((uint32_t)buf[l2_idx * 4 + 1] << 8) |
                           ((uint32_t)buf[l2_idx * 4 + 2] << 16) |
                           ((uint32_t)buf[l2_idx * 4 + 3] << 24);
       if (l2_block == 0) return 0;
 
-      if (ext2_read_block(l2_block, buf) != 0) return 0;
+      if (ext2_read_block(drive, l2_block, buf) != 0) return 0;
       return (uint32_t)buf[l2_sub * 4] | ((uint32_t)buf[l2_sub * 4 + 1] << 8) |
              ((uint32_t)buf[l2_sub * 4 + 2] << 16) |
              ((uint32_t)buf[l2_sub * 4 + 3] << 24);
@@ -461,7 +429,8 @@ static uint32_t ext2_find_block(uint32_t block_ptr, uint32_t *indirect,
  * Resolve block number through ext4 extent tree.
  * inode points to the inode buffer (i_block starts at INODE_BLOCK_OFF).
  */
-static uint32_t ext4_extent_get_block(uint8_t *inode, uint32_t block_index)
+static uint32_t ext4_extent_get_block(Ext2Drive *drive, uint8_t *inode,
+                                     uint32_t block_index)
 {
    // Extent header is at i_block[0..11], i.e. INODE_BLOCK_OFF
    const uint8_t *eh = inode + INODE_BLOCK_OFF;
@@ -530,7 +499,7 @@ static uint32_t ext4_extent_get_block(uint8_t *inode, uint32_t block_index)
                          ((uint32_t)ix[10] << 16) | ((uint32_t)ix[11] << 24);
       uint32_t child_block = leaf_lo | (leaf_hi << 16);
 
-      if (ext2_read_block(child_block, block_buf) != 0) return 0;
+      if (ext2_read_block(drive, child_block, block_buf) != 0) return 0;
 
       current_eh = block_buf;
       current_depth--;
@@ -563,17 +532,16 @@ static uint32_t ext4_extent_get_block(uint8_t *inode, uint32_t block_index)
    return 0;
 }
 
-static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index)
+static uint32_t inode_get_block(Ext2Drive *drive, uint8_t *inode,
+                                uint32_t block_index)
 {
-   // Check for ext4 extent tree
    uint32_t flags = (uint32_t)inode[INODE_FLAGS_OFF] |
                     ((uint32_t)inode[INODE_FLAGS_OFF + 1] << 8) |
                     ((uint32_t)inode[INODE_FLAGS_OFF + 2] << 16) |
                     ((uint32_t)inode[INODE_FLAGS_OFF + 3] << 24);
    if (flags & EXT4_EXTENTS_FL)
-      return ext4_extent_get_block(inode, block_index);
+      return ext4_extent_get_block(drive, inode, block_index);
 
-   // Traditional block mapping
    uint32_t direct[EXT2_NDIR_BLOCKS];
    for (int i = 0; i < EXT2_NDIR_BLOCKS; i++)
    {
@@ -585,7 +553,7 @@ static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index)
 
    if (block_index < EXT2_NDIR_BLOCKS) return direct[block_index];
 
-   uint32_t ptrs_per_block = s_BlockSize / 4;
+   uint32_t ptrs_per_block = drive->block_size / 4;
 
    // Single indirect
    uint32_t ind_block =
@@ -597,14 +565,13 @@ static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index)
    if (block_index < ind_start + ptrs_per_block)
    {
       uint8_t buf[4096];
-      if (ext2_read_block(ind_block, buf) != 0) return 0;
+      if (ext2_read_block(drive, ind_block, buf) != 0) return 0;
       uint32_t idx = block_index - ind_start;
       return (uint32_t)buf[idx * 4] | ((uint32_t)buf[idx * 4 + 1] << 8) |
              ((uint32_t)buf[idx * 4 + 2] << 16) |
              ((uint32_t)buf[idx * 4 + 3] << 24);
    }
 
-   // Double indirect
    uint32_t dind_block =
        (uint32_t)inode[INODE_BLOCK_OFF + EXT2_DIND_BLOCK * 4] |
        ((uint32_t)inode[INODE_BLOCK_OFF + EXT2_DIND_BLOCK * 4 + 1] << 8) |
@@ -614,10 +581,9 @@ static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index)
    if (block_index < dind_start + ptrs_per_block * ptrs_per_block)
    {
       uint32_t idx = block_index - dind_start;
-      return ext2_find_block(dind_block, NULL, 1, idx);
+      return ext2_find_block(drive, dind_block, NULL, 1, idx);
    }
 
-   // Triple indirect
    uint32_t tind_block =
        (uint32_t)inode[INODE_BLOCK_OFF + EXT2_TIND_BLOCK * 4] |
        ((uint32_t)inode[INODE_BLOCK_OFF + EXT2_TIND_BLOCK * 4 + 1] << 8) |
@@ -625,14 +591,15 @@ static uint32_t inode_get_block(uint8_t *inode, uint32_t block_index)
        ((uint32_t)inode[INODE_BLOCK_OFF + EXT2_TIND_BLOCK * 4 + 3] << 24);
    uint32_t tind_start = dind_start + ptrs_per_block * ptrs_per_block;
    uint32_t idx = block_index - tind_start;
-   return ext2_find_block(tind_block, NULL, 2, idx);
+   return ext2_find_block(drive, tind_block, NULL, 2, idx);
 }
 
-static int ext2_lookup(uint32_t dir_inode, const char *component, int comp_len,
+static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
+                       const char *component, int comp_len,
                        uint32_t *out_inode, uint32_t *out_size)
 {
    uint8_t inode_buf[128];
-   if (read_inode(dir_inode, inode_buf) != 0) return -EIO;
+   if (read_inode(drive, dir_inode, inode_buf) != 0) return -EIO;
 
    uint32_t dir_size = (uint32_t)inode_buf[INODE_SIZE_OFF] |
                        ((uint32_t)inode_buf[INODE_SIZE_OFF + 1] << 8) |
@@ -642,17 +609,17 @@ static int ext2_lookup(uint32_t dir_inode, const char *component, int comp_len,
 
    while (bytes_read < dir_size)
    {
-      uint32_t block_idx = bytes_read / s_BlockSize;
-      uint32_t block_off = bytes_read % s_BlockSize;
+      uint32_t block_idx = bytes_read / drive->block_size;
+      uint32_t block_off = bytes_read % drive->block_size;
 
-      uint32_t phys_block = inode_get_block(inode_buf, block_idx);
+      uint32_t phys_block = inode_get_block(drive, inode_buf, block_idx);
       if (phys_block == 0) break;
 
       uint8_t block_data[4096];
-      if (ext2_read_block(phys_block, block_data) != 0) return -EIO;
+      if (ext2_read_block(drive, phys_block, block_data) != 0) return -EIO;
 
       uint32_t pos = block_off;
-      while (pos + 8 <= s_BlockSize &&
+      while (pos + 8 <= drive->block_size &&
              bytes_read + (pos - block_off) < dir_size)
       {
          uint32_t entry_inode =
@@ -686,7 +653,7 @@ static int ext2_lookup(uint32_t dir_inode, const char *component, int comp_len,
             {
                *out_inode = entry_inode;
                uint8_t found_inode[128];
-               if (read_inode(entry_inode, found_inode) != 0) return -EIO;
+               if (read_inode(drive, entry_inode, found_inode) != 0) return -EIO;
                *out_size = (uint32_t)found_inode[INODE_SIZE_OFF] |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 1] << 8) |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 2] << 16) |
@@ -698,17 +665,17 @@ static int ext2_lookup(uint32_t dir_inode, const char *component, int comp_len,
          pos += rec_len;
       }
 
-      bytes_read += s_BlockSize;
+      bytes_read += drive->block_size;
    }
 
    return -ENOENT;
 }
 
-static int ext2_resolve(const char *path, uint32_t *out_inode,
-                        uint32_t *out_size)
+static int ext2_resolve(Ext2Drive *drive, const char *path,
+                        uint32_t *out_inode, uint32_t *out_size)
 {
-   uint32_t cur_inode = s_RootInode;
-   uint32_t cur_size = s_RootSize;
+   uint32_t cur_inode = drive->root_inode;
+   uint32_t cur_size = drive->root_size;
 
    if (*path == '/') path++;
 
@@ -728,7 +695,7 @@ static int ext2_resolve(const char *path, uint32_t *out_inode,
 
       uint32_t child_inode, child_size;
       int rc =
-          ext2_lookup(cur_inode, start, comp_len, &child_inode, &child_size);
+          ext2_lookup(drive, cur_inode, start, comp_len, &child_inode, &child_size);
       if (rc != 0) return rc;
 
       cur_inode = child_inode;
@@ -743,27 +710,19 @@ static int ext2_resolve(const char *path, uint32_t *out_inode,
    return 0;
 }
 
-static int check_partition(uint8_t drive, int part_lba,
+static int check_partition(uint8_t bios_drive, int part_lba,
                            const uint8_t *expected_label,
                            const uint8_t *expected_uuid)
 {
    uint8_t buf[SECTOR_SIZE];
-   uint8_t saved_drive = s_BootDrive;
-   uint32_t saved_part = s_PartStart;
-   s_BootDrive = drive;
-   s_PartStart = (uint32_t)part_lba;
-
-   // Read the sector containing the superblock magic
-   uint32_t sb_lba = SUPERBLOCK_OFFSET / SECTOR_SIZE;
-   uint32_t sb_off = SUPERBLOCK_OFFSET % SECTOR_SIZE;
 
    (void)expected_uuid;
 
-   int rc = ext2_read_sector(sb_lba, buf);
-   s_BootDrive = saved_drive;
-   s_PartStart = saved_part;
+   uint32_t sb_lba = SUPERBLOCK_OFFSET / SECTOR_SIZE;
+   uint32_t sb_off = SUPERBLOCK_OFFSET % SECTOR_SIZE;
 
-   if (rc != 0) return 0;
+   uint64_t abs_lba = (uint64_t)(uint32_t)part_lba + sb_lba;
+   if (DISK_ReadLBA(bios_drive, abs_lba, 1, buf) != 0) return 0;
 
    uint16_t magic = (uint16_t)buf[sb_off + SB_MAGIC_OFF] |
                     ((uint16_t)buf[sb_off + SB_MAGIC_OFF + 1] << 8);
@@ -811,75 +770,92 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
                     const uint8_t *partition_uuid,
                     const uint8_t *partition_label)
 {
+   int drive_id;
+   Ext2Drive *drive;
+
    (void)partition_uuid;
 
    if (!bios_drive_list || bios_drive_list_count == 0) return -EINVAL;
 
-   int found = 0;
-   for (uint32_t i = 0; i < bios_drive_list_count && !found; i++)
+   for (drive_id = 0; drive_id < MAX_DRIVES; drive_id++)
    {
-      uint8_t drive = bios_drive_list[i];
-      int *offsets = NULL;
-      int count = -1;
+      if (!s_Drives[drive_id].used) break;
+   }
+   if (drive_id == MAX_DRIVES) return -EMFILE;
 
-      if (GPT_Probe(drive))
-         count = GPT_List(drive, &offsets);
-      else if (MBR_Probe(drive))
-         count = MBR_List(drive, &offsets);
+   drive = &s_Drives[drive_id];
 
-      if (count <= 0)
+   {
+      int found = 0;
+      for (uint32_t i = 0; i < bios_drive_list_count && !found; i++)
       {
-         if (check_partition(drive, 0, partition_label, NULL))
+         uint8_t bios_drive = bios_drive_list[i];
+         int *offsets = NULL;
+         int count = -1;
+
+         if (GPT_Probe(bios_drive))
+            count = GPT_List(bios_drive, &offsets);
+         else if (MBR_Probe(bios_drive))
+            count = MBR_List(bios_drive, &offsets);
+
+         if (count <= 0)
          {
-            if (read_superblock(drive, 0) == SUCCESS)
+            if (check_partition(bios_drive, 0, partition_label, NULL))
             {
-               s_BootDrive = drive;
-               s_PartStart = 0;
-               found = 1;
+               drive->boot_drive = bios_drive;
+               drive->part_start = 0;
+               if (read_superblock(drive) == SUCCESS)
+                  found = 1;
+            }
+            continue;
+         }
+
+         for (int j = 0; j < count && !found; j++)
+         {
+            if (check_partition(bios_drive, offsets[j], partition_label,
+                                NULL))
+            {
+               drive->boot_drive = bios_drive;
+               drive->part_start = (uint32_t)offsets[j];
+               if (read_superblock(drive) == SUCCESS)
+                  found = 1;
             }
          }
-         continue;
       }
-
-      for (int j = 0; j < count && !found; j++)
-      {
-         if (check_partition(drive, offsets[j], partition_label, NULL))
-         {
-            if (read_superblock(drive, (uint32_t)offsets[j]) == SUCCESS)
-            {
-               s_BootDrive = drive;
-               s_PartStart = (uint32_t)offsets[j];
-               found = 1;
-            }
-         }
-      }
+      if (!found) return -ENODEV;
    }
 
-   if (!found) return -ENODEV;
+   drive->root_inode = 2;
 
-   // Read root inode (inode 2 in ext2)
    uint8_t root_inode[128];
-   if (read_inode(s_RootInode, root_inode) != 0) return -EIO;
+   if (read_inode(drive, drive->root_inode, root_inode) != 0) return -EIO;
 
-   s_RootSize = (uint32_t)root_inode[INODE_SIZE_OFF] |
-                ((uint32_t)root_inode[INODE_SIZE_OFF + 1] << 8) |
-                ((uint32_t)root_inode[INODE_SIZE_OFF + 2] << 16) |
-                ((uint32_t)root_inode[INODE_SIZE_OFF + 3] << 24);
+   drive->root_size = (uint32_t)root_inode[INODE_SIZE_OFF] |
+                      ((uint32_t)root_inode[INODE_SIZE_OFF + 1] << 8) |
+                      ((uint32_t)root_inode[INODE_SIZE_OFF + 2] << 16) |
+                      ((uint32_t)root_inode[INODE_SIZE_OFF + 3] << 24);
 
-   return SUCCESS;
+   drive->used = 1;
+   return drive_id;
 }
 
-int EXT2_Open(const char *path)
+int EXT2_Open(int drive_id, const char *path)
 {
+   Ext2Drive *drive;
+
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
+
    if (!path || *path == '\0') return -EINVAL;
 
    uint32_t file_inode, file_size;
-   int rc = ext2_resolve(path, &file_inode, &file_size);
+   int rc = ext2_resolve(drive, path, &file_inode, &file_size);
    if (rc != 0) return rc;
 
-   // Verify it's a regular file (not a directory)
    uint8_t inode[128];
-   if (read_inode(file_inode, inode) != 0) return -EIO;
+   if (read_inode(drive, file_inode, inode) != 0) return -EIO;
    uint16_t mode = (uint16_t)inode[INODE_MODE_OFF] |
                    ((uint16_t)inode[INODE_MODE_OFF + 1] << 8);
    if ((mode & IFMT) == IFDIR) return -EINVAL;
@@ -887,23 +863,31 @@ int EXT2_Open(const char *path)
    int fd;
    for (fd = 0; fd < MAX_OPEN_FILES; fd++)
    {
-      if (!s_OpenFiles[fd].used) break;
+      if (!drive->open_files[fd].used) break;
    }
    if (fd == MAX_OPEN_FILES) return -EMFILE;
 
-   s_OpenFiles[fd].used = 1;
-   s_OpenFiles[fd].inode = file_inode;
-   s_OpenFiles[fd].size = file_size;
-   s_OpenFiles[fd].position = 0;
+   drive->open_files[fd].used = 1;
+   drive->open_files[fd].inode = file_inode;
+   drive->open_files[fd].size = file_size;
+   drive->open_files[fd].position = 0;
 
    return fd;
 }
 
-int EXT2_Read(int fd, void *buffer, int count)
+int EXT2_Read(int drive_id, int fd, void *buffer, int count)
 {
-   if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
+   Ext2Drive *drive;
 
-   Ext2File *f = &s_OpenFiles[fd];
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
+
+   if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+      return -EBADF;
+
+   Ext2File *f = &drive->open_files[fd];
    uint8_t *buf = (uint8_t *)buffer;
 
    if (f->position >= f->size) return 0;
@@ -913,26 +897,26 @@ int EXT2_Read(int fd, void *buffer, int count)
    if ((uint32_t)count > remaining) count = (int)remaining;
 
    uint8_t inode[128];
-   if (read_inode(f->inode, inode) != 0) return -EIO;
+   if (read_inode(drive, f->inode, inode) != 0) return -EIO;
 
    uint32_t bytes_done = 0;
    while (bytes_done < (uint32_t)count)
    {
       uint32_t file_off = f->position + bytes_done;
-      uint32_t block_idx = file_off / s_BlockSize;
-      uint32_t block_off = file_off % s_BlockSize;
+      uint32_t block_idx = file_off / drive->block_size;
+      uint32_t block_off = file_off % drive->block_size;
 
-      uint32_t phys_block = inode_get_block(inode, block_idx);
+      uint32_t phys_block = inode_get_block(drive, inode, block_idx);
       if (phys_block == 0) break;
 
       uint8_t block_data[4096];
-      if (ext2_read_block(phys_block, block_data) != 0)
+      if (ext2_read_block(drive, phys_block, block_data) != 0)
       {
          if (bytes_done > 0) return (int)bytes_done;
          return -EIO;
       }
 
-      uint32_t chunk = s_BlockSize - block_off;
+      uint32_t chunk = drive->block_size - block_off;
       if (chunk > (uint32_t)count - bytes_done)
          chunk = (uint32_t)count - bytes_done;
 
@@ -946,22 +930,56 @@ int EXT2_Read(int fd, void *buffer, int count)
    return (int)bytes_done;
 }
 
-int EXT2_Close(int fd)
+int EXT2_Close(int drive_id, int fd)
 {
-   if (fd < 0 || fd >= MAX_OPEN_FILES || !s_OpenFiles[fd].used) return -EBADF;
+   Ext2Drive *drive;
 
-   s_OpenFiles[fd].used = 0;
+   if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+      return -EINVAL;
+
+   drive = &s_Drives[drive_id];
+
+   if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+      return -EBADF;
+
+   drive->open_files[fd].used = 0;
    return SUCCESS;
 }
 
 #ifdef COREFS
 
+static int corefs_Initialize(const uint8_t *bios_drive_list,
+                             uint32_t bios_drive_list_count,
+                             const uint8_t *partition_uuid,
+                             const uint8_t *partition_label)
+{
+   int id = EXT2_Initialize(bios_drive_list, bios_drive_list_count,
+                            partition_uuid, partition_label);
+   if (id >= 0) s_CoreFsDriveId = id;
+   return id;
+}
+
+static int corefs_Open(const char *path)
+{
+   return EXT2_Open(s_CoreFsDriveId, path);
+}
+
+static int corefs_Read(int fd, void *buffer, int count)
+{
+   return EXT2_Read(s_CoreFsDriveId, fd, buffer, count);
+}
+
+static int corefs_Close(int fd)
+{
+   return EXT2_Close(s_CoreFsDriveId, fd);
+}
+
 static const Ext2Operations fs_exports
     __attribute__((section(".exports"), used)) = {
-        .Initialize = EXT2_Initialize,
-        .Open = EXT2_Open,
-        .Read = EXT2_Read,
-        .Close = EXT2_Close,
+        .Initialize = corefs_Initialize,
+        .Open = corefs_Open,
+        .Read = corefs_Read,
+        .Close = corefs_Close,
         .DISK_Read = DISK_Read,
         .DISK_ReadLBA = DISK_ReadLBA,
 };
