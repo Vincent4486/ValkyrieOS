@@ -6,9 +6,9 @@
 #include <constants.h>
 
 #define DL_RESOLVE
-#include <dl/loader.h>
 #include <dl/binding_gen.h>
 #include <dl/callback.h>
+#include <dl/loader.h>
 #undef DL_RESOLVE
 
 typedef struct CoreFsOperations CoreFsOperations;
@@ -90,7 +90,8 @@ static void init_framebuffer_info()
    {
       if (tag->type == MBI_TAG_END) break;
 
-      if (tag->type == MBI_TAG_FRAMEBUFFER && tag->size >= sizeof(MbiTagFramebuffer))
+      if (tag->type == MBI_TAG_FRAMEBUFFER &&
+          tag->size >= sizeof(MbiTagFramebuffer))
       {
          if (tag->framebuffer_type == 1)
          {
@@ -138,8 +139,7 @@ static void print_bios_drive_list(void)
 
 static void print_stage3_fs_location(void)
 {
-   printf("Partition label: \"%s\".\n",
-          s_BootParams.corefs_partition_label);
+   printf("Partition label: \"%s\".\n", s_BootParams.corefs_partition_label);
 
    printf("Partition UUID: ");
    {
@@ -199,9 +199,12 @@ void print_available_outputs(void)
    printf("Available outputs:\n");
 
    if (s_BootParams.available_outputs & (1 << OUTPUT_VBE)) printf("  VBE\n");
-   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA)) printf("  VGA graphics\n");
-   if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT)) printf("  VGA text\n");
-   if (s_BootParams.available_outputs & (1 << OUTPUT_SERIAL)) printf("  Serial (COM1)\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA))
+      printf("  VGA graphics\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
+      printf("  VGA text\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_SERIAL))
+      printf("  Serial (COM1)\n");
 
    printf("\n");
 }
@@ -266,8 +269,9 @@ void init_fs(void)
 {
    printf("Entering filesystem setup.\n");
 
-   int rc = s_BootParams.corefs_ops->Initialize(s_BootParams.bios_drive_list, s_BootParams.bios_drive_count,
-                               s_BootParams.corefs_partition_uuid, s_BootParams.corefs_partition_label);
+   int rc = s_BootParams.corefs_ops->Initialize(
+       s_BootParams.bios_drive_list, s_BootParams.bios_drive_count,
+       s_BootParams.corefs_partition_uuid, s_BootParams.corefs_partition_label);
    if (rc != SUCCESS)
    {
       printf("  FS_Initialize failed: %d.\n", rc);
@@ -295,8 +299,8 @@ void init_main_boot(void)
 
    while (total < (int)sizeof(stage3_buf))
    {
-      rc =
-          s_BootParams.corefs_ops->Read(fd, stage3_buf + total, (int)sizeof(stage3_buf) - total);
+      rc = s_BootParams.corefs_ops->Read(fd, stage3_buf + total,
+                                         (int)sizeof(stage3_buf) - total);
       if (rc <= 0) break;
       total += rc;
    }
@@ -352,13 +356,14 @@ void init_main_boot(void)
 int main(const BootParams *boot_params)
 {
    s_BootParams = *boot_params;
-   
+
    init_framebuffer_info();
 
    g_PreferredOutput = OUTPUT_SERIAL; /* fallback  */
    if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
       g_PreferredOutput = OUTPUT_VGATEXT;
-   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA)) g_PreferredOutput = OUTPUT_VGA;
+   if (s_BootParams.available_outputs & (1 << OUTPUT_VGA))
+      g_PreferredOutput = OUTPUT_VGA;
    if ((s_BootParams.available_outputs & (1 << OUTPUT_VBE)) && VBE_HasInfo())
       g_PreferredOutput = OUTPUT_VBE;
 

@@ -17,8 +17,7 @@ typedef struct Ext2Drive Ext2Drive;
 typedef struct Ext2Operations Ext2Operations;
 #endif
 
-static int ext2_read_block(Ext2Drive *drive, uint32_t block_idx,
-                           void *buffer);
+static int ext2_read_block(Ext2Drive *drive, uint32_t block_idx, void *buffer);
 static int ext2_read_sector(Ext2Drive *drive, uint64_t lba, void *buffer);
 static int ext2_bgdt_offset(Ext2Drive *drive);
 static int read_superblock(Ext2Drive *drive);
@@ -29,10 +28,10 @@ static uint32_t ext2_find_block(Ext2Drive *drive, uint32_t inode_block_ptr,
 static uint32_t inode_get_block(Ext2Drive *drive, uint8_t *inode,
                                 uint32_t block_index);
 static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
-                       const char *component, int comp_len,
-                       uint32_t *out_inode, uint32_t *out_size);
-static int ext2_resolve(Ext2Drive *drive, const char *path,
-                        uint32_t *out_inode, uint32_t *out_size);
+                       const char *component, int comp_len, uint32_t *out_inode,
+                       uint32_t *out_size);
+static int ext2_resolve(Ext2Drive *drive, const char *path, uint32_t *out_inode,
+                        uint32_t *out_size);
 static int check_partition(uint8_t drive, int part_lba,
                            const uint8_t *expected_label,
                            const uint8_t *expected_uuid);
@@ -162,7 +161,8 @@ struct Ext2Drive
 #ifdef COREFS
 struct Ext2Operations
 {
-   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
+                     const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
@@ -194,8 +194,8 @@ extern int GPT_List(int drive_id, int **offset);
 
 static int ext2_read_sector(Ext2Drive *drive, uint64_t lba, void *buffer)
 {
-   return DISK_ReadLBA(drive->boot_drive, (uint64_t)drive->part_start + lba,
-                       1, buffer);
+   return DISK_ReadLBA(drive->boot_drive, (uint64_t)drive->part_start + lba, 1,
+                       buffer);
 }
 
 static int ext2_read_block(Ext2Drive *drive, uint32_t block_idx, void *buffer)
@@ -249,10 +249,11 @@ static int read_superblock(Ext2Drive *drive)
        ((uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_INODES_PER_GROUP_OFF + 3] << 24);
 
-   drive->total_inodes = (uint32_t)buf[sb_off + SB_INODES_COUNT_OFF] |
-                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 1] << 8) |
-                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 2] << 16) |
-                         ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 3] << 24);
+   drive->total_inodes =
+       (uint32_t)buf[sb_off + SB_INODES_COUNT_OFF] |
+       ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 1] << 8) |
+       ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 2] << 16) |
+       ((uint32_t)buf[sb_off + SB_INODES_COUNT_OFF + 3] << 24);
 
    drive->first_data_block =
        (uint32_t)buf[sb_off + SB_FIRST_DATA_BLOCK_OFF] |
@@ -430,7 +431,7 @@ static uint32_t ext2_find_block(Ext2Drive *drive, uint32_t block_ptr,
  * inode points to the inode buffer (i_block starts at INODE_BLOCK_OFF).
  */
 static uint32_t ext4_extent_get_block(Ext2Drive *drive, uint8_t *inode,
-                                     uint32_t block_index)
+                                      uint32_t block_index)
 {
    // Extent header is at i_block[0..11], i.e. INODE_BLOCK_OFF
    const uint8_t *eh = inode + INODE_BLOCK_OFF;
@@ -595,8 +596,8 @@ static uint32_t inode_get_block(Ext2Drive *drive, uint8_t *inode,
 }
 
 static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
-                       const char *component, int comp_len,
-                       uint32_t *out_inode, uint32_t *out_size)
+                       const char *component, int comp_len, uint32_t *out_inode,
+                       uint32_t *out_size)
 {
    uint8_t inode_buf[128];
    if (read_inode(drive, dir_inode, inode_buf) != 0) return -EIO;
@@ -653,7 +654,8 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
             {
                *out_inode = entry_inode;
                uint8_t found_inode[128];
-               if (read_inode(drive, entry_inode, found_inode) != 0) return -EIO;
+               if (read_inode(drive, entry_inode, found_inode) != 0)
+                  return -EIO;
                *out_size = (uint32_t)found_inode[INODE_SIZE_OFF] |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 1] << 8) |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 2] << 16) |
@@ -671,8 +673,8 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
    return -ENOENT;
 }
 
-static int ext2_resolve(Ext2Drive *drive, const char *path,
-                        uint32_t *out_inode, uint32_t *out_size)
+static int ext2_resolve(Ext2Drive *drive, const char *path, uint32_t *out_inode,
+                        uint32_t *out_size)
 {
    uint32_t cur_inode = drive->root_inode;
    uint32_t cur_size = drive->root_size;
@@ -694,8 +696,8 @@ static int ext2_resolve(Ext2Drive *drive, const char *path,
       int comp_len = (int)(path - start);
 
       uint32_t child_inode, child_size;
-      int rc =
-          ext2_lookup(drive, cur_inode, start, comp_len, &child_inode, &child_size);
+      int rc = ext2_lookup(drive, cur_inode, start, comp_len, &child_inode,
+                           &child_size);
       if (rc != 0) return rc;
 
       cur_inode = child_inode;
@@ -804,21 +806,18 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
             {
                drive->boot_drive = bios_drive;
                drive->part_start = 0;
-               if (read_superblock(drive) == SUCCESS)
-                  found = 1;
+               if (read_superblock(drive) == SUCCESS) found = 1;
             }
             continue;
          }
 
          for (int j = 0; j < count && !found; j++)
          {
-            if (check_partition(bios_drive, offsets[j], partition_label,
-                                NULL))
+            if (check_partition(bios_drive, offsets[j], partition_label, NULL))
             {
                drive->boot_drive = bios_drive;
                drive->part_start = (uint32_t)offsets[j];
-               if (read_superblock(drive) == SUCCESS)
-                  found = 1;
+               if (read_superblock(drive) == SUCCESS) found = 1;
             }
          }
       }
@@ -969,10 +968,7 @@ static int corefs_Read(int fd, void *buffer, int count)
    return EXT2_Read(s_CoreFsDriveId, fd, buffer, count);
 }
 
-static int corefs_Close(int fd)
-{
-   return EXT2_Close(s_CoreFsDriveId, fd);
-}
+static int corefs_Close(int fd) { return EXT2_Close(s_CoreFsDriveId, fd); }
 
 static const Ext2Operations fs_exports
     __attribute__((section(".exports"), used)) = {

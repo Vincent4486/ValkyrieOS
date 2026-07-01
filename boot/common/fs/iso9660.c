@@ -16,8 +16,7 @@ typedef struct Iso9660Drive Iso9660Drive;
 typedef struct Iso9660Operations Iso9660Operations;
 #endif
 
-static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba,
-                           void *buffer);
+static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba, void *buffer);
 static int parse_dir_record(const uint8_t *buf, int off, uint32_t *extent_lba,
                             uint32_t *extent_size, uint8_t *flags,
                             uint8_t *name_len);
@@ -30,8 +29,8 @@ static int check_partition(uint8_t drive, int part_lba,
                            const uint8_t *expected_uuid);
 static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
                             uint32_t dir_size, const char *component,
-                            int comp_len, uint32_t *out_lba,
-                            uint32_t *out_size, uint8_t *out_flags);
+                            int comp_len, uint32_t *out_lba, uint32_t *out_size,
+                            uint8_t *out_flags);
 static int resolve_path(Iso9660Drive *drive, const char *path,
                         uint32_t *out_lba, uint32_t *out_size);
 
@@ -75,7 +74,8 @@ struct Iso9660Drive
 #ifdef COREFS
 struct Iso9660Operations
 {
-   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
+                     const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
@@ -116,8 +116,7 @@ static inline int mem_eq(const void *a, const void *b, int len)
    return 1;
 }
 
-static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba,
-                           void *buffer)
+static int iso_read_sector(Iso9660Drive *drive, uint64_t iso_lba, void *buffer)
 {
    uint8_t bios_drive = drive->boot_drive;
    uint64_t lba;
@@ -324,8 +323,8 @@ static int suspend_match_nm(const uint8_t *buf, int off, int rec_len,
 
 static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
                             uint32_t dir_size, const char *component,
-                            int comp_len, uint32_t *out_lba,
-                            uint32_t *out_size, uint8_t *out_flags)
+                            int comp_len, uint32_t *out_lba, uint32_t *out_size,
+                            uint8_t *out_flags)
 {
    uint8_t buf[SECTOR_SIZE_ISO];
    uint32_t bytes_read = 0;
@@ -629,10 +628,7 @@ static int corefs_Read(int fd, void *buffer, int count)
    return ISO9660_Read(s_CoreFsDriveId, fd, buffer, count);
 }
 
-static int corefs_Close(int fd)
-{
-   return ISO9660_Close(s_CoreFsDriveId, fd);
-}
+static int corefs_Close(int fd) { return ISO9660_Close(s_CoreFsDriveId, fd); }
 
 static const Iso9660Operations fs_exports
     __attribute__((section(".exports"), used)) = {

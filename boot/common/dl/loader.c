@@ -51,16 +51,16 @@ typedef struct DlHandle DlHandle;
 #define STT_FUNC 2
 
 #if defined(BIT32)
-#define ElfEhdr    Elf32Ehdr
-#define ElfShdr    Elf32Shdr
-#define ElfSymbol  Elf32Symbol
+#define ElfEhdr Elf32Ehdr
+#define ElfShdr Elf32Shdr
+#define ElfSymbol Elf32Symbol
 #define ELF_ST_BIND(i) ELF32_ST_BIND(i)
 #define ELF_ST_TYPE(i) ELF32_ST_TYPE(i)
 #define ELFCLASS_EXPECTED ELFCLASS32
 #elif defined(BIT64)
-#define ElfEhdr    Elf64Ehdr
-#define ElfShdr    Elf64Shdr
-#define ElfSymbol  Elf64Symbol
+#define ElfEhdr Elf64Ehdr
+#define ElfShdr Elf64Shdr
+#define ElfSymbol Elf64Symbol
 #define ELF_ST_BIND(i) ELF64_ST_BIND(i)
 #define ELF_ST_TYPE(i) ELF64_ST_TYPE(i)
 #define ELFCLASS_EXPECTED ELFCLASS64

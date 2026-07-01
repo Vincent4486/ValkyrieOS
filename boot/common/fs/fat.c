@@ -25,9 +25,9 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                           const char *component, int comp_len,
                           uint32_t *out_cluster, uint32_t *out_size,
                           uint8_t *out_attrs);
-static int find_in_rootdir(FatDrive *drive, const char *component,
-                           int comp_len, uint32_t *out_cluster,
-                           uint32_t *out_size, uint8_t *out_attrs);
+static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
+                           uint32_t *out_cluster, uint32_t *out_size,
+                           uint8_t *out_attrs);
 static int check_partition(uint8_t drive, int part_lba,
                            const uint8_t *expected_label,
                            const uint8_t *expected_uuid);
@@ -164,7 +164,8 @@ struct FatDrive
 #ifdef COREFS
 struct FatOperations
 {
-   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *);
+   int (*Initialize)(const uint8_t *, uint32_t, const uint8_t *,
+                     const uint8_t *);
    int (*Open)(const char *);
    int (*Read)(int, void *, int);
    int (*Close)(int);
@@ -221,43 +222,49 @@ static int read_bpb(FatDrive *drive)
                              ((uint16_t)sector[BOOT_SIG_OFFSET + 1] << 8));
    if (sig != BOOT_SIGNATURE) return -EINVAL;
 
-   drive->bytes_per_sector = (uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF] |
-                      ((uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF + 1] << 8);
+   drive->bytes_per_sector =
+       (uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF] |
+       ((uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF + 1] << 8);
    if (drive->bytes_per_sector == 0) drive->bytes_per_sector = 512;
    if (drive->bytes_per_sector != 512) return -EINVAL;
 
    drive->sectors_per_cluster = sector[BPB_SECTORS_PER_CLUSTER_OFF];
    if (drive->sectors_per_cluster == 0) return -EINVAL;
 
-   drive->reserved_sectors = (uint16_t)sector[BPB_RESERVED_SECTORS_OFF] |
-                       ((uint16_t)sector[BPB_RESERVED_SECTORS_OFF + 1] << 8);
+   drive->reserved_sectors =
+       (uint16_t)sector[BPB_RESERVED_SECTORS_OFF] |
+       ((uint16_t)sector[BPB_RESERVED_SECTORS_OFF + 1] << 8);
    drive->num_fats = sector[BPB_NUM_FATS_OFF];
    if (drive->num_fats == 0) return -EINVAL;
 
    drive->root_entries = (uint16_t)sector[BPB_ROOT_ENTRIES_OFF] |
-                   ((uint16_t)sector[BPB_ROOT_ENTRIES_OFF + 1] << 8);
+                         ((uint16_t)sector[BPB_ROOT_ENTRIES_OFF + 1] << 8);
    drive->total_sectors = (uint16_t)sector[BPB_TOTAL_SECTORS16_OFF] |
-                    ((uint16_t)sector[BPB_TOTAL_SECTORS16_OFF + 1] << 8);
+                          ((uint16_t)sector[BPB_TOTAL_SECTORS16_OFF + 1] << 8);
    if (drive->total_sectors == 0)
    {
-      drive->total_sectors = (uint32_t)sector[BPB_TOTAL_SECTORS32_OFF] |
-                       ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 1] << 8) |
-                       ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 2] << 16) |
-                       ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 3] << 24);
+      drive->total_sectors =
+          (uint32_t)sector[BPB_TOTAL_SECTORS32_OFF] |
+          ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 1] << 8) |
+          ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 2] << 16) |
+          ((uint32_t)sector[BPB_TOTAL_SECTORS32_OFF + 3] << 24);
    }
 
-   drive->sectors_per_fat16 = (uint16_t)sector[BPB_SECTORS_PER_FAT16_OFF] |
-                       ((uint16_t)sector[BPB_SECTORS_PER_FAT16_OFF + 1] << 8);
-   drive->hidden_sectors = (uint32_t)sector[BPB_HIDDEN_SECTORS_OFF] |
-                     ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 1] << 8) |
-                     ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 2] << 16) |
-                     ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 3] << 24);
+   drive->sectors_per_fat16 =
+       (uint16_t)sector[BPB_SECTORS_PER_FAT16_OFF] |
+       ((uint16_t)sector[BPB_SECTORS_PER_FAT16_OFF + 1] << 8);
+   drive->hidden_sectors =
+       (uint32_t)sector[BPB_HIDDEN_SECTORS_OFF] |
+       ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 1] << 8) |
+       ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 2] << 16) |
+       ((uint32_t)sector[BPB_HIDDEN_SECTORS_OFF + 3] << 24);
 
    drive->sectors_per_fat32 = 0;
    drive->root_cluster = 0;
 
    drive->root_dir_sectors =
-       ((uint32_t)drive->root_entries * 32 + drive->bytes_per_sector - 1) / drive->bytes_per_sector;
+       ((uint32_t)drive->root_entries * 32 + drive->bytes_per_sector - 1) /
+       drive->bytes_per_sector;
 
    if (drive->sectors_per_fat16 == 0)
    {
@@ -266,10 +273,11 @@ static int read_bpb(FatDrive *drive)
           ((uint32_t)sector[BPB_FAT32_SECTORS_PER_FAT_OFF + 1] << 8) |
           ((uint32_t)sector[BPB_FAT32_SECTORS_PER_FAT_OFF + 2] << 16) |
           ((uint32_t)sector[BPB_FAT32_SECTORS_PER_FAT_OFF + 3] << 24);
-      drive->root_cluster = (uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF] |
-                      ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 1] << 8) |
-                      ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 2] << 16) |
-                      ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 3] << 24);
+      drive->root_cluster =
+          (uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF] |
+          ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 1] << 8) |
+          ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 2] << 16) |
+          ((uint32_t)sector[BPB_FAT32_ROOT_CLUSTER_OFF + 3] << 24);
    }
 
    drive->first_fat_sector = drive->reserved_sectors;
@@ -280,13 +288,15 @@ static int read_bpb(FatDrive *drive)
    else
       fat_total_sectors = (uint32_t)drive->num_fats * drive->sectors_per_fat32;
 
-   drive->first_data_sector = drive->reserved_sectors + fat_total_sectors + drive->root_dir_sectors;
+   drive->first_data_sector =
+       drive->reserved_sectors + fat_total_sectors + drive->root_dir_sectors;
 
    if (drive->sectors_per_cluster == 0) return -EINVAL;
 
    uint32_t data_sectors = drive->total_sectors - drive->first_data_sector;
    drive->total_clusters = data_sectors / (uint32_t)drive->sectors_per_cluster;
-   drive->fat_type = fat_type_from_bpb((const uint8_t *)sector, drive->total_clusters);
+   drive->fat_type =
+       fat_type_from_bpb((const uint8_t *)sector, drive->total_clusters);
 
    return SUCCESS;
 }
@@ -304,7 +314,8 @@ static uint32_t fat_next_cluster(FatDrive *drive, uint32_t cluster)
       fat_sector_num = fat_offset / drive->bytes_per_sector;
       fat_entry_offset = fat_offset % drive->bytes_per_sector;
 
-      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num, fat_sector) != 0)
+      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num,
+                          fat_sector) != 0)
          return FAT32_EOC;
 
       uint32_t entry = (uint32_t)fat_sector[fat_entry_offset] |
@@ -322,7 +333,8 @@ static uint32_t fat_next_cluster(FatDrive *drive, uint32_t cluster)
       fat_sector_num = fat_offset / drive->bytes_per_sector;
       fat_entry_offset = fat_offset % drive->bytes_per_sector;
 
-      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num, fat_sector) != 0)
+      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num,
+                          fat_sector) != 0)
          return FAT16_EOC;
 
       uint16_t entry = (uint16_t)fat_sector[fat_entry_offset] |
@@ -337,7 +349,8 @@ static uint32_t fat_next_cluster(FatDrive *drive, uint32_t cluster)
       fat_sector_num = fat_offset / drive->bytes_per_sector;
       fat_entry_offset = fat_offset % drive->bytes_per_sector;
 
-      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num, fat_sector) != 0)
+      if (fat_read_sector(drive, drive->first_fat_sector + fat_sector_num,
+                          fat_sector) != 0)
          return FAT12_EOC;
 
       uint16_t entry;
@@ -437,7 +450,8 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
 
    while (current_cluster >= 2 && current_cluster < FAT12_EOC)
    {
-      uint32_t cluster_size = (uint32_t)drive->sectors_per_cluster * drive->bytes_per_sector;
+      uint32_t cluster_size =
+          (uint32_t)drive->sectors_per_cluster * drive->bytes_per_sector;
       uint8_t sector_buf[SECTOR_SIZE];
       char lfn_buf[LFN_BUF_SIZE];
       int lfn_pending = 0;
@@ -500,10 +514,10 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                uint32_t ls_off = (uint32_t)lfn_pos % SECTOR_SIZE;
                uint8_t ls_buf[SECTOR_SIZE];
 
-               uint32_t llba =
-                   drive->first_data_sector +
-                   (current_cluster - 2) * (uint32_t)drive->sectors_per_cluster +
-                   ls_idx;
+               uint32_t llba = drive->first_data_sector +
+                               (current_cluster - 2) *
+                                   (uint32_t)drive->sectors_per_cluster +
+                               ls_idx;
                if (fat_read_sector(drive, llba, ls_buf) != 0) return -EIO;
 
                const uint8_t *le = ls_buf + ls_off;
@@ -565,9 +579,9 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
    return -ENOENT;
 }
 
-static int find_in_rootdir(FatDrive *drive, const char *component,
-                           int comp_len, uint32_t *out_cluster,
-                           uint32_t *out_size, uint8_t *out_attrs)
+static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
+                           uint32_t *out_cluster, uint32_t *out_size,
+                           uint8_t *out_attrs)
 {
    uint8_t sector[SECTOR_SIZE];
    char lfn_buf[LFN_BUF_SIZE];
@@ -578,7 +592,8 @@ static int find_in_rootdir(FatDrive *drive, const char *component,
 
    for (uint32_t sec = 0; sec < drive->root_dir_sectors; sec++)
    {
-      if (fat_read_sector(drive, root_start_lba + sec, sector) != 0) return -EIO;
+      if (fat_read_sector(drive, root_start_lba + sec, sector) != 0)
+         return -EIO;
 
       for (int off = 0; off < (int)drive->bytes_per_sector; off += 32)
       {
@@ -598,7 +613,8 @@ static int find_in_rootdir(FatDrive *drive, const char *component,
          if (attr == ATTR_LFN)
          {
             if (lfn_count < 20)
-               lfn_entries[lfn_count++] = (int)(sec * drive->bytes_per_sector + off);
+               lfn_entries[lfn_count++] =
+                   (int)(sec * drive->bytes_per_sector + off);
             lfn_pending = 1;
             continue;
          }
@@ -609,11 +625,14 @@ static int find_in_rootdir(FatDrive *drive, const char *component,
             for (int li = lfn_count - 1; li >= 0; li--)
             {
                int lfn_abs_off = lfn_entries[li];
-               uint32_t lfn_sec = (uint32_t)lfn_abs_off / drive->bytes_per_sector;
-               uint32_t lfn_off = (uint32_t)lfn_abs_off % drive->bytes_per_sector;
+               uint32_t lfn_sec =
+                   (uint32_t)lfn_abs_off / drive->bytes_per_sector;
+               uint32_t lfn_off =
+                   (uint32_t)lfn_abs_off % drive->bytes_per_sector;
                uint8_t lfn_sec_buf[SECTOR_SIZE];
 
-               if (fat_read_sector(drive, root_start_lba + lfn_sec, lfn_sec_buf) != 0)
+               if (fat_read_sector(drive, root_start_lba + lfn_sec,
+                                   lfn_sec_buf) != 0)
                   return -EIO;
 
                const uint8_t *le = lfn_sec_buf + lfn_off;
@@ -807,8 +826,7 @@ int FAT_Initialize(const uint8_t *bios_drive_list,
             {
                drive->boot_drive = bios_drive;
                drive->part_start = 0;
-               if (read_bpb(drive) == SUCCESS)
-                  found = 1;
+               if (read_bpb(drive) == SUCCESS) found = 1;
             }
             continue;
          }
@@ -820,8 +838,7 @@ int FAT_Initialize(const uint8_t *bios_drive_list,
             {
                drive->boot_drive = bios_drive;
                drive->part_start = (uint32_t)offsets[j];
-               if (read_bpb(drive) == SUCCESS)
-                  found = 1;
+               if (read_bpb(drive) == SUCCESS) found = 1;
             }
          }
       }
@@ -878,8 +895,8 @@ int FAT_Open(int drive_id, const char *path)
       }
       else
       {
-         rc = find_in_rootdir(drive, start, comp_len, &file_cluster,
-                              &file_size, &file_attrs);
+         rc = find_in_rootdir(drive, start, comp_len, &file_cluster, &file_size,
+                              &file_attrs);
       }
 
       if (rc != 0) return rc;
@@ -932,7 +949,8 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
    uint32_t remaining = f->size - f->position;
    if ((uint32_t)count > remaining) count = (int)remaining;
 
-   uint32_t cluster_size = (uint32_t)drive->sectors_per_cluster * drive->bytes_per_sector;
+   uint32_t cluster_size =
+       (uint32_t)drive->sectors_per_cluster * drive->bytes_per_sector;
    uint32_t bytes_done = 0;
 
    while (bytes_done < (uint32_t)count)
@@ -965,9 +983,10 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
 
       target_cluster = f->current_cluster;
 
-      uint32_t lba = drive->first_data_sector +
-                     (target_cluster - 2) * (uint32_t)drive->sectors_per_cluster +
-                     sector_idx;
+      uint32_t lba =
+          drive->first_data_sector +
+          (target_cluster - 2) * (uint32_t)drive->sectors_per_cluster +
+          sector_idx;
 
       uint8_t sector_buf[SECTOR_SIZE];
       if (fat_read_sector(drive, lba, sector_buf) != 0)
@@ -1042,10 +1061,7 @@ static int corefs_Read(int fd, void *buffer, int count)
    return FAT_Read(s_CoreFsDriveId, fd, buffer, count);
 }
 
-static int corefs_Close(int fd)
-{
-   return FAT_Close(s_CoreFsDriveId, fd);
-}
+static int corefs_Close(int fd) { return FAT_Close(s_CoreFsDriveId, fd); }
 
 static const FatOperations fs_exports
     __attribute__((section(".exports"), used)) = {
