@@ -220,6 +220,7 @@ def GenerateHeader(Functions: list[tuple[str, str]]) -> str:
         "#include <stddef.h>",
         "#include <stdbool.h>",
         "#include <stdint.h>",
+        "#include <dl/loader.h>"
         "",
         "// MainBootOperations \u2013 one-shot resolved struct of bootloader function pointers.",
         "typedef struct MainBootOperations",
