@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "video/video.h"
+#include <colors.h>
 #include <constants.h>
 
 #define DL_RESOLVE

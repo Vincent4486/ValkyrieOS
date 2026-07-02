@@ -67,10 +67,7 @@ static void put_signed(long long val, unsigned radix, const char *digits,
    }
 }
 
-void putc(char c)
-{
-   Video_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-}
+void putc(char c) { Video_PutChar(c, -1, -1, TEXT_DEFAULT_COLOR); }
 
 void puts(const char *str)
 {
