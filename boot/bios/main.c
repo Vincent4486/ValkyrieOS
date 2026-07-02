@@ -256,10 +256,13 @@ void print_logo(void)
                /* Data is 4bpp: two pixels per byte, high nibble first. */
                uint8_t byte = data[(y * logo_w + x) / 2];
                uint8_t idx = (x & 1) ? (byte & 0x0F) : (byte >> 4);
-               uint32_t color = ((uint32_t)pal[idx * 3] << 16) |
-                                 ((uint32_t)pal[idx * 3 + 1] << 8) |
-                                 (uint32_t)pal[idx * 3 + 2];
-               Video_PutPixel(color, off_x + (int)x, off_y + (int)y);
+               Video_Color pixel_color;
+               pixel_color.r = pal[idx * 3];
+               pixel_color.g = pal[idx * 3 + 1];
+               pixel_color.b = pal[idx * 3 + 2];
+               if (!(pixel_color.r == 0 && pixel_color.g == 0 &&
+                     pixel_color.b == 0))
+                  Video_PutPixel(pixel_color, off_x + (int)x, off_y + (int)y);
             }
          }
       }

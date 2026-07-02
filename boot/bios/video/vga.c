@@ -13,6 +13,7 @@ static void set_mode_0x13(void);
 static inline void put_pixel(int x, int y, uint8_t color);
 static void draw_glyph(uint8_t c, int x, int y, uint8_t fg);
 static void clear_screen(uint8_t color);
+static uint8_t vga_color_from_rgb(Video_Color color);
 
 /* VGA Mode 0x13 constants */
 #define VGA_FB ((volatile uint8_t *)0xA0000)
@@ -40,6 +41,25 @@ static uint8_t s_Shadow[VGA_WIDTH * VGA_HEIGHT];
 static int s_Initialized = 0;
 static int s_CursorX = 0;
 static int s_CursorY = 0;
+
+static const uint8_t s_VgaPal16[16][3] = {
+    {0, 0, 0},       /* 0  black        */
+    {0, 0, 170},     /* 1  blue         */
+    {0, 170, 0},     /* 2  green        */
+    {0, 170, 170},   /* 3  cyan         */
+    {170, 0, 0},     /* 4  red          */
+    {170, 0, 170},   /* 5  magenta      */
+    {170, 85, 0},    /* 6  brown        */
+    {170, 170, 170}, /* 7  light grey   */
+    {85, 85, 85},    /* 8  dark grey    */
+    {85, 85, 255},   /* 9  light blue   */
+    {85, 255, 85},   /* 10 light green  */
+    {85, 255, 255},  /* 11 light cyan   */
+    {255, 85, 85},   /* 12 light red    */
+    {255, 85, 255},  /* 13 light magenta*/
+    {255, 255, 85},  /* 14 yellow       */
+    {255, 255, 255}, /* 15 white        */
+};
 
 static inline void seq_w(uint8_t idx, uint8_t val)
 {
@@ -140,6 +160,29 @@ static void draw_glyph(uint8_t c, int x, int y, uint8_t fg)
    }
 }
 
+// Map an RGB colour to the nearest VGA 16-colour palette index using
+static uint8_t vga_color_from_rgb(Video_Color c)
+{
+   uint8_t best = 0;
+   int32_t best_dist = INT32_MAX;
+   int32_t dr, dg, db, d;
+
+   for (uint8_t i = 0; i < 16; i++)
+   {
+      dr = (int32_t)c.r - (int32_t)s_VgaPal16[i][0];
+      dg = (int32_t)c.g - (int32_t)s_VgaPal16[i][1];
+      db = (int32_t)c.b - (int32_t)s_VgaPal16[i][2];
+      /* Luminance-weighted distance: human eye is most sensitive to green. */
+      d = dr * dr * 3 + dg * dg * 4 + db * db * 2;
+      if (d < best_dist)
+      {
+         best_dist = d;
+         best = i;
+      }
+   }
+   return best;
+}
+
 /* Clear screen */
 static void clear_screen(uint8_t color)
 {
@@ -168,8 +211,10 @@ int VGA_Initialize(void)
    return SUCCESS;
 }
 
-int VGA_PutChar(char c, int x, int y, char color)
+int VGA_PutChar(char c, int x, int y, Video_Color color)
 {
+   uint8_t pal_idx = vga_color_from_rgb(color);
+
    if (!s_Initialized) return -ENODEV;
 
    /* * FIX: Force stream mode behavior if the coordinate input is detected
@@ -229,7 +274,7 @@ int VGA_PutChar(char c, int x, int y, char color)
    /* Draw glyph */
    if (c != '\n' && c != '\r' && c != '\t')
    {
-      draw_glyph((uint8_t)c, x, y, (uint8_t)color);
+      draw_glyph((uint8_t)c, x, y, pal_idx);
       x += FONT_WIDTH;
    }
 
@@ -240,33 +285,23 @@ int VGA_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int VGA_PutPixel(uint32_t color, int x, int y)
+int VGA_PutPixel(Video_Color color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
 
    if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT) return -EINVAL;
 
-   /* Map RGB to VGA 16-color index. */
-   uint8_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
-   uint8_t idx = ((r >> 7) << 2) | ((g >> 7) << 1) | (b >> 7);
-   if (r >= 0xC0 || g >= 0xC0 || b >= 0xC0) idx |= 8;
-   put_pixel(x, y, idx);
+   put_pixel(x, y, vga_color_from_rgb(color));
    return SUCCESS;
 }
 
-uint32_t VGA_GetWidth(void)
-{
-   return VGA_WIDTH;
-}
+uint32_t VGA_GetWidth(void) { return VGA_WIDTH; }
 
-uint32_t VGA_GetHeight(void)
-{
-   return VGA_HEIGHT;
-}
+uint32_t VGA_GetHeight(void) { return VGA_HEIGHT; }
 
-void VGA_ClearScreen(uint32_t color)
+void VGA_ClearScreen(Video_Color color)
 {
-   clear_screen((uint8_t)(color & 0xFF));
+   clear_screen(vga_color_from_rgb(color));
    s_CursorX = 0;
    s_CursorY = 0;
 }

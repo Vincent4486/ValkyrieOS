@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//
+
 // UART (serial) driver — assumes a VT100/xterm-compatible terminal
 // (or emulator) is connected at the other end of the line.
 
@@ -21,17 +21,16 @@
 #define LSR_THR_EMPTY (1 << 5) /* Transmitter hold reg empty */
 
 /* Default fallback dimensions if terminal query fails or times out. */
-#define UART_DEFAULT_WIDTH  80
+#define UART_DEFAULT_WIDTH 80
 #define UART_DEFAULT_HEIGHT 24
 
 static int s_Initialized = 0;
-
-/* Flag: does the terminal need explicit \r before \n?
- * Set by detect_newline_behavior(). */
 static int s_NeedCR = 0;
 
-static uint32_t s_TermWidth  = UART_DEFAULT_WIDTH;
+static uint32_t s_TermWidth = UART_DEFAULT_WIDTH;
 static uint32_t s_TermHeight = UART_DEFAULT_HEIGHT;
+
+static Video_Color s_ScreenBg = {0, 0, 0};
 
 /* --- static helpers ------------------------------------------------------ */
 
@@ -59,7 +58,8 @@ static void write_dec(uint32_t n)
    int i = sizeof(buf) - 1;
    buf[i] = '\0';
 
-   do {
+   do
+   {
       buf[--i] = (char)('0' + (n % 10));
       n /= 10;
    } while (n);
@@ -79,31 +79,41 @@ static void cursor_goto(int x, int y)
    write_byte('H');
 }
 
-/* Set ANSI 256-colour foreground (38;5;N) and background (48;5;N)
- * from a VGA text attribute byte (low nibble = fg, high nibble = bg). */
-static void set_attr_from_vga(char color)
+/* Map RGB to the nearest ANSI 256-colour index (6x6x6 cube: 16-231). */
+static uint8_t uart_ansi_from_rgb(Video_Color c)
 {
-   /* Foreground */
-   write_byte('\x1B');
-   write_byte('[');
-   write_byte('3'); write_byte('8'); write_byte(';');
-   write_byte('5'); write_byte(';');
-   write_dec((uint32_t)(uint8_t)(color & 0x0F));
-   write_byte('m');
+   return (uint8_t)(16 + 36 * ((uint32_t)c.r * 5 / 255) +
+                    6 * ((uint32_t)c.g * 5 / 255) + ((uint32_t)c.b * 5 / 255));
+}
 
-   /* Background */
+/* Set ANSI 256-colour foreground (38;5;N) from an RGB colour. */
+static void set_fg_from_rgb(Video_Color color)
+{
+   uint8_t ansi = uart_ansi_from_rgb(color);
    write_byte('\x1B');
    write_byte('[');
-   write_byte('4'); write_byte('8'); write_byte(';');
-   write_byte('5'); write_byte(';');
-   write_dec((uint32_t)(uint8_t)((color >> 4) & 0x0F));
+   write_byte('3');
+   write_byte('8');
+   write_byte(';');
+   write_byte('5');
+   write_byte(';');
+   write_dec(ansi);
    write_byte('m');
 }
 
-/* Reset all ANSI attributes. */
-static void reset_attr(void)
+/* Set ANSI 256-colour background (48;5;N) from an RGB colour. */
+static void set_bg_from_rgb(Video_Color color)
 {
-   write_ansi("0m");
+   uint8_t ansi = uart_ansi_from_rgb(color);
+   write_byte('\x1B');
+   write_byte('[');
+   write_byte('4');
+   write_byte('8');
+   write_byte(';');
+   write_byte('5');
+   write_byte(';');
+   write_dec(ansi);
+   write_byte('m');
 }
 
 /* Read a byte from UART with a simple poll-loop timeout (approx counts).
@@ -112,8 +122,7 @@ static int read_byte(void)
 {
    for (int timeout = 0; timeout < 100000; timeout++)
    {
-      if (inb(UART_LSR) & 1)
-         return inb(UART_DATA);
+      if (inb(UART_LSR) & 1) return inb(UART_DATA);
    }
    return -1;
 }
@@ -134,10 +143,17 @@ static void flush_input(void)
 static void query_terminal_size(void)
 {
    /* Move cursor to 9999,9999 (terminal clamps to bottom-right) */
-   write_byte('\x1B'); write_byte('[');
-   write_byte('9'); write_byte('9'); write_byte('9'); write_byte('9');
+   write_byte('\x1B');
+   write_byte('[');
+   write_byte('9');
+   write_byte('9');
+   write_byte('9');
+   write_byte('9');
    write_byte(';');
-   write_byte('9'); write_byte('9'); write_byte('9'); write_byte('9');
+   write_byte('9');
+   write_byte('9');
+   write_byte('9');
+   write_byte('9');
    write_byte('H');
 
    /* Request cursor position */
@@ -147,7 +163,7 @@ static void query_terminal_size(void)
    int b = read_byte();
    if (b != '\x1B') return;
    b = read_byte();
-   if (b != '[')    return;
+   if (b != '[') return;
 
    uint32_t row = 0;
    for (;;)
@@ -172,7 +188,7 @@ static void query_terminal_size(void)
    if (row > 0 && col > 0)
    {
       s_TermHeight = row;
-      s_TermWidth  = col;
+      s_TermWidth = col;
    }
 }
 
@@ -200,31 +216,56 @@ static void detect_newline_behavior(void)
 
    /* Parse response: ESC [ rows ; cols R */
    int b = read_byte();
-   if (b != '\x1B') { s_NeedCR = 1; return; }
+   if (b != '\x1B')
+   {
+      s_NeedCR = 1;
+      return;
+   }
    b = read_byte();
-   if (b != '[')    { s_NeedCR = 1; return; }
+   if (b != '[')
+   {
+      s_NeedCR = 1;
+      return;
+   }
 
    uint32_t row = 0;
    for (;;)
    {
       b = read_byte();
       if (b < 0 || b == ';') break;
-      if (b < '0' || b > '9') { s_NeedCR = 1; return; }
+      if (b < '0' || b > '9')
+      {
+         s_NeedCR = 1;
+         return;
+      }
       row = row * 10 + (uint32_t)(b - '0');
    }
-   if (b != ';') { s_NeedCR = 1; return; }
+   if (b != ';')
+   {
+      s_NeedCR = 1;
+      return;
+   }
 
    uint32_t col = 0;
    for (;;)
    {
       b = read_byte();
       if (b < 0 || b == 'R') break;
-      if (b < '0' || b > '9') { s_NeedCR = 1; return; }
+      if (b < '0' || b > '9')
+      {
+         s_NeedCR = 1;
+         return;
+      }
       col = col * 10 + (uint32_t)(b - '0');
    }
-   if (b != 'R') { s_NeedCR = 1; return; }
+   if (b != 'R')
+   {
+      s_NeedCR = 1;
+      return;
+   }
 
-   /* ANSI is 1-based.  If col > 10 the \n didn't return to column 0 → need \r. */
+   /* ANSI is 1-based.  If col > 10 the \n didn't return to column 0 → need \r.
+    */
    s_NeedCR = (col > 10) ? 1 : 0;
 }
 
@@ -252,35 +293,35 @@ int UART_Initialize(void)
    return SUCCESS;
 }
 
-int UART_PutChar(char c, int x, int y, char color)
+int UART_PutChar(char c, int x, int y, Video_Color color)
 {
    if (!s_Initialized) return -ENODEV;
 
-   /* Both coordinates non-negative → absolute position with colour. */
+   /* Always set both foreground (from the caller) and background (from the
+    * last ClearScreen) so PutPixel or any other ANSI reset never leaves
+    * the background stuck at terminal default. */
+   set_fg_from_rgb(color);
+   set_bg_from_rgb(s_ScreenBg);
+
+   /* Both coordinates non-negative → absolute position. */
    if (x >= 0 && y >= 0)
    {
       if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
          return -EINVAL;
 
-      set_attr_from_vga(color);
       cursor_goto(x, y);
    }
 
    /* Send \r before \n if the terminal doesn't do CR on LF alone. */
-   if (c == '\n' && s_NeedCR)
-      write_byte('\r');
+   if (c == '\n' && s_NeedCR) write_byte('\r');
 
    /* Write the character. */
    write_byte((uint8_t)c);
 
-   /* If we set a colour, reset so subsequent stream output is uncoloured. */
-   if (x >= 0 && y >= 0)
-      reset_attr();
-
    return SUCCESS;
 }
 
-int UART_PutPixel(uint32_t color, int x, int y)
+int UART_PutPixel(Video_Color color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
    if (x < 0 || y < 0) return -EINVAL;
@@ -290,42 +331,25 @@ int UART_PutPixel(uint32_t color, int x, int y)
 
    cursor_goto(x, y);
 
-   /* Map RGB to ANSI 256-colour (6x6x6 cube: 16-231). */
-   uint8_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
-   uint8_t ansi = 16 + 36 * (r / 51) + 6 * (g / 51) + (b / 51);
-
-   /* 256-colour background: ESC[48;5;Nm, then space, then reset. */
-   write_byte('\x1B'); write_byte('[');
-   write_byte('4'); write_byte('8'); write_byte(';');
-   write_byte('5'); write_byte(';');
-   write_dec(ansi);
-   write_byte('m');
-
+   /* Set background to the pixel colour, write a space, then restore
+    * the screen background so subsequent text renders correctly. */
+   set_bg_from_rgb(color);
    write_byte(' ');
-   reset_attr();
+   set_bg_from_rgb(s_ScreenBg);
 
    return SUCCESS;
 }
 
-uint32_t UART_GetWidth(void)
-{
-   return s_TermWidth;
-}
+uint32_t UART_GetWidth(void) { return s_TermWidth; }
 
-uint32_t UART_GetHeight(void)
-{
-   return s_TermHeight;
-}
+uint32_t UART_GetHeight(void) { return s_TermHeight; }
 
-void UART_ClearScreen(uint32_t color)
+void UART_ClearScreen(Video_Color color)
 {
+   s_ScreenBg = color;
+
    /* Set 256-colour background then clear. */
-   write_byte('\x1B'); write_byte('[');
-   write_byte('4'); write_byte('8'); write_byte(';');
-   write_byte('5'); write_byte(';');
-   write_dec(color & 0xFF);
-   write_byte('m');
-
+   set_bg_from_rgb(color);
    write_ansi("2J");
-   write_ansi("H");  /* cursor home */
+   write_ansi("H"); /* cursor home */
 }

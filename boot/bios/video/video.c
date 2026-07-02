@@ -22,7 +22,7 @@ int Video_Initialize(void)
    }
 }
 
-int Video_PutChar(char c, int x, int y, char color)
+int Video_PutChar(char c, int x, int y, Video_Color color)
 {
    switch (g_PreferredOutput)
    {
@@ -39,7 +39,7 @@ int Video_PutChar(char c, int x, int y, char color)
    }
 }
 
-int Video_PutPixel(uint32_t color, int x, int y)
+int Video_PutPixel(Video_Color color, int x, int y)
 {
    switch (g_PreferredOutput)
    {
@@ -90,7 +90,7 @@ uint32_t Video_GetHeight(void)
    }
 }
 
-void Video_ClearScreen(uint32_t color)
+void Video_ClearScreen(Video_Color color)
 {
    switch (g_PreferredOutput)
    {

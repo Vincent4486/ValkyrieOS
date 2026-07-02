@@ -8,7 +8,6 @@
 static inline uint32_t pack_rgb(uint8_t r, uint8_t g, uint8_t b);
 static void clear_screen(uint32_t pixel);
 static void draw_glyph(uint8_t c, int x, int y, uint32_t fg);
-static uint32_t vga_color_to_rgb(uint8_t idx);
 
 static int s_Initialized = 0;
 static int s_HasInfo = 0;
@@ -183,32 +182,6 @@ static void draw_glyph(uint8_t c, int x, int y, uint32_t fg)
    }
 }
 
-/* Map a VGA 4-bit colour index (0-15) to an RGB pixel. */
-static uint32_t vga_color_to_rgb(uint8_t idx)
-{
-   static const uint8_t vga_pal[16][3] = {
-      {  0,   0,   0}, /* 0  black        */
-      {  0,   0, 170}, /* 1  blue         */
-      {  0, 170,   0}, /* 2  green        */
-      {  0, 170, 170}, /* 3  cyan         */
-      {170,   0,   0}, /* 4  red          */
-      {170,   0, 170}, /* 5  magenta      */
-      {170,  85,   0}, /* 6  brown        */
-      {170, 170, 170}, /* 7  light grey   */
-      { 85,  85,  85}, /* 8  dark grey    */
-      { 85,  85, 255}, /* 9  light blue   */
-      { 85, 255,  85}, /* 10 light green  */
-      { 85, 255, 255}, /* 11 light cyan   */
-      {255,  85,  85}, /* 12 light red    */
-      {255,  85, 255}, /* 13 light magenta*/
-      {255, 255,  85}, /* 14 yellow       */
-      {255, 255, 255}, /* 15 white        */
-   };
-   return pack_rgb(vga_pal[idx & 0x0F][0],
-                   vga_pal[idx & 0x0F][1],
-                   vga_pal[idx & 0x0F][2]);
-}
-
 /* --- Public API --- */
 
 void VBE_SetInfo(const VBE_Info *info)
@@ -240,7 +213,7 @@ int VBE_Initialize(void)
    return SUCCESS;
 }
 
-int VBE_PutChar(char c, int x, int y, char color)
+int VBE_PutChar(char c, int x, int y, Video_Color color)
 {
    int scale = s_TextScale > 0 ? s_TextScale : 1;
    int glyph_w = FONT_WIDTH * scale;
@@ -269,7 +242,7 @@ int VBE_PutChar(char c, int x, int y, char color)
       s_CursorX = (s_CursorX / (glyph_w * 4) + 1) * (glyph_w * 4);
       break;
    default:
-      draw_glyph((uint8_t)c, x, y, vga_color_to_rgb((uint8_t)color));
+      draw_glyph((uint8_t)c, x, y, pack_rgb(color.r, color.g, color.b));
       s_CursorX = x + glyph_w;
       s_CursorY = y;
       break;
@@ -307,28 +280,22 @@ int VBE_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int VBE_PutPixel(uint32_t color, int x, int y)
+int VBE_PutPixel(Video_Color color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
    if (x < 0 || y < 0 || (uint32_t)x >= s_FbW || (uint32_t)y >= s_FbH)
       return -EINVAL;
 
-   uint8_t r = (uint8_t)((color >> 16) & 0xFF);
-   uint8_t g = (uint8_t)((color >> 8) & 0xFF);
-   uint8_t b = (uint8_t)(color & 0xFF);
-   fb_put_pixel((uint32_t)x, (uint32_t)y, pack_rgb(r, g, b));
+   fb_put_pixel((uint32_t)x, (uint32_t)y, pack_rgb(color.r, color.g, color.b));
    return SUCCESS;
 }
 
 uint32_t VBE_GetWidth(void) { return s_HasInfo ? s_FbW : 0; }
 uint32_t VBE_GetHeight(void) { return s_HasInfo ? s_FbH : 0; }
 
-void VBE_ClearScreen(uint32_t color)
+void VBE_ClearScreen(Video_Color color)
 {
-   uint8_t r = (uint8_t)((color >> 16) & 0xFF);
-   uint8_t g = (uint8_t)((color >> 8) & 0xFF);
-   uint8_t b = (uint8_t)(color & 0xFF);
-   clear_screen(pack_rgb(r, g, b));
+   clear_screen(pack_rgb(color.r, color.g, color.b));
    s_CursorX = 0;
    s_CursorY = 0;
 }
