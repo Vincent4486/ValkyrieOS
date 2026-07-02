@@ -249,3 +249,18 @@ int VGA_PutPixel(int pixel, int x, int y)
    put_pixel(x, y, (uint8_t)pixel);
    return SUCCESS;
 }
+
+uint32_t VGA_GetWidth(void)
+{
+   return VGA_WIDTH;
+}
+
+uint32_t VGA_GetHeight(void)
+{
+   return VGA_HEIGHT;
+}
+
+void VGA_ClearScreen(uint32_t pixel)
+{
+   clear_screen((uint8_t)pixel);
+}

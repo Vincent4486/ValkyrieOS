@@ -42,10 +42,16 @@ extern int g_PreferredOutput; /* Preferred output system. */
 int VGATEXT_Initialize(void); /* Initialize VGA text mode. */
 int VGATEXT_PutChar(char c, int x, int y, char color); /* Put text char. */
 int VGATEXT_PutPixel(int pixel, int x, int y);         /* Text mode: -EINVAL. */
+uint32_t VGATEXT_GetWidth(void);            /* Get VGA text width (80). */
+uint32_t VGATEXT_GetHeight(void);           /* Get VGA text height (25). */
+void VGATEXT_ClearScreen(uint32_t pixel);   /* Clears the VGA text screen */
 
 int UART_Initialize(void); /* Initialize COM1 UART. */
 int UART_PutChar(char c, int x, int y, char color); /* Put UART char. */
 int UART_PutPixel(int pixel, int x, int y);         /* UART: -EINVAL. */
+uint32_t UART_GetWidth(void);            /* UART: 0 (no screen). */
+uint32_t UART_GetHeight(void);           /* UART: 0 (no screen). */
+void UART_ClearScreen(uint32_t pixel);   /* UART: no-op. */
 
 int VBE_Initialize(void); /* Initialize VBE framebuffer. */
 int VBE_PutChar(char c, int x, int y, char color);     /* Put VBE char. */
@@ -60,6 +66,9 @@ void VBE_ClearScreen(uint32_t pixel);   /* Clears the current VBE screen */
 int VGA_Initialize(void); /* Initialize VGA graphics. */
 int VGA_PutChar(char c, int x, int y, char color); /* Put VGA char. */
 int VGA_PutPixel(int pixel, int x, int y);         /* Put VGA pixel. */
+uint32_t VGA_GetWidth(void);            /* Get VGA width (320). */
+uint32_t VGA_GetHeight(void);           /* Get VGA height (200). */
+void VGA_ClearScreen(uint32_t pixel);   /* Clears the VGA screen */
 
 void putc(char c);          /* Write a single character. */
 void puts(const char *str); /* Write a null-terminated string. */

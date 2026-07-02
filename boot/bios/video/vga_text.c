@@ -164,3 +164,29 @@ int VGATEXT_PutPixel(int pixel, int x, int y)
    (void)y;
    return -EINVAL;
 }
+
+uint32_t VGATEXT_GetWidth(void)
+{
+   return VGATEXT_WIDTH;
+}
+
+uint32_t VGATEXT_GetHeight(void)
+{
+   return VGATEXT_HEIGHT;
+}
+
+void VGATEXT_ClearScreen(uint32_t pixel)
+{
+   volatile char *buf = VGATEXT_BUFFER;
+   (void)pixel;
+
+   for (int i = 0; i < VGATEXT_WIDTH * VGATEXT_HEIGHT * 2; i += 2)
+   {
+      buf[i] = ' ';
+      buf[i + 1] = s_Color;
+   }
+
+   s_CursorX = 0;
+   s_CursorY = 0;
+   move_cursor(s_CursorX, s_CursorY);
+}

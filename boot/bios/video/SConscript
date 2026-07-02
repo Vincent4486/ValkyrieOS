@@ -11,4 +11,5 @@ CoreSources += [
     File("vga_text.c"),
     File("vga.c"),
     File("print.c"),
+    File("video.c"),
 ]
