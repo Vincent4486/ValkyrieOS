@@ -29,13 +29,86 @@ static int s_Initialized = 0;
 static uint32_t s_TermWidth  = UART_DEFAULT_WIDTH;
 static uint32_t s_TermHeight = UART_DEFAULT_HEIGHT;
 
+/* --- static helpers ------------------------------------------------------ */
+
+/* Write a byte to UART, waiting for THR empty. */
+static void uart_putb(uint8_t b)
+{
+   while (!(inb(UART_LSR) & LSR_THR_EMPTY))
+      ;
+   outb(UART_DATA, b);
+}
+
+/* Write an ANSI escape sequence: ESC [ args */
+static void uart_ansi(const char *seq)
+{
+   uart_putb('\x1B');
+   uart_putb('[');
+   while (*seq)
+      uart_putb((uint8_t)*seq++);
+}
+
+/* Write a decimal number to the UART (for ANSI escape sequences). */
+static void uart_write_dec(uint32_t n)
+{
+   char buf[12];
+   int i = sizeof(buf) - 1;
+   buf[i] = '\0';
+
+   do {
+      buf[--i] = (char)('0' + (n % 10));
+      n /= 10;
+   } while (n);
+
+   while (buf[i])
+      uart_putb((uint8_t)buf[i++]);
+}
+
+/* Position cursor to (col, row) — ANSI 1-based. */
+static void uart_cursor_goto(int x, int y)
+{
+   uart_putb('\x1B');
+   uart_putb('[');
+   uart_write_dec((uint32_t)(y + 1));
+   uart_putb(';');
+   uart_write_dec((uint32_t)(x + 1));
+   uart_putb('H');
+}
+
+/* Set ANSI 256-colour foreground (38;5;N) and background (48;5;N)
+ * from a VGA text attribute byte (low nibble = fg, high nibble = bg). */
+static void uart_set_attr_from_vga(char color)
+{
+   /* Foreground */
+   uart_putb('\x1B');
+   uart_putb('[');
+   uart_putb('3'); uart_putb('8'); uart_putb(';');
+   uart_putb('5'); uart_putb(';');
+   uart_write_dec((uint32_t)(uint8_t)(color & 0x0F));
+   uart_putb('m');
+
+   /* Background */
+   uart_putb('\x1B');
+   uart_putb('[');
+   uart_putb('4'); uart_putb('8'); uart_putb(';');
+   uart_putb('5'); uart_putb(';');
+   uart_write_dec((uint32_t)(uint8_t)((color >> 4) & 0x0F));
+   uart_putb('m');
+}
+
+/* Reset all ANSI attributes. */
+static void uart_reset_attr(void)
+{
+   uart_ansi("0m");
+}
+
 /* Read a byte from UART with a simple poll-loop timeout (approx counts).
  * Returns the byte on success, -1 on timeout. */
 static int uart_read_byte(void)
 {
    for (int timeout = 0; timeout < 100000; timeout++)
    {
-      if (inb(UART_LSR) & 1)           /* Data ready (LSR bit 0) */
+      if (inb(UART_LSR) & 1)
          return inb(UART_DATA);
    }
    return -1;
@@ -57,20 +130,14 @@ static void uart_flush_input(void)
 static void uart_query_terminal_size(void)
 {
    /* Move cursor to 9999,9999 (terminal clamps to bottom-right) */
-   outb(UART_DATA, '\x1B');
-   outb(UART_DATA, '[');
-   outb(UART_DATA, '9'); outb(UART_DATA, '9'); outb(UART_DATA, '9');
-   outb(UART_DATA, '9');
-   outb(UART_DATA, ';');
-   outb(UART_DATA, '9'); outb(UART_DATA, '9'); outb(UART_DATA, '9');
-   outb(UART_DATA, '9');
-   outb(UART_DATA, 'H');
+   uart_putb('\x1B'); uart_putb('[');
+   uart_putb('9'); uart_putb('9'); uart_putb('9'); uart_putb('9');
+   uart_putb(';');
+   uart_putb('9'); uart_putb('9'); uart_putb('9'); uart_putb('9');
+   uart_putb('H');
 
    /* Request cursor position */
-   outb(UART_DATA, '\x1B');
-   outb(UART_DATA, '[');
-   outb(UART_DATA, '6');
-   outb(UART_DATA, 'n');
+   uart_ansi("6n");
 
    /* Parse response: ESC [ rows ; cols R */
    int b = uart_read_byte();
@@ -105,6 +172,8 @@ static void uart_query_terminal_size(void)
    }
 }
 
+/* --- public interface ---------------------------------------------------- */
+
 int UART_Initialize(void)
 {
    /* Baud rate divisor = 1  (115200 baud with 1.8432 MHz crystal) */
@@ -126,26 +195,49 @@ int UART_Initialize(void)
 
 int UART_PutChar(char c, int x, int y, char color)
 {
-   (void)x;
-   (void)y;
-   (void)color;
-
    if (!s_Initialized) return -ENODEV;
 
-   /* Wait until the transmitter holding register is empty */
-   while (!(inb(UART_LSR) & LSR_THR_EMPTY))
-      ;
+   /* Both coordinates non-negative → absolute position with colour. */
+   if (x >= 0 && y >= 0)
+   {
+      if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
+         return -EINVAL;
 
-   outb(UART_DATA, (uint8_t)c);
+      uart_set_attr_from_vga(color);
+      uart_cursor_goto(x, y);
+   }
+
+   /* Write the character. */
+   uart_putb((uint8_t)c);
+
+   /* If we set a colour, reset so subsequent stream output is uncoloured. */
+   if (x >= 0 && y >= 0)
+      uart_reset_attr();
+
    return SUCCESS;
 }
 
 int UART_PutPixel(int pixel, int x, int y)
 {
-   (void)pixel;
-   (void)x;
-   (void)y;
-   return -EINVAL;
+   if (!s_Initialized) return -ENODEV;
+   if (x < 0 || y < 0) return -EINVAL;
+
+   if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
+      return -EINVAL;
+
+   uart_cursor_goto(x, y);
+
+   /* 256-colour background: ESC[48;5;Nm, then space, then reset. */
+   uart_putb('\x1B'); uart_putb('[');
+   uart_putb('4'); uart_putb('8'); uart_putb(';');
+   uart_putb('5'); uart_putb(';');
+   uart_write_dec((uint32_t)(pixel & 0xFF));
+   uart_putb('m');
+
+   uart_putb(' ');
+   uart_reset_attr();
+
+   return SUCCESS;
 }
 
 uint32_t UART_GetWidth(void)
@@ -160,10 +252,12 @@ uint32_t UART_GetHeight(void)
 
 void UART_ClearScreen(uint32_t pixel)
 {
-   (void)pixel;
-   /* VT100 clear screen: ESC [ 2 J */
-   outb(UART_DATA, '\x1B');
-   outb(UART_DATA, '[');
-   outb(UART_DATA, '2');
-   outb(UART_DATA, 'J');
+   /* Set 256-colour background then clear. */
+   uart_putb('\x1B'); uart_putb('[');
+   uart_putb('4'); uart_putb('8'); uart_putb(';');
+   uart_putb('5'); uart_putb(';');
+   uart_write_dec(pixel & 0xFF);
+   uart_putb('m');
+
+   uart_ansi("2J");
 }
