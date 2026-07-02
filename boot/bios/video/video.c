@@ -39,18 +39,18 @@ int Video_PutChar(char c, int x, int y, char color)
    }
 }
 
-int Video_PutPixel(uint32_t pixel, int x, int y)
+int Video_PutPixel(uint32_t color, int x, int y)
 {
    switch (g_PreferredOutput)
    {
    case OUTPUT_VBE:
-      return VBE_PutPixel(pixel, x, y);
+      return VBE_PutPixel(color, x, y);
    case OUTPUT_VGA:
-      return VGA_PutPixel((int)pixel, x, y);
+      return VGA_PutPixel(color, x, y);
    case OUTPUT_VGATEXT:
-      return VGATEXT_PutPixel((int)pixel, x, y);
+      return VGATEXT_PutPixel(color, x, y);
    case OUTPUT_UART:
-      return UART_PutPixel((int)pixel, x, y);
+      return UART_PutPixel(color, x, y);
    default:
       return -EINVAL;
    }
@@ -90,21 +90,21 @@ uint32_t Video_GetHeight(void)
    }
 }
 
-void Video_ClearScreen(uint32_t pixel)
+void Video_ClearScreen(uint32_t color)
 {
    switch (g_PreferredOutput)
    {
    case OUTPUT_VBE:
-      VBE_ClearScreen(pixel);
+      VBE_ClearScreen(color);
       break;
    case OUTPUT_VGA:
-      VGA_ClearScreen(pixel);
+      VGA_ClearScreen(color);
       break;
    case OUTPUT_VGATEXT:
-      VGATEXT_ClearScreen(pixel);
+      VGATEXT_ClearScreen(color);
       break;
    case OUTPUT_UART:
-      UART_ClearScreen(pixel);
+      UART_ClearScreen(color);
       break;
    }
 }

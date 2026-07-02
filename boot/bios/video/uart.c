@@ -217,7 +217,7 @@ int UART_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int UART_PutPixel(int pixel, int x, int y)
+int UART_PutPixel(uint32_t color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
    if (x < 0 || y < 0) return -EINVAL;
@@ -231,7 +231,7 @@ int UART_PutPixel(int pixel, int x, int y)
    uart_putb('\x1B'); uart_putb('[');
    uart_putb('4'); uart_putb('8'); uart_putb(';');
    uart_putb('5'); uart_putb(';');
-   uart_write_dec((uint32_t)(pixel & 0xFF));
+   uart_write_dec(color & 0xFF);
    uart_putb('m');
 
    uart_putb(' ');
@@ -250,13 +250,13 @@ uint32_t UART_GetHeight(void)
    return s_TermHeight;
 }
 
-void UART_ClearScreen(uint32_t pixel)
+void UART_ClearScreen(uint32_t color)
 {
    /* Set 256-colour background then clear. */
    uart_putb('\x1B'); uart_putb('[');
    uart_putb('4'); uart_putb('8'); uart_putb(';');
    uart_putb('5'); uart_putb(';');
-   uart_write_dec(pixel & 0xFF);
+   uart_write_dec(color & 0xFF);
    uart_putb('m');
 
    uart_ansi("2J");

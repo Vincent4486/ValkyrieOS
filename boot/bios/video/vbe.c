@@ -236,7 +236,7 @@ int VBE_Initialize(void)
    s_FbBpp = s_Info.bpp;
    s_FbBytesPP = (s_Info.bpp + 7u) / 8u;
 
-   clear_screen(pack_rgb(0, 0, 0));
+   clear_screen(0);
    return SUCCESS;
 }
 
@@ -307,23 +307,26 @@ int VBE_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int VBE_PutPixel(uint32_t pixel, int x, int y)
+int VBE_PutPixel(uint32_t color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
    if (x < 0 || y < 0 || (uint32_t)x >= s_FbW || (uint32_t)y >= s_FbH)
       return -EINVAL;
 
-   fb_put_pixel((uint32_t)x, (uint32_t)y, pixel);
+   uint8_t r = (uint8_t)((color >> 16) & 0xFF);
+   uint8_t g = (uint8_t)((color >> 8) & 0xFF);
+   uint8_t b = (uint8_t)(color & 0xFF);
+   fb_put_pixel((uint32_t)x, (uint32_t)y, pack_rgb(r, g, b));
    return SUCCESS;
-}
-
-uint32_t VBE_PackRGB(uint8_t r, uint8_t g, uint8_t b)
-{
-   if (!s_HasInfo) return 0;
-   return pack_rgb(r, g, b);
 }
 
 uint32_t VBE_GetWidth(void) { return s_HasInfo ? s_FbW : 0; }
 uint32_t VBE_GetHeight(void) { return s_HasInfo ? s_FbH : 0; }
 
-void VBE_ClearScreen(uint32_t pixel) { clear_screen(pixel); }
+void VBE_ClearScreen(uint32_t color)
+{
+   uint8_t r = (uint8_t)((color >> 16) & 0xFF);
+   uint8_t g = (uint8_t)((color >> 8) & 0xFF);
+   uint8_t b = (uint8_t)(color & 0xFF);
+   clear_screen(pack_rgb(r, g, b));
+}

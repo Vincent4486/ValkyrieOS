@@ -43,41 +43,40 @@ extern int g_PreferredOutput; /* Preferred output system. */
  * based on g_PreferredOutput. */
 int  Video_Initialize(void);                    /* Initialize active driver. */
 int  Video_PutChar(char c, int x, int y, char color); /* Put char via active driver. */
-int  Video_PutPixel(uint32_t pixel, int x, int y);   /* Put pixel via active driver. */
+int  Video_PutPixel(uint32_t color, int x, int y);   /* Put pixel via active driver. */
 uint32_t Video_GetWidth(void);                  /* Get width of active driver. */
 uint32_t Video_GetHeight(void);                 /* Get height of active driver. */
-void Video_ClearScreen(uint32_t pixel);         /* Clear screen of active driver. */
+void Video_ClearScreen(uint32_t color);         /* Clear screen of active driver. */
 
 int VGATEXT_Initialize(void); /* Initialize VGA text mode. */
 int VGATEXT_PutChar(char c, int x, int y, char color); /* Put text char. */
-int VGATEXT_PutPixel(int pixel, int x, int y);         /* Put pixel as block char + colour attribute. */
+int VGATEXT_PutPixel(uint32_t color, int x, int y);         /* Put pixel as block char + colour attribute. */
 uint32_t VGATEXT_GetWidth(void);            /* Get VGA text width (80). */
 uint32_t VGATEXT_GetHeight(void);           /* Get VGA text height (25). */
-void VGATEXT_ClearScreen(uint32_t pixel);   /* Clears the VGA text screen */
+void VGATEXT_ClearScreen(uint32_t color);   /* Clears the VGA text screen */
 
 int UART_Initialize(void); /* Initialize COM1 UART. */
 int UART_PutChar(char c, int x, int y, char color); /* Put char via ANSI codes (cursor + colour). */
-int UART_PutPixel(int pixel, int x, int y);         /* Put pixel via ANSI 256-colour background. */
+int UART_PutPixel(uint32_t color, int x, int y);         /* Put pixel via ANSI 256-colour background. */
 uint32_t UART_GetWidth(void);            /* Get terminal width via VT100 CPR. */
 uint32_t UART_GetHeight(void);           /* Get terminal height via VT100 CPR. */
-void UART_ClearScreen(uint32_t pixel);   /* Clear terminal via VT100 ESC[2J. */
+void UART_ClearScreen(uint32_t color);   /* Clear terminal via VT100 ESC[2J. */
 
 int VBE_Initialize(void); /* Initialize VBE framebuffer. */
 int VBE_PutChar(char c, int x, int y, char color);     /* Put VBE char. */
-int VBE_PutPixel(uint32_t pixel, int x, int y);        /* Put VBE pixel. */
-uint32_t VBE_PackRGB(uint8_t r, uint8_t g, uint8_t b); /* Pack RGB for VBE. */
+int VBE_PutPixel(uint32_t color, int x, int y);        /* Put VBE pixel. */
 void VBE_SetInfo(const VBE_Info *info); /* Set VBE info before init. */
 int VBE_HasInfo(void);                  /* Check if VBE info is available. */
 uint32_t VBE_GetWidth(void);            /* Get current VBE width. */
 uint32_t VBE_GetHeight(void);           /* Get current VBE height. */
-void VBE_ClearScreen(uint32_t pixel);   /* Clears the current VBE screen */
+void VBE_ClearScreen(uint32_t color);   /* Clears the current VBE screen */
 
 int VGA_Initialize(void); /* Initialize VGA graphics. */
 int VGA_PutChar(char c, int x, int y, char color); /* Put VGA char. */
-int VGA_PutPixel(int pixel, int x, int y);         /* Put VGA pixel. */
+int VGA_PutPixel(uint32_t color, int x, int y);         /* Put VGA pixel. */
 uint32_t VGA_GetWidth(void);            /* Get VGA width (320). */
 uint32_t VGA_GetHeight(void);           /* Get VGA height (200). */
-void VGA_ClearScreen(uint32_t pixel);   /* Clears the VGA screen */
+void VGA_ClearScreen(uint32_t color);   /* Clears the VGA screen */
 
 void putc(char c);          /* Write a single character. */
 void puts(const char *str); /* Write a null-terminated string. */

@@ -240,13 +240,13 @@ int VGA_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int VGA_PutPixel(int pixel, int x, int y)
+int VGA_PutPixel(uint32_t color, int x, int y)
 {
    if (!s_Initialized) return -ENODEV;
 
    if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT) return -EINVAL;
 
-   put_pixel(x, y, (uint8_t)pixel);
+   put_pixel(x, y, (uint8_t)(color & 0xFF));
    return SUCCESS;
 }
 
@@ -260,7 +260,7 @@ uint32_t VGA_GetHeight(void)
    return VGA_HEIGHT;
 }
 
-void VGA_ClearScreen(uint32_t pixel)
+void VGA_ClearScreen(uint32_t color)
 {
-   clear_screen((uint8_t)pixel);
+   clear_screen((uint8_t)(color & 0xFF));
 }

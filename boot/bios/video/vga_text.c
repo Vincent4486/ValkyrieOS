@@ -157,17 +157,17 @@ int VGATEXT_PutChar(char c, int x, int y, char color)
    return SUCCESS;
 }
 
-int VGATEXT_PutPixel(int pixel, int x, int y)
+int VGATEXT_PutPixel(uint32_t color, int x, int y)
 {
    if (x < 0 || x >= VGATEXT_WIDTH || y < 0 || y >= VGATEXT_HEIGHT)
       return -EINVAL;
 
-   /* Use a full block character with the pixel value as the attribute
+   /* Use a full block character with the color value as the attribute
     * (high nibble = background colour, low nibble = foreground colour). */
    volatile char *buf = VGATEXT_BUFFER;
    int off = (y * VGATEXT_WIDTH + x) * 2;
    buf[off]     = 0xDB;           /* full block */
-   buf[off + 1] = (char)pixel;    /* colour attribute */
+   buf[off + 1] = (char)(color & 0xFF);    /* colour attribute */
    return SUCCESS;
 }
 
@@ -181,14 +181,14 @@ uint32_t VGATEXT_GetHeight(void)
    return VGATEXT_HEIGHT;
 }
 
-void VGATEXT_ClearScreen(uint32_t pixel)
+void VGATEXT_ClearScreen(uint32_t color)
 {
    volatile char *buf = VGATEXT_BUFFER;
 
    for (int i = 0; i < VGATEXT_WIDTH * VGATEXT_HEIGHT * 2; i += 2)
    {
       buf[i] = ' ';
-      buf[i + 1] = (char)pixel;
+      buf[i + 1] = (char)(color & 0xFF);
    }
 
    s_CursorX = 0;
