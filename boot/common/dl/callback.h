@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <colors.h>
+
 typedef struct DL_CallbackOperations DL_CallbackOperations;
 typedef struct DL_CallbackOpsPatch DL_CallbackOpsPatch;
 
@@ -12,6 +14,13 @@ struct __attribute__((packed)) DL_CallbackOperations
                     uint8_t head, uint8_t count, void *buffer);
    int (*DISK_ReadLBA)(uint8_t drive, uint64_t lba, uint16_t count,
                        void *buffer);
+   int (*Video_PutChar)(char c, int x, int y,
+                     Video_Color color); 
+   int (*Video_PutPixel)(Video_Color color, int x,
+                     int y);                 
+   uint32_t (*Video_GetWidth)(void);             
+   uint32_t (*Video_GetHeight)(void);            
+   void (*Video_ClearScreen)(Video_Color color); 
 };
 
 struct __attribute__((packed)) DL_CallbackOpsPatch

@@ -322,6 +322,11 @@ void init_main_boot(void)
    // Populate s_DlCallbackOps
    s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
    s_DlCallbackOps.DISK_ReadLBA = s_BootParams.corefs_ops->DISK_ReadLBA;
+   s_DlCallbackOps.Video_ClearScreen = Video_ClearScreen;
+   s_DlCallbackOps.Video_GetHeight = Video_GetHeight;
+   s_DlCallbackOps.Video_GetWidth = Video_GetWidth;
+   s_DlCallbackOps.Video_PutChar = Video_PutChar;
+   s_DlCallbackOps.Video_PutPixel = Video_PutPixel;
 
    // Check for VLSO to patch callback address
    for (int i = 0; i + 4 <= total;

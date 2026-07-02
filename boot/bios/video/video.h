@@ -6,6 +6,8 @@
 #include <stdint.h>
 
 #include <constants.h>
+#include <colors.h>
+
 /* Output system identifiers (availability bit positions). */
 #define OUTPUT_VBE 0
 #define OUTPUT_VGA 1
@@ -29,14 +31,6 @@ typedef struct VBE_Info
    uint8_t blue_field_position;
    uint8_t blue_mask_size;
 } VBE_Info;
-
-/* RGB colour representation. */
-typedef struct Video_Color
-{
-   uint8_t r;
-   uint8_t g;
-   uint8_t b;
-} Video_Color;
 
 extern void outb(uint16_t port, uint8_t val); /* Write port byte. */
 extern uint8_t inb(uint16_t port);            /* Read port byte. */
