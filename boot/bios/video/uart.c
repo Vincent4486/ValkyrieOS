@@ -20,11 +20,15 @@
 /* Line status register bits */
 #define LSR_THR_EMPTY (1 << 5) /* Transmitter hold reg empty */
 
-static int s_Initialized = 0;
-
 /* Default fallback dimensions if terminal query fails or times out. */
 #define UART_DEFAULT_WIDTH  80
 #define UART_DEFAULT_HEIGHT 24
+
+static int s_Initialized = 0;
+
+/* Flag: does the terminal need explicit \r before \n?
+ * Set by detect_newline_behavior(). */
+static int s_NeedCR = 0;
 
 static uint32_t s_TermWidth  = UART_DEFAULT_WIDTH;
 static uint32_t s_TermHeight = UART_DEFAULT_HEIGHT;
@@ -32,7 +36,7 @@ static uint32_t s_TermHeight = UART_DEFAULT_HEIGHT;
 /* --- static helpers ------------------------------------------------------ */
 
 /* Write a byte to UART, waiting for THR empty. */
-static void uart_putb(uint8_t b)
+static void write_byte(uint8_t b)
 {
    while (!(inb(UART_LSR) & LSR_THR_EMPTY))
       ;
@@ -40,16 +44,16 @@ static void uart_putb(uint8_t b)
 }
 
 /* Write an ANSI escape sequence: ESC [ args */
-static void uart_ansi(const char *seq)
+static void ansi(const char *seq)
 {
-   uart_putb('\x1B');
-   uart_putb('[');
+   write_byte('\x1B');
+   write_byte('[');
    while (*seq)
-      uart_putb((uint8_t)*seq++);
+      write_byte((uint8_t)*seq++);
 }
 
 /* Write a decimal number to the UART (for ANSI escape sequences). */
-static void uart_write_dec(uint32_t n)
+static void write_dec(uint32_t n)
 {
    char buf[12];
    int i = sizeof(buf) - 1;
@@ -61,50 +65,50 @@ static void uart_write_dec(uint32_t n)
    } while (n);
 
    while (buf[i])
-      uart_putb((uint8_t)buf[i++]);
+      write_byte((uint8_t)buf[i++]);
 }
 
 /* Position cursor to (col, row) — ANSI 1-based. */
-static void uart_cursor_goto(int x, int y)
+static void cursor_goto(int x, int y)
 {
-   uart_putb('\x1B');
-   uart_putb('[');
-   uart_write_dec((uint32_t)(y + 1));
-   uart_putb(';');
-   uart_write_dec((uint32_t)(x + 1));
-   uart_putb('H');
+   write_byte('\x1B');
+   write_byte('[');
+   write_dec((uint32_t)(y + 1));
+   write_byte(';');
+   write_dec((uint32_t)(x + 1));
+   write_byte('H');
 }
 
 /* Set ANSI 256-colour foreground (38;5;N) and background (48;5;N)
  * from a VGA text attribute byte (low nibble = fg, high nibble = bg). */
-static void uart_set_attr_from_vga(char color)
+static void set_attr_from_vga(char color)
 {
    /* Foreground */
-   uart_putb('\x1B');
-   uart_putb('[');
-   uart_putb('3'); uart_putb('8'); uart_putb(';');
-   uart_putb('5'); uart_putb(';');
-   uart_write_dec((uint32_t)(uint8_t)(color & 0x0F));
-   uart_putb('m');
+   write_byte('\x1B');
+   write_byte('[');
+   write_byte('3'); write_byte('8'); write_byte(';');
+   write_byte('5'); write_byte(';');
+   write_dec((uint32_t)(uint8_t)(color & 0x0F));
+   write_byte('m');
 
    /* Background */
-   uart_putb('\x1B');
-   uart_putb('[');
-   uart_putb('4'); uart_putb('8'); uart_putb(';');
-   uart_putb('5'); uart_putb(';');
-   uart_write_dec((uint32_t)(uint8_t)((color >> 4) & 0x0F));
-   uart_putb('m');
+   write_byte('\x1B');
+   write_byte('[');
+   write_byte('4'); write_byte('8'); write_byte(';');
+   write_byte('5'); write_byte(';');
+   write_dec((uint32_t)(uint8_t)((color >> 4) & 0x0F));
+   write_byte('m');
 }
 
 /* Reset all ANSI attributes. */
-static void uart_reset_attr(void)
+static void reset_attr(void)
 {
-   uart_ansi("0m");
+   ansi("0m");
 }
 
 /* Read a byte from UART with a simple poll-loop timeout (approx counts).
  * Returns the byte on success, -1 on timeout. */
-static int uart_read_byte(void)
+static int read_byte(void)
 {
    for (int timeout = 0; timeout < 100000; timeout++)
    {
@@ -115,7 +119,7 @@ static int uart_read_byte(void)
 }
 
 /* Read and discard any pending input bytes. */
-static void uart_flush_input(void)
+static void flush_input(void)
 {
    while (inb(UART_LSR) & 1)
       (void)inb(UART_DATA);
@@ -127,28 +131,28 @@ static void uart_flush_input(void)
  *   2. Request cursor position     (ESC [ 6 n)
  *   3. Terminal replies with       ESC [ row ; col R
  * Falls back to UART_DEFAULT_WIDTH / UART_DEFAULT_HEIGHT on timeout. */
-static void uart_query_terminal_size(void)
+static void query_terminal_size(void)
 {
    /* Move cursor to 9999,9999 (terminal clamps to bottom-right) */
-   uart_putb('\x1B'); uart_putb('[');
-   uart_putb('9'); uart_putb('9'); uart_putb('9'); uart_putb('9');
-   uart_putb(';');
-   uart_putb('9'); uart_putb('9'); uart_putb('9'); uart_putb('9');
-   uart_putb('H');
+   write_byte('\x1B'); write_byte('[');
+   write_byte('9'); write_byte('9'); write_byte('9'); write_byte('9');
+   write_byte(';');
+   write_byte('9'); write_byte('9'); write_byte('9'); write_byte('9');
+   write_byte('H');
 
    /* Request cursor position */
-   uart_ansi("6n");
+   ansi("6n");
 
    /* Parse response: ESC [ rows ; cols R */
-   int b = uart_read_byte();
+   int b = read_byte();
    if (b != '\x1B') return;
-   b = uart_read_byte();
+   b = read_byte();
    if (b != '[')    return;
 
    uint32_t row = 0;
    for (;;)
    {
-      b = uart_read_byte();
+      b = read_byte();
       if (b < 0 || b == ';') break;
       if (b < '0' || b > '9') return;
       row = row * 10 + (uint32_t)(b - '0');
@@ -158,7 +162,7 @@ static void uart_query_terminal_size(void)
    uint32_t col = 0;
    for (;;)
    {
-      b = uart_read_byte();
+      b = read_byte();
       if (b < 0 || b == 'R') break;
       if (b < '0' || b > '9') return;
       col = col * 10 + (uint32_t)(b - '0');
@@ -170,6 +174,58 @@ static void uart_query_terminal_size(void)
       s_TermHeight = row;
       s_TermWidth  = col;
    }
+}
+
+/* Probe whether \n alone moves the cursor to column 0, or whether
+ * an explicit \r is needed.  Uses the same CPR method as
+ * query_terminal_size().
+ *
+ *   1. Move cursor to column 10 on the current row.
+ *   2. Send just \n.
+ *   3. Query cursor position (CPR).
+ *   4. If column > 10 → LF is LF-only → need \r.
+ *      If column == 1  → LF implies CR → no extra \r needed.
+ * Falls back to assuming \r IS needed on timeout (conservative). */
+static void detect_newline_behavior(void)
+{
+   /* Set cursor to column 10. */
+   cursor_goto(10, 0);
+   flush_input();
+
+   /* Send a bare line-feed. */
+   write_byte('\n');
+
+   /* Request cursor position. */
+   ansi("6n");
+
+   /* Parse response: ESC [ rows ; cols R */
+   int b = read_byte();
+   if (b != '\x1B') { s_NeedCR = 1; return; }
+   b = read_byte();
+   if (b != '[')    { s_NeedCR = 1; return; }
+
+   uint32_t row = 0;
+   for (;;)
+   {
+      b = read_byte();
+      if (b < 0 || b == ';') break;
+      if (b < '0' || b > '9') { s_NeedCR = 1; return; }
+      row = row * 10 + (uint32_t)(b - '0');
+   }
+   if (b != ';') { s_NeedCR = 1; return; }
+
+   uint32_t col = 0;
+   for (;;)
+   {
+      b = read_byte();
+      if (b < 0 || b == 'R') break;
+      if (b < '0' || b > '9') { s_NeedCR = 1; return; }
+      col = col * 10 + (uint32_t)(b - '0');
+   }
+   if (b != 'R') { s_NeedCR = 1; return; }
+
+   /* ANSI is 1-based.  If col > 10 the \n didn't return to column 0 → need \r. */
+   s_NeedCR = (col > 10) ? 1 : 0;
 }
 
 /* --- public interface ---------------------------------------------------- */
@@ -186,8 +242,11 @@ int UART_Initialize(void)
    outb(UART_MCR, 0x0B); /* DTR + RTS + OUT2 (enable IRQ)    */
    outb(UART_IER, 0x00); /* disable all interrupts           */
 
-   uart_flush_input();
-   uart_query_terminal_size();
+   flush_input();
+   query_terminal_size();
+
+   /* Probe whether the terminal needs \r before \n. */
+   detect_newline_behavior();
 
    s_Initialized = 1;
    return SUCCESS;
@@ -203,16 +262,20 @@ int UART_PutChar(char c, int x, int y, char color)
       if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
          return -EINVAL;
 
-      uart_set_attr_from_vga(color);
-      uart_cursor_goto(x, y);
+      set_attr_from_vga(color);
+      cursor_goto(x, y);
    }
 
+   /* Send \r before \n if the terminal doesn't do CR on LF alone. */
+   if (c == '\n' && s_NeedCR)
+      write_byte('\r');
+
    /* Write the character. */
-   uart_putb((uint8_t)c);
+   write_byte((uint8_t)c);
 
    /* If we set a colour, reset so subsequent stream output is uncoloured. */
    if (x >= 0 && y >= 0)
-      uart_reset_attr();
+      reset_attr();
 
    return SUCCESS;
 }
@@ -225,17 +288,17 @@ int UART_PutPixel(uint32_t color, int x, int y)
    if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
       return -EINVAL;
 
-   uart_cursor_goto(x, y);
+   cursor_goto(x, y);
 
    /* 256-colour background: ESC[48;5;Nm, then space, then reset. */
-   uart_putb('\x1B'); uart_putb('[');
-   uart_putb('4'); uart_putb('8'); uart_putb(';');
-   uart_putb('5'); uart_putb(';');
-   uart_write_dec(color & 0xFF);
-   uart_putb('m');
+   write_byte('\x1B'); write_byte('[');
+   write_byte('4'); write_byte('8'); write_byte(';');
+   write_byte('5'); write_byte(';');
+   write_dec(color & 0xFF);
+   write_byte('m');
 
-   uart_putb(' ');
-   uart_reset_attr();
+   write_byte(' ');
+   reset_attr();
 
    return SUCCESS;
 }
@@ -253,11 +316,11 @@ uint32_t UART_GetHeight(void)
 void UART_ClearScreen(uint32_t color)
 {
    /* Set 256-colour background then clear. */
-   uart_putb('\x1B'); uart_putb('[');
-   uart_putb('4'); uart_putb('8'); uart_putb(';');
-   uart_putb('5'); uart_putb(';');
-   uart_write_dec(color & 0xFF);
-   uart_putb('m');
+   write_byte('\x1B'); write_byte('[');
+   write_byte('4'); write_byte('8'); write_byte(';');
+   write_byte('5'); write_byte(';');
+   write_dec(color & 0xFF);
+   write_byte('m');
 
-   uart_ansi("2J");
+   ansi("2J");
 }
