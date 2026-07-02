@@ -44,7 +44,7 @@ static void write_byte(uint8_t b)
 }
 
 /* Write an ANSI escape sequence: ESC [ args */
-static void ansi(const char *seq)
+static void write_ansi(const char *seq)
 {
    write_byte('\x1B');
    write_byte('[');
@@ -103,7 +103,7 @@ static void set_attr_from_vga(char color)
 /* Reset all ANSI attributes. */
 static void reset_attr(void)
 {
-   ansi("0m");
+   write_ansi("0m");
 }
 
 /* Read a byte from UART with a simple poll-loop timeout (approx counts).
@@ -141,7 +141,7 @@ static void query_terminal_size(void)
    write_byte('H');
 
    /* Request cursor position */
-   ansi("6n");
+   write_ansi("6n");
 
    /* Parse response: ESC [ rows ; cols R */
    int b = read_byte();
@@ -196,7 +196,7 @@ static void detect_newline_behavior(void)
    write_byte('\n');
 
    /* Request cursor position. */
-   ansi("6n");
+   write_ansi("6n");
 
    /* Parse response: ESC [ rows ; cols R */
    int b = read_byte();
@@ -326,6 +326,6 @@ void UART_ClearScreen(uint32_t color)
    write_dec(color & 0xFF);
    write_byte('m');
 
-   ansi("2J");
-   ansi("H");  /* cursor home */
+   write_ansi("2J");
+   write_ansi("H");  /* cursor home */
 }
