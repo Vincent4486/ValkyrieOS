@@ -10,9 +10,9 @@ static inline void seq_w(uint8_t idx, uint8_t val);
 static inline void crtc_w(uint8_t idx, uint8_t val);
 static inline void gc_w(uint8_t idx, uint8_t val);
 static void set_mode_0x13(void);
-static inline void put_pixel(int x, int y, uint8_t colour);
+static inline void put_pixel(int x, int y, uint8_t color);
 static void draw_glyph(uint8_t c, int x, int y, uint8_t fg);
-static void clear_screen(uint8_t colour);
+static void clear_screen(uint8_t color);
 
 /* VGA Mode 0x13 constants */
 #define VGA_FB ((volatile uint8_t *)0xA0000)
@@ -112,14 +112,14 @@ static void set_mode_0x13(void)
 }
 
 /* Pixel operations */
-static inline void put_pixel(int x, int y, uint8_t colour)
+static inline void put_pixel(int x, int y, uint8_t color)
 {
    if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT) return;
 
    int idx = y * VGA_WIDTH + x;
 
-   s_Shadow[idx] = colour;
-   VGA_FB[idx] = colour;
+   s_Shadow[idx] = color;
+   VGA_FB[idx] = color;
 }
 
 /* Glyph drawing */
@@ -141,13 +141,13 @@ static void draw_glyph(uint8_t c, int x, int y, uint8_t fg)
 }
 
 /* Clear screen */
-static void clear_screen(uint8_t colour)
+static void clear_screen(uint8_t color)
 {
-   uint32_t val = (uint32_t)colour * 0x01010101u;
+   uint32_t val = (uint32_t)color * 0x01010101u;
    volatile uint32_t *fb32 = (volatile uint32_t *)VGA_FB;
 
    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
-      s_Shadow[i] = colour;
+      s_Shadow[i] = color;
 
    /* Write to VGA framebuffer using 32-bit accesses for reliability
     * with Cirrus chain-4 mode.  dword writes send 4 bytes at once,
@@ -246,7 +246,11 @@ int VGA_PutPixel(uint32_t color, int x, int y)
 
    if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT) return -EINVAL;
 
-   put_pixel(x, y, (uint8_t)(color & 0xFF));
+   /* Map RGB to VGA 16-color index. */
+   uint8_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+   uint8_t idx = ((r >> 7) << 2) | ((g >> 7) << 1) | (b >> 7);
+   if (r >= 0xC0 || g >= 0xC0 || b >= 0xC0) idx |= 8;
+   put_pixel(x, y, idx);
    return SUCCESS;
 }
 
@@ -263,4 +267,6 @@ uint32_t VGA_GetHeight(void)
 void VGA_ClearScreen(uint32_t color)
 {
    clear_screen((uint8_t)(color & 0xFF));
+   s_CursorX = 0;
+   s_CursorY = 0;
 }
