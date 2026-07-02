@@ -46,8 +46,8 @@
 /*  Set these to 1 to enable, 0 to disable                            */
 /* ------------------------------------------------------------------ */
 .equ ENABLE_VBE, 1                  /* Enable VBE detection             */
-.equ ENABLE_VGA_GFX, 0              /* Enable VGA graphics detection    */
-.equ ENABLE_VGA_TEXT, 0             /* Enable VGA text mode detection   */
+.equ ENABLE_VGA_GFX, 1              /* Enable VGA graphics detection    */
+.equ ENABLE_VGA_TEXT, 1             /* Enable VGA text mode detection   */
 .equ ENABLE_UART_SERIAL, 1          /* Enable UART serial detection     */
 
 /* ------------------------------------------------------------------ */
