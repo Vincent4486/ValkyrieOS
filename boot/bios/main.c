@@ -75,7 +75,6 @@ struct __attribute__((packed)) BootParams
    uint8_t *corefs_partition_label;
 };
 
-int g_PrimaryOutputSystem = 0;
 int g_PreferredOutput = OUTPUT_VGATEXT;
 const char *g_Stage3Path =
     "/boot/libTheBootloader-" OS_VERSION "_" BUILD_TYPE ".so";
@@ -242,8 +241,8 @@ void print_logo(void)
 
       if (g_PreferredOutput == OUTPUT_VBE)
       {
-         uint32_t scr_w = VBE_GetWidth();
-         uint32_t scr_h = VBE_GetHeight();
+         uint32_t scr_w = Video_GetWidth();
+         uint32_t scr_h = Video_GetHeight();
 
          /* Center the logo. */
          int off_x = (int)((scr_w > logo_w) ? (scr_w - logo_w) / 2 : 0);
@@ -258,7 +257,7 @@ void print_logo(void)
                uint8_t idx = (x & 1) ? (byte & 0x0F) : (byte >> 4);
                uint32_t pixel = VBE_PackRGB(pal[idx * 3], pal[idx * 3 + 1],
                                             pal[idx * 3 + 2]);
-               VBE_PutPixel(pixel, off_x + (int)x, off_y + (int)y);
+               Video_PutPixel(pixel, off_x + (int)x, off_y + (int)y);
             }
          }
       }
@@ -367,23 +366,7 @@ int main(const BootParams *boot_params)
    if ((s_BootParams.available_outputs & (1 << OUTPUT_VBE)) && VBE_HasInfo())
       g_PreferredOutput = OUTPUT_VBE;
 
-   switch (g_PreferredOutput)
-   {
-   case OUTPUT_UART:
-      UART_Initialize();
-      break;
-   case OUTPUT_VGATEXT:
-      VGATEXT_Initialize();
-      break;
-   case OUTPUT_VGA:
-      VGA_Initialize();
-      break;
-   case OUTPUT_VBE:
-      VBE_Initialize();
-      break;
-   }
-
-   g_PrimaryOutputSystem = s_BootParams.available_outputs;
+   Video_Initialize();
 
    print_available_outputs();
    print_memory_map();

@@ -39,6 +39,15 @@ extern uint8_t inb(uint16_t port);            /* Read port byte. */
 
 extern int g_PreferredOutput; /* Preferred output system. */
 
+/* Generic driver abstraction — dispatches to the active output driver
+ * based on g_PreferredOutput. */
+int  Video_Initialize(void);                    /* Initialize active driver. */
+int  Video_PutChar(char c, int x, int y, char color); /* Put char via active driver. */
+int  Video_PutPixel(uint32_t pixel, int x, int y);   /* Put pixel via active driver. */
+uint32_t Video_GetWidth(void);                  /* Get width of active driver. */
+uint32_t Video_GetHeight(void);                 /* Get height of active driver. */
+void Video_ClearScreen(uint32_t pixel);         /* Clear screen of active driver. */
+
 int VGATEXT_Initialize(void); /* Initialize VGA text mode. */
 int VGATEXT_PutChar(char c, int x, int y, char color); /* Put text char. */
 int VGATEXT_PutPixel(int pixel, int x, int y);         /* Text mode: -EINVAL. */

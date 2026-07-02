@@ -69,24 +69,7 @@ static void put_signed(long long val, unsigned radix, const char *digits,
 
 void putc(char c)
 {
-   switch (g_PreferredOutput)
-   {
-   case OUTPUT_VBE:
-      VBE_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-      break;
-   case OUTPUT_VGA:
-      VGA_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-      break;
-   case OUTPUT_VGATEXT:
-      VGATEXT_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-      break;
-   case OUTPUT_UART:
-      UART_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-      break;
-   default:
-      VGATEXT_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
-      break;
-   }
+   Video_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
 }
 
 void puts(const char *str)
