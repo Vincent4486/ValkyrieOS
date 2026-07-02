@@ -80,8 +80,8 @@ void putc(char c)
    case OUTPUT_VGATEXT:
       VGATEXT_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
       break;
-   case OUTPUT_SERIAL:
-      Serial_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
+   case OUTPUT_UART:
+      UART_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);
       break;
    default:
       VGATEXT_PutChar(c, -1, -1, VGATEXT_DEFAULT_COLOR);

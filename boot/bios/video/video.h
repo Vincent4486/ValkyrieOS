@@ -11,7 +11,7 @@
 #define OUTPUT_VBE 0
 #define OUTPUT_VGA 1
 #define OUTPUT_VGATEXT 2
-#define OUTPUT_SERIAL 3
+#define OUTPUT_UART 3
 
 /* VGA text-mode defaults. */
 #define VGATEXT_DEFAULT_COLOR 0x0A
@@ -43,9 +43,9 @@ int VGATEXT_Initialize(void); /* Initialize VGA text mode. */
 int VGATEXT_PutChar(char c, int x, int y, char color); /* Put text char. */
 int VGATEXT_PutPixel(int pixel, int x, int y);         /* Text mode: -EINVAL. */
 
-int Serial_Initialize(void); /* Initialize COM1 serial. */
-int Serial_PutChar(char c, int x, int y, char color); /* Put serial char. */
-int Serial_PutPixel(int pixel, int x, int y);         /* Serial: -EINVAL. */
+int UART_Initialize(void); /* Initialize COM1 UART. */
+int UART_PutChar(char c, int x, int y, char color); /* Put UART char. */
+int UART_PutPixel(int pixel, int x, int y);         /* UART: -EINVAL. */
 
 int VBE_Initialize(void); /* Initialize VBE framebuffer. */
 int VBE_PutChar(char c, int x, int y, char color);     /* Put VBE char. */

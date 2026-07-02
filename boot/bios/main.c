@@ -203,8 +203,8 @@ void print_available_outputs(void)
       printf("  VGA graphics\n");
    if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
       printf("  VGA text\n");
-   if (s_BootParams.available_outputs & (1 << OUTPUT_SERIAL))
-      printf("  Serial (COM1)\n");
+   if (s_BootParams.available_outputs & (1 << OUTPUT_UART))
+      printf("  UART (COM1)\n");
 
    printf("\n");
 }
@@ -359,7 +359,7 @@ int main(const BootParams *boot_params)
 
    init_framebuffer_info();
 
-   g_PreferredOutput = OUTPUT_SERIAL; /* fallback  */
+   g_PreferredOutput = OUTPUT_UART; /* fallback  */
    if (s_BootParams.available_outputs & (1 << OUTPUT_VGATEXT))
       g_PreferredOutput = OUTPUT_VGATEXT;
    if (s_BootParams.available_outputs & (1 << OUTPUT_VGA))
@@ -369,8 +369,8 @@ int main(const BootParams *boot_params)
 
    switch (g_PreferredOutput)
    {
-   case OUTPUT_SERIAL:
-      Serial_Initialize();
+   case OUTPUT_UART:
+      UART_Initialize();
       break;
    case OUTPUT_VGATEXT:
       VGATEXT_Initialize();

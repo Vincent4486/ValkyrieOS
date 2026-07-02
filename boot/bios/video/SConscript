@@ -6,7 +6,7 @@ Import("CoreSources")
 
 CoreSources += [
     File("font_gen.c"),
-    File("serial.c"),
+    File("uart.c"),
     File("vbe.c"),
     File("vga_text.c"),
     File("vga.c"),
