@@ -290,11 +290,15 @@ int UART_PutPixel(uint32_t color, int x, int y)
 
    cursor_goto(x, y);
 
+   /* Map RGB to ANSI 256-colour (6x6x6 cube: 16-231). */
+   uint8_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+   uint8_t ansi = 16 + 36 * (r / 51) + 6 * (g / 51) + (b / 51);
+
    /* 256-colour background: ESC[48;5;Nm, then space, then reset. */
    write_byte('\x1B'); write_byte('[');
    write_byte('4'); write_byte('8'); write_byte(';');
    write_byte('5'); write_byte(';');
-   write_dec(color & 0xFF);
+   write_dec(ansi);
    write_byte('m');
 
    write_byte(' ');
@@ -323,4 +327,5 @@ void UART_ClearScreen(uint32_t color)
    write_byte('m');
 
    ansi("2J");
+   ansi("H");  /* cursor home */
 }

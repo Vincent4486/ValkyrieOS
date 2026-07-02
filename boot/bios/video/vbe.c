@@ -329,4 +329,6 @@ void VBE_ClearScreen(uint32_t color)
    uint8_t g = (uint8_t)((color >> 8) & 0xFF);
    uint8_t b = (uint8_t)(color & 0xFF);
    clear_screen(pack_rgb(r, g, b));
+   s_CursorX = 0;
+   s_CursorY = 0;
 }

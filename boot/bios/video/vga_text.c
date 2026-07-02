@@ -162,12 +162,15 @@ int VGATEXT_PutPixel(uint32_t color, int x, int y)
    if (x < 0 || x >= VGATEXT_WIDTH || y < 0 || y >= VGATEXT_HEIGHT)
       return -EINVAL;
 
-   /* Use a full block character with the color value as the attribute
-    * (high nibble = background colour, low nibble = foreground colour). */
+   /* Map RGB to VGA 16-colour attribute (bg=fg=same colour). */
+   uint8_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+   uint8_t idx = ((r >> 7) << 2) | ((g >> 7) << 1) | (b >> 7);
+   if (r >= 0xC0 || g >= 0xC0 || b >= 0xC0) idx |= 8;
+
    volatile char *buf = VGATEXT_BUFFER;
    int off = (y * VGATEXT_WIDTH + x) * 2;
    buf[off]     = 0xDB;           /* full block */
-   buf[off + 1] = (char)(color & 0xFF);    /* colour attribute */
+   buf[off + 1] = (char)((idx << 4) | idx);    /* bg=fg */
    return SUCCESS;
 }
 
