@@ -19,6 +19,7 @@ struct __attribute__((packed)) DL_CallbackOperations
    uint32_t (*Video_GetWidth)(void);
    uint32_t (*Video_GetHeight)(void);
    void (*Video_ClearScreen)(Video_Color color);
+   void (*logfmt)(int log_type, const char *fmt, ...);
 };
 
 struct __attribute__((packed)) DL_CallbackOpsPatch
