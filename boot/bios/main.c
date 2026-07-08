@@ -4,8 +4,9 @@
 
 #include "video/video.h"
 #include <colors.h>
-#include <constants.h>
+#include <status.h>
 #include <paths.h>
+#include <bits.h>
 
 #define DL_RESOLVE
 #include <dl/binding_gen.h>

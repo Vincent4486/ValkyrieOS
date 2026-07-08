@@ -2,7 +2,7 @@
 
 #include "process.h"
 #include "scheduler.h"
-#include <constants.h>
+#include <status.h>
 #include <fs/vfs/vfs.h>
 #include <hal/mem.h>
 #include <hal/scheduler.h>

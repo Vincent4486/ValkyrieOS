@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include <colors.h>
-#include <constants.h>
+#include <status.h>
 
 /* Output system identifiers (availability bit positions). */
 #define OUTPUT_VBE 0

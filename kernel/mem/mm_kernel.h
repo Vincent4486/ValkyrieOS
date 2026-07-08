@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-#include <constants.h>
+#include <status.h>
 
 #ifndef MEMORY_H
 #define MEMORY_H

@@ -1,4 +1,4 @@
-#include <constants.h>
+#include <status.h>
 // SPDX-License-Identifier: GPL-3.0-only
 
 #ifndef I686_PIC_H
