@@ -5,6 +5,7 @@
 #include "video/video.h"
 #include <colors.h>
 #include <constants.h>
+#include <paths.h>
 
 #define DL_RESOLVE
 #include <dl/binding_gen.h>
@@ -24,12 +25,6 @@ static void print_stage3_fs_location(void);
 #define MBI_TAG_END 0
 #define MBI_TAG_MMAP 6
 #define MBI_TAG_FRAMEBUFFER 8
-
-#if defined(RELEASE)
-#define BUILD_TYPE "release"
-#else
-#define BUILD_TYPE "debug"
-#endif
 
 struct CoreFsOperations
 {
@@ -77,8 +72,6 @@ struct __attribute__((packed)) BootParams
 };
 
 int g_PreferredOutput = OUTPUT_VGATEXT;
-const char *g_Stage3Path =
-    "/boot/libTheBootloader-" OS_VERSION "_" BUILD_TYPE ".so";
 
 static BootParams s_BootParams = {0};
 static DL_CallbackOperations s_DlCallbackOps = {0};
@@ -290,10 +283,10 @@ void init_main_boot(void)
 {
    printf("Loading libTheBootloader.\n");
 
-   int fd = s_BootParams.corefs_ops->Open(g_Stage3Path);
+   int fd = s_BootParams.corefs_ops->Open(THEBOOTLOADER_PATH);
    if (fd < 0)
    {
-      printf("  Failed to open %s: %d\n", g_Stage3Path, fd);
+      logfmt(LOG_ERROR, "  Failed to open %s: %d\n", THEBOOTLOADER_PATH, fd);
       return;
    }
 
@@ -313,11 +306,11 @@ void init_main_boot(void)
 
    if (rc < 0 || total == 0)
    {
-      printf("  Failed to read %s\n", g_Stage3Path);
+      logfmt(LOG_ERROR, "  Failed to read %s\n", THEBOOTLOADER_PATH);
       return;
    }
 
-   printf("  Read %d bytes from %s\n", total, g_Stage3Path);
+   logfmt(LOG_INFO, "  Read %d bytes from %s\n", total, THEBOOTLOADER_PATH);
 
    // Populate s_DlCallbackOps
    s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
