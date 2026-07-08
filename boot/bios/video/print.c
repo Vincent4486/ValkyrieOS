@@ -322,3 +322,30 @@ void vprintf(const char *fmt, va_list args)
       fmt++;
    }
 }
+
+void logfmt(int log_type, const char *fmt, ...)
+{
+   switch (log_type)
+   {
+   case LOG_INFO:
+      puts("[INFO] ");
+      break;
+   case LOG_WARNING:
+      puts("[WARN] ");
+      break;
+   case LOG_ERROR:
+      puts("[ERROR] ");
+      break;
+   case LOG_FATAL:
+      puts("[FATAL] ");
+      break;
+   default:
+      puts("[LOG] ");
+      break;
+   }
+
+   va_list args;
+   va_start(args, fmt);
+   vprintf(fmt, args);
+   va_end(args);
+}

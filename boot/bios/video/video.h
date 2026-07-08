@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <constants.h>
 #include <colors.h>
+#include <constants.h>
 
 /* Output system identifiers (availability bit positions). */
 #define OUTPUT_VBE 0
@@ -15,6 +15,11 @@
 #define OUTPUT_UART 3
 
 #define TEXT_DEFAULT_COLOR ((Video_Color){85, 255, 85}) /* light green */
+
+#define LOG_INFO 0
+#define LOG_WARNING 1
+#define LOG_ERROR 2
+#define LOG_FATAL 3
 
 /* VBE framebuffer details (populated from boot-time mode selection). */
 typedef struct VBE_Info
@@ -37,8 +42,6 @@ extern uint8_t inb(uint16_t port);            /* Read port byte. */
 
 extern int g_PreferredOutput; /* Preferred output system. */
 
-/* Generic driver abstraction — dispatches to the active output driver
- * based on g_PreferredOutput. */
 int Video_Initialize(void); /* Initialize active driver. */
 int Video_PutChar(char c, int x, int y,
                   Video_Color color); /* Put char via active driver. */
@@ -100,3 +103,5 @@ void putX(unsigned long long val);   /* Write unsigned long long as HEX. */
 void puto(unsigned long long val);   /* Write unsigned long long as octal. */
 void putb(unsigned long long val);   /* Write unsigned long long as binary. */
 void putp(const void *ptr);          /* Write pointer as 0x hex. */
+
+void logfmt(int log_type, const char *fmt, ...); /* Log messages controlled. */

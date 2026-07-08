@@ -118,7 +118,7 @@ static void print_bios_drive_list(void)
 
    if (!s_BootParams.bios_drive_list || s_BootParams.bios_drive_count == 0)
    {
-      printf("  (none)\n\n");
+      printf("  (none)\n");
       return;
    }
 
@@ -126,8 +126,6 @@ static void print_bios_drive_list(void)
    {
       printf("  0x%x\n", s_BootParams.bios_drive_list[i]);
    }
-
-   printf("\n");
 }
 
 static void print_stage3_fs_location(void)
@@ -141,7 +139,7 @@ static void print_stage3_fs_location(void)
          printf("%x", s_BootParams.corefs_partition_uuid[i]);
       }
    }
-   printf(".\n\n");
+   printf(".\n");
 }
 
 void print_memory_map(void)
@@ -183,7 +181,6 @@ void print_memory_map(void)
       ptr += size;
       ptr = (uint8_t *)(((uintptr_t)ptr + 7) & ~(uintptr_t)7);
    }
-   printf("\n");
 }
 
 /* Print which output systems are reported as available. */
@@ -198,8 +195,6 @@ void print_available_outputs(void)
       printf("  VGA text\n");
    if (s_BootParams.available_outputs & (1 << OUTPUT_UART))
       printf("  UART (COM1)\n");
-
-   printf("\n");
 }
 
 void print_boot_drive_number(void)
@@ -216,12 +211,12 @@ void print_boot_drive_number(void)
 
    printf("  Boot Drive Number: 0x%x.\n", s_BootParams.boot_drive);
 
-   printf("  Booted from a %s.\n\n", driveType);
+   printf("  Booted from a %s.\n", driveType);
 }
 
 void print_corefs_memory_address(void)
 {
-   printf("Corefs Module location: %x.\n\n", s_BootParams.corefs_ops);
+   printf("Corefs Module location: %x.\n", s_BootParams.corefs_ops);
 }
 
 void print_logo(void)
@@ -264,24 +259,24 @@ void print_logo(void)
 
 void init_fs(void)
 {
-   printf("Entering filesystem setup.\n");
+   logfmt(LOG_INFO, "Entering filesystem setup.\n");
 
    int rc = s_BootParams.corefs_ops->Initialize(
        s_BootParams.bios_drive_list, s_BootParams.bios_drive_count,
        s_BootParams.corefs_partition_uuid, s_BootParams.corefs_partition_label);
    if (rc != SUCCESS)
    {
-      printf("  FS_Initialize failed: %d.\n", rc);
+      logfmt(LOG_ERROR, "  FS_Initialize failed: %d.\n", rc);
    }
    else
    {
-      printf("  FS initialized successful.\n\n");
+      logfmt(LOG_INFO, "  FS initialized successful.\n");
    }
 }
 
 void init_main_boot(void)
 {
-   printf("Loading libTheBootloader.\n");
+   logfmt(LOG_INFO, "Loading libTheBootloader.\n");
 
    int fd = s_BootParams.corefs_ops->Open(THEBOOTLOADER_PATH);
    if (fd < 0)
@@ -342,17 +337,17 @@ void init_main_boot(void)
    void *handle = DL_LoadLibrary(stage3_buf);
    if (!handle)
    {
-      printf("  DL_LoadLibrary failed\n");
+      logfmt(LOG_ERROR, "  DL_LoadLibrary failed\n");
       return;
    }
 
    if (dl_resolve_all(handle) != 0)
    {
-      printf("  dl_resolve_all failed\n");
+      logfmt(LOG_ERROR, "  dl_resolve_all failed\n");
       return;
    }
 
-   printf("  Stage3 loaded and resolved successfully.\n");
+   logfmt(LOG_INFO, "  Stage3 loaded and resolved successfully.\n");
 }
 
 int main(const BootParams *boot_params)
@@ -371,12 +366,14 @@ int main(const BootParams *boot_params)
 
    Video_Initialize();
 
+#ifdef DEBUG
    print_available_outputs();
    print_memory_map();
    print_boot_drive_number();
    print_bios_drive_list();
    print_corefs_memory_address();
    print_stage3_fs_location();
+#endif
 
    init_fs();
    init_main_boot();
