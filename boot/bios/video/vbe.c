@@ -23,8 +23,6 @@ static uint32_t s_FbPitch = 0;
 static uint32_t s_FbBpp = 0;
 static uint32_t s_FbBytesPP = 0;
 
-/* --- Fast pixel helpers (no bounds checks — caller ensures validity) --- */
-
 static inline void fb_write32(uint32_t *dst, uint32_t pixel) { *dst = pixel; }
 
 static inline void fb_write24(uint8_t *dst, uint32_t pixel)

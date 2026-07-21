@@ -32,8 +32,6 @@ static uint32_t s_TermHeight = UART_DEFAULT_HEIGHT;
 
 static Video_Color s_ScreenBg = {0, 0, 0};
 
-/* --- static helpers ------------------------------------------------------ */
-
 /* Write a byte to UART, waiting for THR empty. */
 static void write_byte(uint8_t b)
 {
