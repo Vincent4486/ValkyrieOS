@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <status.h>
 #include <logging.h>
+#include <status.h>
 
 #include <dl/callback.h>
 
@@ -237,7 +237,8 @@ static int read_bpb(FatDrive *drive)
    if (drive->bytes_per_sector == 0) drive->bytes_per_sector = 512;
    if (drive->bytes_per_sector != 512)
    {
-      logfmt(LOG_ERROR, "fat: read_bpb: unsupported bytes per sector %u\n", drive->bytes_per_sector);
+      logfmt(LOG_ERROR, "fat: read_bpb: unsupported bytes per sector %u\n",
+             drive->bytes_per_sector);
       return -EINVAL;
    }
 
@@ -314,7 +315,8 @@ static int read_bpb(FatDrive *drive)
 
    if (drive->sectors_per_cluster == 0)
    {
-      logfmt(LOG_ERROR, "fat: read_bpb: sectors per cluster is 0 (late check)\n");
+      logfmt(LOG_ERROR,
+             "fat: read_bpb: sectors per cluster is 0 (late check)\n");
       return -EINVAL;
    }
 
@@ -497,7 +499,9 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                 sector_idx;
             if (fat_read_sector(drive, lba, sector_buf) != 0)
             {
-               logfmt(LOG_ERROR, "fat: find_component: I/O error reading directory sector\n");
+               logfmt(
+                   LOG_ERROR,
+                   "fat: find_component: I/O error reading directory sector\n");
                return -EIO;
             }
          }
@@ -549,7 +553,8 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                                ls_idx;
                if (fat_read_sector(drive, llba, ls_buf) != 0)
                {
-                  logfmt(LOG_ERROR, "fat: find_component: I/O error reading LFN sector\n");
+                  logfmt(LOG_ERROR,
+                         "fat: find_component: I/O error reading LFN sector\n");
                   return -EIO;
                }
 
@@ -628,7 +633,9 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
    {
       if (fat_read_sector(drive, root_start_lba + sec, sector) != 0)
       {
-         logfmt(LOG_ERROR, "fat: find_in_rootdir: I/O error reading root directory sector\n");
+         logfmt(
+             LOG_ERROR,
+             "fat: find_in_rootdir: I/O error reading root directory sector\n");
          return -EIO;
       }
 
@@ -675,7 +682,9 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
                if (fat_read_sector(drive, root_start_lba + lfn_sec,
                                    lfn_sec_buf) != 0)
                {
-                  logfmt(LOG_ERROR, "fat: find_in_rootdir: I/O error reading LFN sector\n");
+                  logfmt(
+                      LOG_ERROR,
+                      "fat: find_in_rootdir: I/O error reading LFN sector\n");
                   return -EIO;
                }
 

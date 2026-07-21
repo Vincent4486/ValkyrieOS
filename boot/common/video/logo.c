@@ -12,3 +12,5 @@ void LOGO_GetValecium(uint32_t *width, uint32_t *height,
    *palette_size = VALECIUM_LOGO_PALETTE_SIZE;
    *data = s_ValeciumLogo_Data4bpp;
 }
+
+void LOGO_DrawOnScreen() {}

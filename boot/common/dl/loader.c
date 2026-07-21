@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <status.h>
 #include <bits.h>
+#include <status.h>
 
 #include <dl/loader.h>
 

@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <status.h>
 #include <logging.h>
+#include <status.h>
 
 #include <dl/callback.h>
 
@@ -227,7 +227,8 @@ static int read_superblock(Ext2Drive *drive)
 
    if (ext2_read_sector(drive, sb_lba, buf) != 0)
    {
-      logfmt(LOG_ERROR, "ext2: read_superblock: I/O error reading superblock sector\n");
+      logfmt(LOG_ERROR,
+             "ext2: read_superblock: I/O error reading superblock sector\n");
       return -EIO;
    }
 
@@ -289,7 +290,9 @@ static int read_superblock(Ext2Drive *drive)
 
    if (incompat & ~EXT2_INCOMPAT_HANDLED)
    {
-      logfmt(LOG_ERROR, "ext2: read_superblock: unsupported incompat features 0x%08x\n", incompat);
+      logfmt(LOG_ERROR,
+             "ext2: read_superblock: unsupported incompat features 0x%08x\n",
+             incompat);
       return -EINVAL;
    }
 
@@ -343,7 +346,8 @@ static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
       uint8_t block_buf[4096];
       if (ext2_read_block(drive, bgdt_block, block_buf) != 0)
       {
-         logfmt(LOG_ERROR, "ext2: read_inode: I/O error reading BGD table block\n");
+         logfmt(LOG_ERROR,
+                "ext2: read_inode: I/O error reading BGD table block\n");
          return -EIO;
       }
 
@@ -365,7 +369,8 @@ static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
    uint8_t block_buf[4096];
    if (ext2_read_block(drive, inode_block_idx, block_buf) != 0)
    {
-      logfmt(LOG_ERROR, "ext2: read_inode: I/O error reading inode table block\n");
+      logfmt(LOG_ERROR,
+             "ext2: read_inode: I/O error reading inode table block\n");
       return -EIO;
    }
 
@@ -627,7 +632,9 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
    uint8_t inode_buf[128];
    if (read_inode(drive, dir_inode, inode_buf) != 0)
    {
-      logfmt(LOG_ERROR, "ext2: ext2_lookup: failed to read directory inode %u\n", dir_inode);
+      logfmt(LOG_ERROR,
+             "ext2: ext2_lookup: failed to read directory inode %u\n",
+             dir_inode);
       return -EIO;
    }
 
@@ -648,7 +655,8 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
       uint8_t block_data[4096];
       if (ext2_read_block(drive, phys_block, block_data) != 0)
       {
-         logfmt(LOG_ERROR, "ext2: ext2_lookup: I/O error reading directory block\n");
+         logfmt(LOG_ERROR,
+                "ext2: ext2_lookup: I/O error reading directory block\n");
          return -EIO;
       }
 
@@ -689,7 +697,10 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
                uint8_t found_inode[128];
                if (read_inode(drive, entry_inode, found_inode) != 0)
                {
-                  logfmt(LOG_ERROR, "ext2: ext2_lookup: I/O error reading found inode %u\n", entry_inode);
+                  logfmt(
+                      LOG_ERROR,
+                      "ext2: ext2_lookup: I/O error reading found inode %u\n",
+                      entry_inode);
                   return -EIO;
                }
                *out_size = (uint32_t)found_inode[INODE_SIZE_OFF] |
@@ -868,7 +879,8 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
       }
       if (!found)
       {
-         logfmt(LOG_ERROR, "ext2: Initialize: no valid ext2/ext4 partition found\n");
+         logfmt(LOG_ERROR,
+                "ext2: Initialize: no valid ext2/ext4 partition found\n");
          return -ENODEV;
       }
    }

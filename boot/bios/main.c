@@ -3,11 +3,11 @@
 #include <stdint.h>
 
 #include "video/video.h"
-#include <colors.h>
-#include <status.h>
-#include <paths.h>
 #include <bits.h>
+#include <colors.h>
 #include <logging.h>
+#include <paths.h>
+#include <status.h>
 
 #define DL_RESOLVE
 #include <dl/binding_gen.h>

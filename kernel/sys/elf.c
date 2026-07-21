@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "elf.h"
 
-#include <status.h>
 #include <cpu/process.h>
 #include <hal/mem.h>
 #include <mem/mm_kernel.h>
+#include <status.h>
 #include <std/stdio.h>
 #include <std/string.h>
 

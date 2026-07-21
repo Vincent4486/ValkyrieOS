@@ -7,4 +7,5 @@
 #define BUILD_TYPE "debug"
 #endif
 
-#define THEBOOTLOADER_PATH "/boot/libTheBootloader-"OS_VERSION"_"BUILD_TYPE".so"
+#define THEBOOTLOADER_PATH                                                     \
+   "/boot/libTheBootloader-" OS_VERSION "_" BUILD_TYPE ".so"

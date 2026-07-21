@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <status.h>
 #include <logging.h>
+#include <status.h>
 
 #include <dl/callback.h>
 
@@ -336,7 +336,9 @@ static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
 
       if (iso_read_sector(drive, dir_lba + sector_idx, buf) != 0)
       {
-         logfmt(LOG_ERROR, "iso9660: lookup_component: I/O error reading directory sector\n");
+         logfmt(
+             LOG_ERROR,
+             "iso9660: lookup_component: I/O error reading directory sector\n");
          return -EIO;
       }
 
@@ -500,7 +502,8 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
       }
       if (!found)
       {
-         logfmt(LOG_ERROR, "iso9660: Initialize: no valid ISO9660 partition found\n");
+         logfmt(LOG_ERROR,
+                "iso9660: Initialize: no valid ISO9660 partition found\n");
          return -ENODEV;
       }
    }
@@ -512,7 +515,8 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
    }
    if (buf[0] != 1)
    {
-      logfmt(LOG_ERROR, "iso9660: Initialize: invalid PVD volume descriptor type\n");
+      logfmt(LOG_ERROR,
+             "iso9660: Initialize: invalid PVD volume descriptor type\n");
       return -EINVAL;
    }
    if (!mem_eq(&buf[1], ISO_SIGNATURE, 5))
@@ -528,12 +532,14 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
                                 &root_flags, &root_name_len);
       if (rl == 0)
       {
-         logfmt(LOG_ERROR, "iso9660: Initialize: failed to parse root directory record\n");
+         logfmt(LOG_ERROR,
+                "iso9660: Initialize: failed to parse root directory record\n");
          return -EINVAL;
       }
       if (!(root_flags & 2))
       {
-         logfmt(LOG_ERROR, "iso9660: Initialize: root entry is not a directory\n");
+         logfmt(LOG_ERROR,
+                "iso9660: Initialize: root entry is not a directory\n");
          return -EINVAL;
       }
 
@@ -638,7 +644,8 @@ int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
       if (DISK_ReadLBA(bios_drive, phys_sector, 1, tmp) != 0)
       {
          if (bytes_done > 0) return (int)bytes_done;
-         logfmt(LOG_ERROR, "iso9660: Read: I/O error at sector %llu\n", (unsigned long long)phys_sector);
+         logfmt(LOG_ERROR, "iso9660: Read: I/O error at sector %llu\n",
+                (unsigned long long)phys_sector);
          return -EIO;
       }
 

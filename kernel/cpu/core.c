@@ -2,13 +2,13 @@
 
 #include "process.h"
 #include "scheduler.h"
-#include <status.h>
 #include <fs/vfs/vfs.h>
 #include <hal/mem.h>
 #include <hal/scheduler.h>
 #include <hal/tss.h>
 #include <mem/mm_kernel.h>
 #include <mem/mm_proc.h>
+#include <status.h>
 #include <std/stdio.h>
 #include <std/string.h>
 #include <sys/elf.h>

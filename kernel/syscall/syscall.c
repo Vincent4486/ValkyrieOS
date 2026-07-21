@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "syscall.h"
-#include <status.h>
 #include <cpu/process.h>
 #include <fs/fs.h>
 #include <hal/scheduler.h>
 #include <mem/mm_proc.h>
+#include <status.h>
 #include <std/stdio.h>
 #include <stddef.h>
 #include <stdint.h>
