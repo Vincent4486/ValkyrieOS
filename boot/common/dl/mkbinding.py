@@ -237,7 +237,7 @@ def GenerateHeader(Functions: list[tuple[str, str]]) -> str:
         "#ifdef DL_RESOLVE",
         "",
         "// Public struct - populated by dl_resolve_all().",
-        "MainBootOperations g_MainBootOperations;",
+        "MainBootOperations g_MainBootOperations = {0};",
         "",
         "// Resolver - call once during init. Returns 0 on success, -1 on failure.",
         "static inline int dl_resolve_all(void *handle)",
