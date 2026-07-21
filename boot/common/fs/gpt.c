@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dl/callback.h>
+
 typedef struct GptHeader GptHeader;
 typedef struct GptPartitionEntry GptPartitionEntry;
 
@@ -49,8 +51,17 @@ struct __attribute__((packed)) GptPartitionEntry
    uint16_t name[36];
 };
 
+#ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
+extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
+                        void *buffer);
+#define logfmt(...) ((void)0)
+#else
+#define DISK_Read g_DlCallbackOps->DISK_Read
+#define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
+#define logfmt g_DlCallbackOps->logfmt
+#endif
 
 static bool gpt_signature_valid(const uint8_t *sector)
 {
