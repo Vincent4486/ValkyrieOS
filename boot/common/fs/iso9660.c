@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <status.h>
+#include <logging.h>
 
 #include <dl/callback.h>
 
@@ -93,9 +94,11 @@ extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
 extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
                         void *buffer);
+#define logfmt(...) ((void)0)
 #else
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
+#define logfmt g_DlCallbackOps->logfmt
 #endif
 
 extern bool MBR_Probe(int drive_id);
@@ -331,7 +334,11 @@ static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
    {
       uint64_t sector_idx = bytes_read / SECTOR_SIZE_ISO;
 
-      if (iso_read_sector(drive, dir_lba + sector_idx, buf) != 0) return -EIO;
+      if (iso_read_sector(drive, dir_lba + sector_idx, buf) != 0)
+      {
+         logfmt(LOG_ERROR, "iso9660: lookup_component: I/O error reading directory sector\n");
+         return -EIO;
+      }
 
       int off = 0;
       while (off < SECTOR_SIZE_ISO)
@@ -374,6 +381,7 @@ static int lookup_component(Iso9660Drive *drive, uint64_t dir_lba,
       }
       bytes_read += SECTOR_SIZE_ISO;
    }
+   logfmt(LOG_ERROR, "iso9660: lookup_component: entry not found\n");
    return -ENOENT;
 }
 
@@ -395,7 +403,11 @@ static int resolve_path(Iso9660Drive *drive, const char *path,
 
    while (*path != '\0')
    {
-      if (!(dir_flags & 2)) return -ENOTDIR;
+      if (!(dir_flags & 2))
+      {
+         logfmt(LOG_ERROR, "iso9660: resolve_path: not a directory\n");
+         return -ENOTDIR;
+      }
 
       const char *start = path;
       while (*path != '/' && *path != '\0')
@@ -431,14 +443,22 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
    int drive_id;
    Iso9660Drive *drive;
 
-   if (!bios_drive_list || bios_drive_list_count == 0) return -EINVAL;
+   if (!bios_drive_list || bios_drive_list_count == 0)
+   {
+      logfmt(LOG_ERROR, "iso9660: Initialize: invalid drive list\n");
+      return -EINVAL;
+   }
 
    /* Find a free drive slot. */
    for (drive_id = 0; drive_id < MAX_DRIVES; drive_id++)
    {
       if (!s_Drives[drive_id].used) break;
    }
-   if (drive_id == MAX_DRIVES) return -EMFILE;
+   if (drive_id == MAX_DRIVES)
+   {
+      logfmt(LOG_ERROR, "iso9660: Initialize: too many open drives\n");
+      return -EMFILE;
+   }
 
    drive = &s_Drives[drive_id];
 
@@ -478,20 +498,44 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
             }
          }
       }
-      if (!found) return -ENODEV;
+      if (!found)
+      {
+         logfmt(LOG_ERROR, "iso9660: Initialize: no valid ISO9660 partition found\n");
+         return -ENODEV;
+      }
    }
 
-   if (iso_read_sector(drive, PVD_LBA, buf) != 0) return -EIO;
-   if (buf[0] != 1) return -EINVAL;
-   if (!mem_eq(&buf[1], ISO_SIGNATURE, 5)) return -EINVAL;
+   if (iso_read_sector(drive, PVD_LBA, buf) != 0)
+   {
+      logfmt(LOG_ERROR, "iso9660: Initialize: I/O error reading PVD\n");
+      return -EIO;
+   }
+   if (buf[0] != 1)
+   {
+      logfmt(LOG_ERROR, "iso9660: Initialize: invalid PVD volume descriptor type\n");
+      return -EINVAL;
+   }
+   if (!mem_eq(&buf[1], ISO_SIGNATURE, 5))
+   {
+      logfmt(LOG_ERROR, "iso9660: Initialize: invalid ISO9660 signature\n");
+      return -EINVAL;
+   }
 
    {
       uint32_t root_lba, root_size;
       uint8_t root_flags, root_name_len;
       int rl = parse_dir_record(buf, PVD_ROOT_OFFSET, &root_lba, &root_size,
                                 &root_flags, &root_name_len);
-      if (rl == 0) return -EINVAL;
-      if (!(root_flags & 2)) return -EINVAL;
+      if (rl == 0)
+      {
+         logfmt(LOG_ERROR, "iso9660: Initialize: failed to parse root directory record\n");
+         return -EINVAL;
+      }
+      if (!(root_flags & 2))
+      {
+         logfmt(LOG_ERROR, "iso9660: Initialize: root entry is not a directory\n");
+         return -EINVAL;
+      }
 
       drive->root_dir_lba = root_lba;
       drive->root_dir_size = root_size;
@@ -507,11 +551,18 @@ int ISO9660_Open(int drive_id, const char *path)
    Iso9660Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "iso9660: Open: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
-   if (!path || *path == '\0') return -EINVAL;
+   if (!path || *path == '\0')
+   {
+      logfmt(LOG_ERROR, "iso9660: Open: empty path\n");
+      return -EINVAL;
+   }
 
    int rc = resolve_path(drive, path, &file_lba, &file_size);
    if (rc != 0) return rc;
@@ -521,7 +572,11 @@ int ISO9660_Open(int drive_id, const char *path)
    {
       if (!drive->open_files[fd].used) break;
    }
-   if (fd == MAX_OPEN_FILES) return -EMFILE;
+   if (fd == MAX_OPEN_FILES)
+   {
+      logfmt(LOG_ERROR, "iso9660: Open: too many open files\n");
+      return -EMFILE;
+   }
 
    uint8_t bios_drive = drive->boot_drive;
    uint64_t abs_lba;
@@ -543,12 +598,18 @@ int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
    Iso9660Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "iso9660: Read: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "iso9660: Read: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    Iso9660File *f = &drive->open_files[fd];
    uint8_t *buf = (uint8_t *)buffer;
@@ -575,7 +636,11 @@ int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
 
       uint8_t tmp[SECTOR_SIZE_ISO];
       if (DISK_ReadLBA(bios_drive, phys_sector, 1, tmp) != 0)
-         return (bytes_done > 0) ? (int)bytes_done : -EIO;
+      {
+         if (bytes_done > 0) return (int)bytes_done;
+         logfmt(LOG_ERROR, "iso9660: Read: I/O error at sector %llu\n", (unsigned long long)phys_sector);
+         return -EIO;
+      }
 
       for (uint32_t i = 0; i < chunk; i++)
          buf[bytes_done + i] = tmp[phys_off + i];
@@ -592,12 +657,18 @@ int ISO9660_Close(int drive_id, int fd)
    Iso9660Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "iso9660: Close: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "iso9660: Close: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    drive->open_files[fd].used = 0;
    return SUCCESS;

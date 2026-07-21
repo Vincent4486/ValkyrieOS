@@ -16,11 +16,6 @@
 
 #define TEXT_DEFAULT_COLOR ((Video_Color){85, 255, 85}) /* light green */
 
-#define LOG_INFO 0
-#define LOG_WARNING 1
-#define LOG_ERROR 2
-#define LOG_FATAL 3
-
 /* VBE framebuffer details (populated from boot-time mode selection). */
 typedef struct VBE_Info
 {

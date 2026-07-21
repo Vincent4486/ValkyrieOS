@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <status.h>
+#include <logging.h>
 
 #include <dl/callback.h>
 
@@ -183,9 +184,11 @@ extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
 extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
                         void *buffer);
+#define logfmt(...) ((void)0)
 #else
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
+#define logfmt g_DlCallbackOps->logfmt
 #endif
 
 extern bool MBR_Probe(int drive_id);
@@ -214,26 +217,46 @@ static int read_bpb(FatDrive *drive)
 {
    uint8_t sector[SECTOR_SIZE];
 
-   if (fat_read_sector(drive, 0, sector) != 0) return -EIO;
+   if (fat_read_sector(drive, 0, sector) != 0)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: I/O error reading boot sector\n");
+      return -EIO;
+   }
 
    uint16_t sig = (uint16_t)(sector[BOOT_SIG_OFFSET] |
                              ((uint16_t)sector[BOOT_SIG_OFFSET + 1] << 8));
-   if (sig != BOOT_SIGNATURE) return -EINVAL;
+   if (sig != BOOT_SIGNATURE)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: invalid boot signature 0x%04x\n", sig);
+      return -EINVAL;
+   }
 
    drive->bytes_per_sector =
        (uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF] |
        ((uint16_t)sector[BPB_BYTES_PER_SECTOR_OFF + 1] << 8);
    if (drive->bytes_per_sector == 0) drive->bytes_per_sector = 512;
-   if (drive->bytes_per_sector != 512) return -EINVAL;
+   if (drive->bytes_per_sector != 512)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: unsupported bytes per sector %u\n", drive->bytes_per_sector);
+      return -EINVAL;
+   }
 
    drive->sectors_per_cluster = sector[BPB_SECTORS_PER_CLUSTER_OFF];
-   if (drive->sectors_per_cluster == 0) return -EINVAL;
+   if (drive->sectors_per_cluster == 0)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: sectors per cluster is 0\n");
+      return -EINVAL;
+   }
 
    drive->reserved_sectors =
        (uint16_t)sector[BPB_RESERVED_SECTORS_OFF] |
        ((uint16_t)sector[BPB_RESERVED_SECTORS_OFF + 1] << 8);
    drive->num_fats = sector[BPB_NUM_FATS_OFF];
-   if (drive->num_fats == 0) return -EINVAL;
+   if (drive->num_fats == 0)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: number of FATs is 0\n");
+      return -EINVAL;
+   }
 
    drive->root_entries = (uint16_t)sector[BPB_ROOT_ENTRIES_OFF] |
                          ((uint16_t)sector[BPB_ROOT_ENTRIES_OFF + 1] << 8);
@@ -289,7 +312,11 @@ static int read_bpb(FatDrive *drive)
    drive->first_data_sector =
        drive->reserved_sectors + fat_total_sectors + drive->root_dir_sectors;
 
-   if (drive->sectors_per_cluster == 0) return -EINVAL;
+   if (drive->sectors_per_cluster == 0)
+   {
+      logfmt(LOG_ERROR, "fat: read_bpb: sectors per cluster is 0 (late check)\n");
+      return -EINVAL;
+   }
 
    uint32_t data_sectors = drive->total_sectors - drive->first_data_sector;
    drive->total_clusters = data_sectors / (uint32_t)drive->sectors_per_cluster;
@@ -468,7 +495,11 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                 drive->first_data_sector +
                 (current_cluster - 2) * (uint32_t)drive->sectors_per_cluster +
                 sector_idx;
-            if (fat_read_sector(drive, lba, sector_buf) != 0) return -EIO;
+            if (fat_read_sector(drive, lba, sector_buf) != 0)
+            {
+               logfmt(LOG_ERROR, "fat: find_component: I/O error reading directory sector\n");
+               return -EIO;
+            }
          }
 
          const uint8_t *entry = sector_buf + offset_in_sector;
@@ -516,7 +547,11 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
                                (current_cluster - 2) *
                                    (uint32_t)drive->sectors_per_cluster +
                                ls_idx;
-               if (fat_read_sector(drive, llba, ls_buf) != 0) return -EIO;
+               if (fat_read_sector(drive, llba, ls_buf) != 0)
+               {
+                  logfmt(LOG_ERROR, "fat: find_component: I/O error reading LFN sector\n");
+                  return -EIO;
+               }
 
                const uint8_t *le = ls_buf + ls_off;
                for (int ci = 0; ci < 5 && lfn_idx < LFN_BUF_SIZE - 1; ci++)
@@ -574,6 +609,7 @@ static int find_component(FatDrive *drive, uint32_t dir_cluster,
       current_cluster = fat_next_cluster(drive, current_cluster);
    }
 
+   logfmt(LOG_ERROR, "fat: find_component: entry not found\n");
    return -ENOENT;
 }
 
@@ -591,7 +627,10 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
    for (uint32_t sec = 0; sec < drive->root_dir_sectors; sec++)
    {
       if (fat_read_sector(drive, root_start_lba + sec, sector) != 0)
+      {
+         logfmt(LOG_ERROR, "fat: find_in_rootdir: I/O error reading root directory sector\n");
          return -EIO;
+      }
 
       for (int off = 0; off < (int)drive->bytes_per_sector; off += 32)
       {
@@ -599,7 +638,11 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
          uint8_t name0 = entry[DIR_NAME_OFF];
          uint8_t attr = entry[DIR_ATTR_OFF];
 
-         if (name0 == 0x00) return -ENOENT;
+         if (name0 == 0x00)
+         {
+            logfmt(LOG_ERROR, "fat: find_in_rootdir: entry not found\n");
+            return -ENOENT;
+         }
 
          if (name0 == 0xE5)
          {
@@ -631,7 +674,10 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
 
                if (fat_read_sector(drive, root_start_lba + lfn_sec,
                                    lfn_sec_buf) != 0)
+               {
+                  logfmt(LOG_ERROR, "fat: find_in_rootdir: I/O error reading LFN sector\n");
                   return -EIO;
+               }
 
                const uint8_t *le = lfn_sec_buf + lfn_off;
                for (int ci = 0; ci < 5 && lfn_idx < LFN_BUF_SIZE - 1; ci++)
@@ -687,6 +733,7 @@ static int find_in_rootdir(FatDrive *drive, const char *component, int comp_len,
       }
    }
 
+   logfmt(LOG_ERROR, "fat: find_in_rootdir: entry not found\n");
    return -ENOENT;
 }
 
@@ -794,14 +841,22 @@ int FAT_Initialize(const uint8_t *bios_drive_list,
    int drive_id;
    FatDrive *drive;
 
-   if (!bios_drive_list || bios_drive_list_count == 0) return -EINVAL;
+   if (!bios_drive_list || bios_drive_list_count == 0)
+   {
+      logfmt(LOG_ERROR, "fat: Initialize: invalid drive list\n");
+      return -EINVAL;
+   }
 
    /* Find a free drive slot. */
    for (drive_id = 0; drive_id < MAX_DRIVES; drive_id++)
    {
       if (!s_Drives[drive_id].used) break;
    }
-   if (drive_id == MAX_DRIVES) return -EMFILE;
+   if (drive_id == MAX_DRIVES)
+   {
+      logfmt(LOG_ERROR, "fat: Initialize: too many open drives\n");
+      return -EMFILE;
+   }
 
    drive = &s_Drives[drive_id];
 
@@ -840,7 +895,11 @@ int FAT_Initialize(const uint8_t *bios_drive_list,
             }
          }
       }
-      if (!found) return -ENODEV;
+      if (!found)
+      {
+         logfmt(LOG_ERROR, "fat: Initialize: no valid FAT partition found\n");
+         return -ENODEV;
+      }
    }
 
    drive->used = 1;
@@ -852,15 +911,26 @@ int FAT_Open(int drive_id, const char *path)
    FatDrive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "fat: Open: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
-   if (!path || *path == '\0') return -EINVAL;
+   if (!path || *path == '\0')
+   {
+      logfmt(LOG_ERROR, "fat: Open: empty path\n");
+      return -EINVAL;
+   }
 
    if (*path == '/') path++;
 
-   if (*path == '\0') return -EINVAL;
+   if (*path == '\0')
+   {
+      logfmt(LOG_ERROR, "fat: Open: path is root directory\n");
+      return -EINVAL;
+   }
 
    uint32_t current_cluster = 0;
    uint8_t current_attrs = ATTR_DIRECTORY;
@@ -906,14 +976,22 @@ int FAT_Open(int drive_id, const char *path)
          path++;
    }
 
-   if (current_attrs & ATTR_DIRECTORY) return -EINVAL;
+   if (current_attrs & ATTR_DIRECTORY)
+   {
+      logfmt(LOG_ERROR, "fat: Open: path is a directory\n");
+      return -EINVAL;
+   }
 
    int fd;
    for (fd = 0; fd < MAX_OPEN_FILES; fd++)
    {
       if (!drive->open_files[fd].used) break;
    }
-   if (fd == MAX_OPEN_FILES) return -EMFILE;
+   if (fd == MAX_OPEN_FILES)
+   {
+      logfmt(LOG_ERROR, "fat: Open: too many open files\n");
+      return -EMFILE;
+   }
 
    drive->open_files[fd].used = 1;
    drive->open_files[fd].start_cluster = file_cluster;
@@ -931,12 +1009,18 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
    FatDrive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "fat: Read: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "fat: Read: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    FatFile *f = &drive->open_files[fd];
    uint8_t *buf = (uint8_t *)buffer;
@@ -971,6 +1055,7 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
             if (target_cluster >= FAT12_EOC)
             {
                if (bytes_done > 0) return (int)bytes_done;
+               logfmt(LOG_ERROR, "fat: Read: invalid cluster chain (EOC)\n");
                return -EIO;
             }
          }
@@ -990,6 +1075,7 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
       if (fat_read_sector(drive, lba, sector_buf) != 0)
       {
          if (bytes_done > 0) return (int)bytes_done;
+         logfmt(LOG_ERROR, "fat: Read: I/O error reading data sector\n");
          return -EIO;
       }
 
@@ -1025,12 +1111,18 @@ int FAT_Close(int drive_id, int fd)
    FatDrive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "fat: Close: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "fat: Close: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    drive->open_files[fd].used = 0;
    return SUCCESS;

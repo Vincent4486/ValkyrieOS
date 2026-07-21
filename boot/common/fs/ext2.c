@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <status.h>
+#include <logging.h>
 
 #include <dl/callback.h>
 
@@ -180,9 +181,11 @@ extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
 extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
                         void *buffer);
+#define logfmt(...) ((void)0)
 #else
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
+#define logfmt g_DlCallbackOps->logfmt
 #endif
 
 extern bool MBR_Probe(int drive_id);
@@ -222,11 +225,19 @@ static int read_superblock(Ext2Drive *drive)
    uint32_t sb_lba = SUPERBLOCK_OFFSET / SECTOR_SIZE;
    uint32_t sb_off = SUPERBLOCK_OFFSET % SECTOR_SIZE;
 
-   if (ext2_read_sector(drive, sb_lba, buf) != 0) return -EIO;
+   if (ext2_read_sector(drive, sb_lba, buf) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: read_superblock: I/O error reading superblock sector\n");
+      return -EIO;
+   }
 
    uint16_t magic = (uint16_t)buf[sb_off + SB_MAGIC_OFF] |
                     ((uint16_t)buf[sb_off + SB_MAGIC_OFF + 1] << 8);
-   if (magic != EXT2_MAGIC) return -EINVAL;
+   if (magic != EXT2_MAGIC)
+   {
+      logfmt(LOG_ERROR, "ext2: read_superblock: invalid magic 0x%04x\n", magic);
+      return -EINVAL;
+   }
 
    uint32_t log_block_size =
        (uint32_t)buf[sb_off + SB_LOG_BLOCK_SIZE_OFF] |
@@ -276,7 +287,11 @@ static int read_superblock(Ext2Drive *drive)
        ((uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF + 2] << 16) |
        ((uint32_t)buf[sb_off + SB_FEATURE_INCOMPAT_OFF + 3] << 24);
 
-   if (incompat & ~EXT2_INCOMPAT_HANDLED) return -EINVAL;
+   if (incompat & ~EXT2_INCOMPAT_HANDLED)
+   {
+      logfmt(LOG_ERROR, "ext2: read_superblock: unsupported incompat features 0x%08x\n", incompat);
+      return -EINVAL;
+   }
 
    drive->desc_size = 32;
    if (drive->rev_level >= EXT2_DYNAMIC_REV)
@@ -310,7 +325,11 @@ static int ext2_bgdt_offset(Ext2Drive *drive)
 
 static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
 {
-   if (inode_num == 0) return -EINVAL;
+   if (inode_num == 0)
+   {
+      logfmt(LOG_ERROR, "ext2: read_inode: inode number is 0\n");
+      return -EINVAL;
+   }
 
    uint32_t group = (inode_num - 1) / drive->inodes_per_group;
    uint32_t index = (inode_num - 1) % drive->inodes_per_group;
@@ -322,7 +341,11 @@ static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
 
    {
       uint8_t block_buf[4096];
-      if (ext2_read_block(drive, bgdt_block, block_buf) != 0) return -EIO;
+      if (ext2_read_block(drive, bgdt_block, block_buf) != 0)
+      {
+         logfmt(LOG_ERROR, "ext2: read_inode: I/O error reading BGD table block\n");
+         return -EIO;
+      }
 
       uint32_t bgdt_entry_off = bgdt_byte + group * drive->desc_size;
       for (uint32_t i = 0; i < drive->desc_size && i < 64; i++)
@@ -340,7 +363,11 @@ static int read_inode(Ext2Drive *drive, uint32_t inode_num, uint8_t *out)
    uint32_t inode_byte_off = (index % inodes_per_block) * drive->inode_size;
 
    uint8_t block_buf[4096];
-   if (ext2_read_block(drive, inode_block_idx, block_buf) != 0) return -EIO;
+   if (ext2_read_block(drive, inode_block_idx, block_buf) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: read_inode: I/O error reading inode table block\n");
+      return -EIO;
+   }
 
    for (uint32_t i = 0; i < drive->inode_size && i < 128; i++)
       out[i] = block_buf[inode_byte_off + i];
@@ -598,7 +625,11 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
                        uint32_t *out_size)
 {
    uint8_t inode_buf[128];
-   if (read_inode(drive, dir_inode, inode_buf) != 0) return -EIO;
+   if (read_inode(drive, dir_inode, inode_buf) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: ext2_lookup: failed to read directory inode %u\n", dir_inode);
+      return -EIO;
+   }
 
    uint32_t dir_size = (uint32_t)inode_buf[INODE_SIZE_OFF] |
                        ((uint32_t)inode_buf[INODE_SIZE_OFF + 1] << 8) |
@@ -615,7 +646,11 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
       if (phys_block == 0) break;
 
       uint8_t block_data[4096];
-      if (ext2_read_block(drive, phys_block, block_data) != 0) return -EIO;
+      if (ext2_read_block(drive, phys_block, block_data) != 0)
+      {
+         logfmt(LOG_ERROR, "ext2: ext2_lookup: I/O error reading directory block\n");
+         return -EIO;
+      }
 
       uint32_t pos = block_off;
       while (pos + 8 <= drive->block_size &&
@@ -653,7 +688,10 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
                *out_inode = entry_inode;
                uint8_t found_inode[128];
                if (read_inode(drive, entry_inode, found_inode) != 0)
+               {
+                  logfmt(LOG_ERROR, "ext2: ext2_lookup: I/O error reading found inode %u\n", entry_inode);
                   return -EIO;
+               }
                *out_size = (uint32_t)found_inode[INODE_SIZE_OFF] |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 1] << 8) |
                            ((uint32_t)found_inode[INODE_SIZE_OFF + 2] << 16) |
@@ -668,6 +706,7 @@ static int ext2_lookup(Ext2Drive *drive, uint32_t dir_inode,
       bytes_read += drive->block_size;
    }
 
+   logfmt(LOG_ERROR, "ext2: ext2_lookup: entry not found in directory\n");
    return -ENOENT;
 }
 
@@ -775,13 +814,21 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
 
    (void)partition_uuid;
 
-   if (!bios_drive_list || bios_drive_list_count == 0) return -EINVAL;
+   if (!bios_drive_list || bios_drive_list_count == 0)
+   {
+      logfmt(LOG_ERROR, "ext2: Initialize: invalid drive list\n");
+      return -EINVAL;
+   }
 
    for (drive_id = 0; drive_id < MAX_DRIVES; drive_id++)
    {
       if (!s_Drives[drive_id].used) break;
    }
-   if (drive_id == MAX_DRIVES) return -EMFILE;
+   if (drive_id == MAX_DRIVES)
+   {
+      logfmt(LOG_ERROR, "ext2: Initialize: too many open drives\n");
+      return -EMFILE;
+   }
 
    drive = &s_Drives[drive_id];
 
@@ -819,13 +866,21 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
             }
          }
       }
-      if (!found) return -ENODEV;
+      if (!found)
+      {
+         logfmt(LOG_ERROR, "ext2: Initialize: no valid ext2/ext4 partition found\n");
+         return -ENODEV;
+      }
    }
 
    drive->root_inode = 2;
 
    uint8_t root_inode[128];
-   if (read_inode(drive, drive->root_inode, root_inode) != 0) return -EIO;
+   if (read_inode(drive, drive->root_inode, root_inode) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: Initialize: I/O error reading root inode\n");
+      return -EIO;
+   }
 
    drive->root_size = (uint32_t)root_inode[INODE_SIZE_OFF] |
                       ((uint32_t)root_inode[INODE_SIZE_OFF + 1] << 8) |
@@ -841,28 +896,47 @@ int EXT2_Open(int drive_id, const char *path)
    Ext2Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "ext2: Open: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
-   if (!path || *path == '\0') return -EINVAL;
+   if (!path || *path == '\0')
+   {
+      logfmt(LOG_ERROR, "ext2: Open: empty path\n");
+      return -EINVAL;
+   }
 
    uint32_t file_inode, file_size;
    int rc = ext2_resolve(drive, path, &file_inode, &file_size);
    if (rc != 0) return rc;
 
    uint8_t inode[128];
-   if (read_inode(drive, file_inode, inode) != 0) return -EIO;
+   if (read_inode(drive, file_inode, inode) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: Open: I/O error reading inode %u\n", file_inode);
+      return -EIO;
+   }
    uint16_t mode = (uint16_t)inode[INODE_MODE_OFF] |
                    ((uint16_t)inode[INODE_MODE_OFF + 1] << 8);
-   if ((mode & IFMT) == IFDIR) return -EINVAL;
+   if ((mode & IFMT) == IFDIR)
+   {
+      logfmt(LOG_ERROR, "ext2: Open: path is a directory\n");
+      return -EINVAL;
+   }
 
    int fd;
    for (fd = 0; fd < MAX_OPEN_FILES; fd++)
    {
       if (!drive->open_files[fd].used) break;
    }
-   if (fd == MAX_OPEN_FILES) return -EMFILE;
+   if (fd == MAX_OPEN_FILES)
+   {
+      logfmt(LOG_ERROR, "ext2: Open: too many open files\n");
+      return -EMFILE;
+   }
 
    drive->open_files[fd].used = 1;
    drive->open_files[fd].inode = file_inode;
@@ -877,12 +951,18 @@ int EXT2_Read(int drive_id, int fd, void *buffer, int count)
    Ext2Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "ext2: Read: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "ext2: Read: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    Ext2File *f = &drive->open_files[fd];
    uint8_t *buf = (uint8_t *)buffer;
@@ -894,7 +974,11 @@ int EXT2_Read(int drive_id, int fd, void *buffer, int count)
    if ((uint32_t)count > remaining) count = (int)remaining;
 
    uint8_t inode[128];
-   if (read_inode(drive, f->inode, inode) != 0) return -EIO;
+   if (read_inode(drive, f->inode, inode) != 0)
+   {
+      logfmt(LOG_ERROR, "ext2: Read: I/O error reading inode %u\n", f->inode);
+      return -EIO;
+   }
 
    uint32_t bytes_done = 0;
    while (bytes_done < (uint32_t)count)
@@ -910,6 +994,7 @@ int EXT2_Read(int drive_id, int fd, void *buffer, int count)
       if (ext2_read_block(drive, phys_block, block_data) != 0)
       {
          if (bytes_done > 0) return (int)bytes_done;
+         logfmt(LOG_ERROR, "ext2: Read: I/O error reading data block\n");
          return -EIO;
       }
 
@@ -932,12 +1017,18 @@ int EXT2_Close(int drive_id, int fd)
    Ext2Drive *drive;
 
    if (drive_id < 0 || drive_id >= MAX_DRIVES || !s_Drives[drive_id].used)
+   {
+      logfmt(LOG_ERROR, "ext2: Close: invalid drive id %d\n", drive_id);
       return -EINVAL;
+   }
 
    drive = &s_Drives[drive_id];
 
    if (fd < 0 || fd >= MAX_OPEN_FILES || !drive->open_files[fd].used)
+   {
+      logfmt(LOG_ERROR, "ext2: Close: invalid file descriptor %d\n", fd);
       return -EBADF;
+   }
 
    drive->open_files[fd].used = 0;
    return SUCCESS;

@@ -7,6 +7,7 @@
 #include <status.h>
 #include <paths.h>
 #include <bits.h>
+#include <logging.h>
 
 #define DL_RESOLVE
 #include <dl/binding_gen.h>

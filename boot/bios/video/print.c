@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "video.h"
+#include <logging.h>
 
 void putc(char c);
 static void put_reverse(const char *buf, int len);
