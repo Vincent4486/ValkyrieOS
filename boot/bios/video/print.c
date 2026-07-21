@@ -326,6 +326,11 @@ void vprintf(const char *fmt, va_list args)
 
 void logfmt(int log_type, const char *fmt, ...)
 {
+#ifdef RELEASE
+   if (log_type == LOG_INFO)
+      return;
+#endif
+
    switch (log_type)
    {
    case LOG_INFO:
