@@ -11,9 +11,11 @@
 typedef struct Elf32Ehdr Elf32Ehdr;
 typedef struct Elf32Shdr Elf32Shdr;
 typedef struct Elf32Symbol Elf32Symbol;
+typedef struct Elf32Rel Elf32Rel;
 typedef struct Elf64Ehdr Elf64Ehdr;
 typedef struct Elf64Shdr Elf64Shdr;
 typedef struct Elf64Symbol Elf64Symbol;
+typedef struct Elf64Rela Elf64Rela;
 
 typedef struct DlHandle DlHandle;
 
@@ -42,7 +44,19 @@ typedef struct DlHandle DlHandle;
 #define SHT_SYMTAB 2
 #define SHT_STRTAB 3
 #define SHT_NOBITS 8
+#define SHT_REL 9
 #define SHT_DYNSYM 11
+
+/* Relocation types */
+#if defined(BIT32)
+#define R_REL_GLOB_DAT 6
+#define R_REL_JMP_SLOT 7
+#define R_REL_RELATIVE 8
+#elif defined(BIT64)
+#define R_REL_GLOB_DAT 6
+#define R_REL_JMP_SLOT 7
+#define R_REL_RELATIVE 8
+#endif
 
 /* Symbol binding and type helpers */
 #define ELF32_ST_BIND(i) ((i) >> 4)
@@ -113,6 +127,12 @@ struct __attribute__((packed)) Elf32Symbol
    uint16_t st_shndx;
 };
 
+struct __attribute__((packed)) Elf32Rel
+{
+   uint32_t r_offset;
+   uint32_t r_info;
+};
+
 struct __attribute__((packed)) Elf64Ehdr
 {
    unsigned char e_ident[16];
@@ -155,16 +175,42 @@ struct __attribute__((packed)) Elf64Symbol
    uint64_t st_size;
 };
 
+struct __attribute__((packed)) Elf64Rela
+{
+   uint64_t r_offset;
+   uint64_t r_info;
+   int64_t r_addend;
+};
+
 struct DlHandle
 {
    void *symtab;     /* pointer to symbol table in file data */
    void *strtab;     /* pointer to string table in file data */
    void *image_base; /* base address where the ELF was loaded */
+   void *shdr;       /* pointer to section headers */
    int sym_count;    /* number of symbol entries */
+   int shnum;        /* number of section headers */
 };
 
 /* Internal handle storage — one library at a time */
 static DlHandle s_Handle = {0};
+
+/* Convert a virtual address to a file-data pointer using the section headers. */
+static void *vaddr_to_ptr(void *file_data, ElfShdr *shdr, int shnum,
+                           uintptr_t vaddr)
+{
+   for (int i = 0; i < shnum; i++)
+   {
+      if (shdr[i].sh_addr == 0) continue; /* skip non-loaded sections */
+      uintptr_t end = shdr[i].sh_addr + shdr[i].sh_size;
+      if (shdr[i].sh_addr <= vaddr && vaddr < end)
+      {
+         return (void *)((uintptr_t)file_data + shdr[i].sh_offset +
+                         (vaddr - shdr[i].sh_addr));
+      }
+   }
+   return NULL;
+}
 
 void *DL_LoadLibrary(void *file_data)
 {
@@ -185,9 +231,13 @@ void *DL_LoadLibrary(void *file_data)
    ElfEhdr *ehdr = (ElfEhdr *)file_data;
    ElfShdr *shdr = (ElfShdr *)((uintptr_t)file_data + ehdr->e_shoff);
 
+   h->shdr = shdr;
+   h->shnum = ehdr->e_shnum;
+
+   /* Find symbol table (prefer .dynsym for shared libraries). */
    for (int i = 0; i < ehdr->e_shnum; i++)
    {
-      if (shdr[i].sh_type == SHT_SYMTAB || shdr[i].sh_type == SHT_DYNSYM)
+      if (shdr[i].sh_type == SHT_DYNSYM)
       {
          h->symtab = (void *)((uintptr_t)file_data + shdr[i].sh_offset);
          h->sym_count = shdr[i].sh_size / shdr[i].sh_entsize;
@@ -195,11 +245,105 @@ void *DL_LoadLibrary(void *file_data)
          if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum)
             h->strtab = (void *)((uintptr_t)file_data +
                                  shdr[shdr[i].sh_link].sh_offset);
-         return h;
+         break;
       }
    }
 
-   return NULL;
+   /* If no .dynsym, fall back to .symtab. */
+   if (!h->symtab)
+   {
+      for (int i = 0; i < ehdr->e_shnum; i++)
+      {
+         if (shdr[i].sh_type == SHT_SYMTAB)
+         {
+            h->symtab = (void *)((uintptr_t)file_data + shdr[i].sh_offset);
+            h->sym_count = shdr[i].sh_size / shdr[i].sh_entsize;
+            if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum)
+               h->strtab = (void *)((uintptr_t)file_data +
+                                    shdr[shdr[i].sh_link].sh_offset);
+            break;
+         }
+      }
+   }
+
+   if (!h->symtab || !h->strtab) return NULL;
+
+   /* Process .rel.dyn and .rel.plt relocations to fix up GOT entries. */
+   for (int i = 0; i < ehdr->e_shnum; i++)
+   {
+      if (shdr[i].sh_type != SHT_REL) continue;
+
+      /* Find the associated symbol table for this relocation section. */
+      ElfSymbol *dynsym = NULL;
+      int dynsym_count = 0;
+      if (shdr[i].sh_link < (uint32_t)ehdr->e_shnum &&
+          shdr[shdr[i].sh_link].sh_type == SHT_DYNSYM)
+      {
+         dynsym = (ElfSymbol *)((uintptr_t)file_data +
+                                shdr[shdr[i].sh_link].sh_offset);
+         dynsym_count = shdr[shdr[i].sh_link].sh_size /
+                        shdr[shdr[i].sh_link].sh_entsize;
+      }
+
+#if defined(BIT32)
+      Elf32Rel *rel = (Elf32Rel *)((uintptr_t)file_data + shdr[i].sh_offset);
+      int rel_count = shdr[i].sh_size / sizeof(Elf32Rel);
+
+      for (int j = 0; j < rel_count; j++)
+      {
+         uint32_t r_type = rel[j].r_info & 0xFF;
+         uint32_t r_sym = rel[j].r_info >> 8;
+         void *patch_addr = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                         rel[j].r_offset);
+         if (!patch_addr) continue;
+
+         if (r_type == R_REL_GLOB_DAT || r_type == R_REL_JMP_SLOT)
+         {
+            if (dynsym && r_sym < (uint32_t)dynsym_count)
+            {
+               void *sym_ptr = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                             dynsym[r_sym].st_value);
+               if (sym_ptr)
+                  *(uint32_t *)patch_addr = (uint32_t)(uintptr_t)sym_ptr;
+            }
+         }
+         else if (r_type == R_REL_RELATIVE)
+         {
+            *(uint32_t *)patch_addr += (uint32_t)(uintptr_t)file_data;
+         }
+      }
+#elif defined(BIT64)
+      Elf64Rela *rel = (Elf64Rela *)((uintptr_t)file_data + shdr[i].sh_offset);
+      int rel_count = shdr[i].sh_size / sizeof(Elf64Rela);
+
+      for (int j = 0; j < rel_count; j++)
+      {
+         uint32_t r_type = rel[j].r_info & 0xFF;
+         uint32_t r_sym = rel[j].r_info >> 8;
+         void *patch_addr = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                         (uintptr_t)rel[j].r_offset);
+         if (!patch_addr) continue;
+
+         if (r_type == R_REL_GLOB_DAT || r_type == R_REL_JMP_SLOT)
+         {
+            if (dynsym && r_sym < (uint32_t)dynsym_count)
+            {
+               void *sym_ptr = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                             (uintptr_t)dynsym[r_sym].st_value);
+               if (sym_ptr)
+                  *(uint64_t *)patch_addr = (uint64_t)(uintptr_t)sym_ptr;
+            }
+         }
+         else if (r_type == R_REL_RELATIVE)
+         {
+            *(uint64_t *)patch_addr = (uint64_t)(uintptr_t)file_data +
+                                      (uint64_t)rel[j].r_addend;
+         }
+      }
+#endif
+   }
+
+   return h;
 }
 
 void *DL_LoadSymbol(void *handle, const char *symbol)
@@ -220,7 +364,14 @@ void *DL_LoadSymbol(void *handle, const char *symbol)
       while (name[j] == symbol[j] && name[j] != '\0')
          j++;
       if (name[j] == '\0' && symbol[j] == '\0')
+      {
+         void *ptr = vaddr_to_ptr(h->image_base, (ElfShdr *)h->shdr,
+                                   h->shnum, sym[i].st_value);
+         if (ptr) return ptr;
+         /* Fallback: if vaddr_to_ptr fails (e.g. for .bss symbols),
+            fall back to image_base + st_value. */
          return (void *)(uintptr_t)(h->image_base + sym[i].st_value);
+      }
    }
 
    return NULL;

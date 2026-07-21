@@ -19,14 +19,12 @@ void LOGO_GetValecium(uint32_t *width, uint32_t *height,
 
 void LOGO_DrawOnScreen()
 {
-   g_DlCallbackOps->logfmt(LOG_ERROR, "hi \n");
-   g_DlCallbackOps->logfmt(LOG_ERROR, "hi 2 \n");
+   uint32_t scr_w = g_DlCallbackOps->Video_GetWidth();
+   uint32_t scr_h = g_DlCallbackOps->Video_GetHeight();
+
    uint32_t logo_w, logo_h, pal_sz;
    const uint8_t *pal, *data;
    LOGO_GetValecium(&logo_w, &logo_h, &pal, &pal_sz, &data);
-
-   uint32_t scr_w = g_DlCallbackOps->Video_GetWidth();
-   uint32_t scr_h = g_DlCallbackOps->Video_GetHeight();
 
    /* Center the logo. */
    int off_x = (int)((scr_w > logo_w) ? (scr_w - logo_w) / 2 : 0);

@@ -107,6 +107,7 @@ else:
 # Build Target
 # =============================================================================
 
+MainEnvironment.Append(LINKFLAGS=["-Wl,-N", "-static-libgcc"])
 MainEnvironment.Append(OBJPREFIX="main_")
 Objects = MainEnvironment.SharedObject(Sources)
 
