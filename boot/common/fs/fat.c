@@ -6,9 +6,7 @@
 
 #include <status.h>
 
-#ifndef COREFS
 #include <dl/callback.h>
-#endif
 
 typedef struct FatFile FatFile;
 typedef struct FatDrive FatDrive;
@@ -174,6 +172,12 @@ struct FatOperations
 };
 #endif
 
+static FatDrive s_Drives[MAX_DRIVES] = {0};
+
+#ifdef COREFS
+static int s_CoreFsDriveId = -1;
+#endif
+
 #ifdef COREFS
 extern int DISK_Read(uint8_t drive, uint16_t cylinder, uint8_t sector,
                      uint8_t head, uint8_t count, void *buffer);
@@ -182,12 +186,6 @@ extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
 #else
 #define DISK_Read g_DlCallbackOps->DISK_Read
 #define DISK_ReadLBA g_DlCallbackOps->DISK_ReadLBA
-#endif
-
-static FatDrive s_Drives[MAX_DRIVES] = {0};
-
-#ifdef COREFS
-static int s_CoreFsDriveId = -1;
 #endif
 
 extern bool MBR_Probe(int drive_id);

@@ -28,7 +28,7 @@ struct __attribute__((packed)) DL_CallbackOpsPatch
    DL_CallbackOperations *dl_callback_ops;
 };
 
-#ifndef CORE
+#if !defined CORE || !defined COREFS
 extern DL_CallbackOpsPatch g_DlCallbackOpsPatch;
 
 #define g_DlCallbackOps g_DlCallbackOpsPatch.dl_callback_ops
