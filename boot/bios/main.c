@@ -316,6 +316,7 @@ void init_main_boot(void)
    s_DlCallbackOps.Video_GetWidth = Video_GetWidth;
    s_DlCallbackOps.Video_PutChar = Video_PutChar;
    s_DlCallbackOps.Video_PutPixel = Video_PutPixel;
+   s_DlCallbackOps.logfmt = logfmt;
 
    // Check for VLSO to patch callback address
    for (int i = 0; i + 4 <= total;
