@@ -221,44 +221,6 @@ void print_corefs_memory_address(void)
    printf("Corefs Module location: %x.\n", s_BootParams.corefs_ops);
 }
 
-void print_logo(void)
-{
-   if (g_PreferredOutput == OUTPUT_VBE)
-   {
-      uint32_t logo_w, logo_h, pal_sz;
-      const uint8_t *pal, *data;
-      g_MainBootOperations.LOGO_GetValecium(&logo_w, &logo_h, &pal, &pal_sz,
-                                            &data);
-
-      if (g_PreferredOutput == OUTPUT_VBE)
-      {
-         uint32_t scr_w = Video_GetWidth();
-         uint32_t scr_h = Video_GetHeight();
-
-         /* Center the logo. */
-         int off_x = (int)((scr_w > logo_w) ? (scr_w - logo_w) / 2 : 0);
-         int off_y = (int)((scr_h > logo_h) ? (scr_h - logo_h) / 2 : 0);
-
-         for (uint32_t y = 0; y < logo_h; y++)
-         {
-            for (uint32_t x = 0; x < logo_w; x++)
-            {
-               /* Data is 4bpp: two pixels per byte, high nibble first. */
-               uint8_t byte = data[(y * logo_w + x) / 2];
-               uint8_t idx = (x & 1) ? (byte & 0x0F) : (byte >> 4);
-               Video_Color pixel_color;
-               pixel_color.r = pal[idx * 3];
-               pixel_color.g = pal[idx * 3 + 1];
-               pixel_color.b = pal[idx * 3 + 2];
-               if (!(pixel_color.r == 0 && pixel_color.g == 0 &&
-                     pixel_color.b == 0))
-                  Video_PutPixel(pixel_color, off_x + (int)x, off_y + (int)y);
-            }
-         }
-      }
-   }
-}
-
 void init_fs(void)
 {
    logfmt(LOG_INFO, "Entering filesystem setup.\n");
@@ -381,7 +343,7 @@ int main(const BootParams *boot_params)
    init_fs();
    init_main_boot();
 
-   print_logo();
+   g_MainBootOperations.LOGO_DrawOnScreen();
    for (;;)
       ;
 
