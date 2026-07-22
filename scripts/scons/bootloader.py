@@ -21,8 +21,8 @@ AllowedBootSetups = (
 BootloaderProfiles = {
     "bios": {
         "SupportedArchitectures": ["i686", "x86_64"],
-        "CompilerFlags": ["-DBOOTLOADER_BIOS=1"],
-        "AssemblerFlags": ["-DBOOTLOADER_BIOS=1"],
+        "CompilerFlags": ["-DBOOTLOADER_BIOS"],
+        "AssemblerFlags": ["-DBOOTLOADER_BIOS"],
     },
     "efi": {
         "SupportedArchitectures": ["x86_64", "aarch64"],
