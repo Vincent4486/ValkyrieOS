@@ -5,6 +5,7 @@ Kernel build configuration.
 
 import os
 import sys
+import subprocess
 
 from SCons.Environment import Environment
 from SCons.Script import Dir, Export, SConscript
@@ -69,8 +70,6 @@ KernelEnv.Append(
 # Generated Source Files
 # =============================================================================
 
-import subprocess
-
 MkisrsPath = os.path.join(ArchitecturePath, "cpu", "mkisrs.py")
 if os.path.exists(MkisrsPath):
     IsrsGenC = os.path.join(ArchitecturePath, "cpu", "isrs_gen.c")
@@ -98,12 +97,11 @@ SConscript("std/SConscript", exports="Sources")
 SConscript("sys/SConscript", exports="Sources")
 SConscript("syscall/SConscript", exports="Sources")
 
-Objects = KernelEnv.Object(Sources)
-
-
 # =============================================================================
 # Build Target
 # =============================================================================
+
+Objects = KernelEnv.Object(Sources)
 
 Kernel = KernelEnv.Program(KernelEnv["KernelOutputName"], Objects)
 

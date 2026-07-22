@@ -24,11 +24,11 @@ TargetEnvironment: Environment
 
 MainEnvironment = TargetEnvironment.Clone()
 
+BootType = TargetEnvironment["BootType"]
 SourcePath = Dir("#boot").abspath
 Architecture = TargetEnvironment["BuildArch"]
-BootType = TargetEnvironment["BootType"]
-ProjectVersion = TargetEnvironment["ProjVersion"]
 ArchitecturePath = os.path.join(SourcePath, BootType, Architecture)
+ProjectVersion = TargetEnvironment["ProjVersion"]
 
 ArchitectureConfig = GetArchConfig(Architecture)
 BuildConfig = TargetEnvironment["BuildConfig"]
@@ -42,6 +42,11 @@ ConfigureBootloaderEnvironment(
     ArchitecturePath,
     ArchitectureConfig,
     BootloaderBuildConfig,
+)
+
+MainEnvironment.Append(
+    LINKFLAGS=["-Wl,-N", "-static-libgcc"],
+    OBJPREFIX="main_",
 )
 
 # =============================================================================
@@ -107,8 +112,6 @@ else:
 # Build Target
 # =============================================================================
 
-MainEnvironment.Append(LINKFLAGS=["-Wl,-N", "-static-libgcc"])
-MainEnvironment.Append(OBJPREFIX="main_")
 Objects = MainEnvironment.SharedObject(Sources)
 
 Bootloader = MainEnvironment.SharedLibrary(BootloaderBuildConfig["OutputName"], Objects)

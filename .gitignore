@@ -59,7 +59,7 @@ node_modules/
 coverage.*
 
 # Misc
-.config
+.config.*
 *_gen.*
 core
 *.core
@@ -68,3 +68,4 @@ tags
 test.*
 test/
 .ruff_cache/
+TODO

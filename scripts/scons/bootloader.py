@@ -80,19 +80,19 @@ def GetBootloaderBuildConfig(
 
 
 def ConfigureBootloaderEnvironment(
-    env: Environment,
-    source_path: str,
-    architecture_path: str,
-    architecture_config: dict,
-    bootloader_config: dict,
+    Env: Environment,
+    SourcePath: str,
+    ArchitecturePath: str,
+    ArchitectureConfig: dict,
+    BootloaderConfig: dict,
 ):
-    env.Append(
-        ASFLAGS=architecture_config.get("AssemblyFlags", []),
-        CCFLAGS=architecture_config.get("CompilerFlags", []),
-        LINKFLAGS=architecture_config.get("LinkerFlags", []),
+    Env.Append(
+        ASFLAGS=ArchitectureConfig.get("AssemblyFlags", []),
+        CCFLAGS=ArchitectureConfig.get("CompilerFlags", []),
+        LINKFLAGS=ArchitectureConfig.get("LinkerFlags", []),
     )
 
-    env.Append(
+    Env.Append(
         CCFLAGS=[
             "-ffreestanding",
             "-fno-stack-protector",
@@ -100,22 +100,23 @@ def ConfigureBootloaderEnvironment(
             "-Wall",
             "-Wextra",
         ],
-        CPATH=[source_path, os.path.join(source_path, "common"), "#include"],
-        CPPPATH=[source_path, os.path.join(source_path, "common"), "#include"],
+        CPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
+        CPPPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
+        CPPDEFINES=["BOOTLOADER"],
         ASFLAGS=[
             "-I",
-            source_path,
+            SourcePath,
             "-I",
-            os.path.join(source_path, "common"),
+            os.path.join(SourcePath, "common"),
             "-I",
-            architecture_path,
+            ArchitecturePath,
             "-g",
             "-Wa,--noexecstack",
         ],
     )
 
-    env.Append(CCFLAGS=bootloader_config.get("CompilerFlags", []))
-    env.Append(ASFLAGS=bootloader_config.get("AssemblerFlags", []))
+    Env.Append(CCFLAGS=BootloaderConfig.get("CompilerFlags", []))
+    Env.Append(ASFLAGS=BootloaderConfig.get("AssemblerFlags", []))
 
 
 def PatchBinaryValue(
