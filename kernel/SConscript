@@ -11,6 +11,10 @@ from SCons.Environment import Environment
 from SCons.Script import Dir, Export, SConscript
 
 from scripts.scons.arch import GetArchConfig
+from scripts.scons.kernel import (
+    ConfigureKernelEnvironment,
+    GetKernelBuildConfig,
+)
 
 
 Import("TargetEnvironment")
@@ -22,48 +26,26 @@ TargetEnvironment: Environment
 
 KernelEnv = TargetEnvironment.Clone()
 
+KernelType = TargetEnvironment["KernelType"]
 SourcePath = Dir("#kernel").abspath
 Architecture = TargetEnvironment["BuildArch"]
 ArchitecturePath = os.path.join(SourcePath, "arch", Architecture)
+ProjectVersion = TargetEnvironment["ProjVersion"]
 LinkerScript = os.path.join(ArchitecturePath, "linker.ld")
-KernelVersion = TargetEnvironment["ProjVersion"]
 
 ArchitectureConfig = GetArchConfig(Architecture)
-KernelEnv.Append(
-    ASFLAGS=ArchitectureConfig.get("AssemblyFlags", []),
-    CCFLAGS=ArchitectureConfig.get("CompilerFlags", []),
-    LINKFLAGS=ArchitectureConfig.get("LinkerFlags", []),
+BuildConfig = TargetEnvironment["BuildConfig"]
+KernelBuildConfig = GetKernelBuildConfig(
+    KernelType, Architecture, ProjectVersion, BuildConfig
 )
 
-KernelEnv.Append(
-    CCFLAGS=[
-        "-ffreestanding",
-        "-nostdlib",
-        "-fno-stack-protector",
-        "-fno-builtin",
-        "-Wall",
-        "-Wextra",
-    ],
-    LINKFLAGS=[
-        "-nostdlib",
-        "-Wl,-T",
-        LinkerScript,
-        "-Wl,-Map=" + KernelEnv.File("kernel.map").path,
-        "-Wl,-z,relro,-z,now",
-        "-Wl,-z,noexecstack",
-        "-Wl,--as-needed",
-        "-Wl,--export-dynamic",
-    ],
-    CPATH=[SourcePath, "#include"],
-    CPPPATH=[SourcePath, "#include"],
-    ASFLAGS=[
-        "-I",
-        ArchitecturePath,
-        "-g",
-        "-Wa,--noexecstack",
-    ],
-    LIBS=["gcc"],
-    CPPDEFINES=[f'KERNEL_VERSION=\\"{KernelVersion}\\"'],
+ConfigureKernelEnvironment(
+    KernelEnv,
+    SourcePath,
+    ArchitecturePath,
+    ArchitectureConfig,
+    KernelBuildConfig,
+    LinkerScript,
 )
 
 # =============================================================================
@@ -102,7 +84,8 @@ SConscript("syscall/SConscript", exports="Sources")
 # =============================================================================
 
 Objects = KernelEnv.Object(Sources)
+Kernel = KernelEnv.Program(KernelBuildConfig["OutputName"], Objects)
 
-Kernel = KernelEnv.Program(KernelEnv["KernelOutputName"], Objects)
+TargetEnvironment["KernelComponents"]["Main"] = Kernel
 
 Export("Kernel")

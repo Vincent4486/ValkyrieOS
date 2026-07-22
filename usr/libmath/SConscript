@@ -11,7 +11,7 @@ Import("UsermodeEnv")
 
 Env = UsermodeEnv.Clone()
 
-Srcpath = Dir("#usr/libmath").abspath
+SourcePath = Dir("#usr/libmath").abspath
 
 Env.Append(
     CCFLAGS=["-fPIC"],
@@ -20,12 +20,12 @@ Env.Append(
         "-shared",
         "-Wl,-soname,libmath.so",
     ],
-    CPATH=[Srcpath],
-    CPPPATH=[Srcpath],
-    ASFLAGS=["-I", Srcpath + "/", "-f", "elf"],
+    CPATH=[SourcePath],
+    CPPPATH=[SourcePath],
+    ASFLAGS=["-I", SourcePath + "/", "-f", "elf"],
 )
 
-Sources = GlobSources(Srcpath)
+Sources = GlobSources(SourcePath)
 Objects = Env.SharedObject(Sources)
 
 LibmathLibrary = Env.SharedLibrary("math", Objects)

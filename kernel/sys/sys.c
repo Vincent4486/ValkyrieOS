@@ -14,7 +14,7 @@ SYS_Info *g_SysInfo = &s_SysInfoStorage;
 void SYS_Initialize(void)
 {
    /* Initialize SYS_Info structure */
-   strncpy(g_SysInfo->kernel_version, KERNEL_VERSION,
+   strncpy(g_SysInfo->kernel_version, OS_VERSION,
            sizeof(g_SysInfo->kernel_version) - 1);
    g_SysInfo->kernel_version[sizeof(g_SysInfo->kernel_version) - 1] = '\0';
    g_SysInfo->uptime_seconds = 0;

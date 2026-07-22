@@ -102,7 +102,7 @@ def ConfigureBootloaderEnvironment(
         ],
         CPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
         CPPPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
-        CPPDEFINES=["BOOTLOADER"],
+        CPPDEFINES={"VALECIUM_BOOTLOADER": None},
         ASFLAGS=[
             "-I",
             SourcePath,

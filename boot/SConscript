@@ -4,6 +4,8 @@ Bootloader build configuration.
 """
 
 import os
+# import sys
+# import subprocess
 
 from SCons.Environment import Environment
 from SCons.Script import Dir, Export, SConscript
@@ -113,8 +115,8 @@ else:
 # =============================================================================
 
 Objects = MainEnvironment.SharedObject(Sources)
-
 Bootloader = MainEnvironment.SharedLibrary(BootloaderBuildConfig["OutputName"], Objects)
+
 TargetEnvironment["BootloaderComponents"]["Main"] = Bootloader
 
 Export("Bootloader")

@@ -11,11 +11,11 @@ Import("UsermodeEnv")
 
 Env = UsermodeEnv.Clone()
 
-Srcpath = Dir("#usr/selftest").abspath
+SourcePath = Dir("#usr/selftest").abspath
 
 Env.Append(
-    CPATH=[Srcpath],
-    CPPPATH=[Srcpath],
+    CPATH=[SourcePath],
+    CPPPATH=[SourcePath],
     CCFLAGS=["-ffreestanding", "-fno-builtin", "-fno-pie", "-fno-stack-protector"],
     LINKFLAGS=[
         "-nostdlib",
@@ -27,7 +27,7 @@ Env.Append(
     ],
 )
 
-Sources = GlobSources(Srcpath)
+Sources = GlobSources(SourcePath)
 Objects = Env.Object(Sources)
 
 SelftestExecutable = Env.Program("selftest", Objects)

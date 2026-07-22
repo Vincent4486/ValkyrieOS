@@ -11,14 +11,14 @@ Import("UsermodeEnv")
 
 Env = UsermodeEnv.Clone()
 
-Srcpath = Dir("#usr/sh").abspath
+SourcePath = Dir("#usr/sh").abspath
 
 Env.Append(
-    CPATH=[Srcpath],
-    CPPPATH=[Srcpath],
+    CPATH=[SourcePath],
+    CPPPATH=[SourcePath],
 )
 
-Sources = GlobSources(Srcpath)
+Sources = GlobSources(SourcePath)
 Objects = Env.Object(Sources)
 
 ShExecutable = Env.Program("sh", Objects)

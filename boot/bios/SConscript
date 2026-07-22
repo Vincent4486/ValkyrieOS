@@ -129,7 +129,7 @@ CoreEnvironment.AppendUnique(
 )
 CoreEnvironment.Append(LIBS=["gcc"])
 CoreEnvironment.Append(OBJPREFIX="core_")
-CoreEnvironment.Append(CPPDEFINES=["CORE"])
+CoreEnvironment.Append(CPPDEFINES={"CORE": None})
 CoreEnvironment.Append(CPATH=[os.path.join(SourcePath, "common")])
 
 CoreObjects = CoreEnvironment.Object(CoreSources)
@@ -161,7 +161,7 @@ if CoreFsSources:
     )
     CoreFsEnvironment.Append(OBJPREFIX="corefs_")
     CoreFsEnvironment.Append(LIBS=["gcc"])
-    CoreFsEnvironment.Append(CPPDEFINES=["COREFS"])
+    CoreFsEnvironment.Append(CPPDEFINES={"COREFS": None})
 
     DiskObjects = CoreFsEnvironment.Object(CoreFsDiskSource)
     SharedObjects = CoreFsEnvironment.Object(CoreFsSharedSources)

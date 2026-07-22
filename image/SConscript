@@ -19,16 +19,15 @@ from scripts.scons.disk import (
     GenerateGrubConfig,
 )
 
-Import("Kernel")
 Import("UserLibraries")
 Import("UserApplications")
 Import("TargetEnvironment")
 
 TargetEnvironment: Environment
-Env: Environment = TargetEnvironment
+BuildEnvironment: Environment = TargetEnvironment
 
 
-def IterBootloaderComponentNodes(Components: dict):
+def IterateBootloaderComponentNodes(Components: dict):
     for ComponentName, Component in Components.items():
         if hasattr(Component, "get_abspath"):
             yield ComponentName, Component
@@ -41,9 +40,76 @@ def IterBootloaderComponentNodes(Components: dict):
             yield ItemName, Item
 
 
+def ResolveComponentPaths(Components: dict) -> tuple[dict, set]:
+    """Resolve component dict nodes to absolute paths and a set of their string representations."""
+    Paths = {}
+    StringSet = set()
+    for ComponentName, Component in IterateBootloaderComponentNodes(Components):
+        AbsolutePath = Component.get_abspath()
+        Paths[ComponentName] = AbsolutePath
+        StringSet.add(str(Component))
+        StringSet.add(AbsolutePath)
+    return Paths, StringSet
+
+
+def ResolveNodePaths(Nodes: list) -> tuple[list, set]:
+    """Resolve a flat list of SCons nodes to absolute paths and a set of their string representations."""
+    Paths = []
+    StringSet = set()
+    for Node in Flatten(Nodes):
+        AbsolutePath = (
+            Node.get_abspath() if hasattr(Node, "get_abspath") else str(Node)
+        )
+        Paths.append(AbsolutePath)
+        StringSet.add(str(Node))
+    return Paths, StringSet
+
+
+def StageSysroot(Stage: str, Compiler: str) -> None:
+    """Copy the compiler's sysroot into the staging directory."""
+    try:
+        RuntimeSysroot = subprocess.check_output(
+            [Compiler, "-print-sysroot"], text=True
+        ).strip()
+    except Exception:
+        RuntimeSysroot = ""
+
+    if not RuntimeSysroot or not os.path.isdir(RuntimeSysroot):
+        print("   (sysroot not available, skipping sysroot staging)")
+        return
+
+    print(f"   STAGE SYSROOT -> {RuntimeSysroot}")
+
+    AllItems = list(Path(RuntimeSysroot).rglob("*"))
+    for Item in AllItems:
+        if Item.is_dir():
+            os.makedirs(
+                os.path.join(Stage, Item.relative_to(RuntimeSysroot)), exist_ok=True
+            )
+        elif Item.is_file() or Item.is_symlink():
+            DestinationFile = os.path.join(Stage, Item.relative_to(RuntimeSysroot))
+            os.makedirs(os.path.dirname(DestinationFile), exist_ok=True)
+            shutil.copy2(str(Item), DestinationFile, follow_symlinks=False)
+
+
+def StageBootloaderLibraries(
+    BootloaderComponents: dict, BootDirectory: str
+) -> None:
+    """Copy bootloader libraries into the boot directory."""
+    Libraries = [
+        ComponentPath
+        for Name, ComponentPath in BootloaderComponents.items()
+        if Name.startswith("Main:")
+    ]
+    for LibraryPath in sorted(set(Libraries)):
+        print(f"   STAGE {os.path.basename(LibraryPath)} -> /boot")
+        shutil.copy2(LibraryPath, BootDirectory)
+
+
 def BuildDisk(
     ImagePath,
-    KernelExecutablePath,
+    KernelComponents,
+    KernelName,
     Libraries,
     Applications,
     ExtraFiles,
@@ -53,11 +119,8 @@ def BuildDisk(
     Architecture = EnvironmentObject.get("BuildArch", "i686")
     BootType = EnvironmentObject.get("BootType", "bios")
     BootSystem = EnvironmentObject.get("BootSystem", "grub")
-    BuildConfig = EnvironmentObject.get("BuildConfig", "release")
 
-    Volume = VolumeLabel
-
-    BuildTag = f"{Architecture}_{BuildConfig}"
+    BuildTag = f"{Architecture}_{EnvironmentObject['BuildConfig']}"
     Stage = EnvironmentObject.get(
         "ImageStagingDirectory", os.path.join("build", BuildTag, "img")
     )
@@ -66,96 +129,66 @@ def BuildDisk(
         shutil.rmtree(Stage)
     elif os.path.exists(Stage):
         os.remove(Stage)
-
     os.makedirs(Stage, exist_ok=True)
-
     print(f"   STAGE -> {Stage}")
 
-    Compiler = EnvironmentObject.subst("$CC")
-    try:
-        RuntimeSysroot = subprocess.check_output(
-            [Compiler, "-print-sysroot"], text=True
-        ).strip()
-    except Exception:
-        RuntimeSysroot = ""
+    # Stage compiler sysroot
+    StageSysroot(Stage, EnvironmentObject.subst("$CC"))
 
-    print(f"   STAGE SYSROOT -> {RuntimeSysroot}")
+    # Stage kernel to /boot
+    BootDirectory = os.path.join(Stage, "boot")
+    os.makedirs(BootDirectory, exist_ok=True)
 
-    if RuntimeSysroot and os.path.isdir(RuntimeSysroot):
-        AllItems = list(Path(RuntimeSysroot).rglob("*"))
-        Directories = [Item for Item in AllItems if Item.is_dir()]
-        Files = [Item for Item in AllItems if Item.is_file() or Item.is_symlink()]
+    if KernelComponents:
+        for ComponentPath in KernelComponents.values():
+            print(f"   STAGE {os.path.basename(ComponentPath)} -> /boot")
+            shutil.copy2(ComponentPath, BootDirectory)
 
-        for DirPath in Directories:
-            RelPath = DirPath.relative_to(RuntimeSysroot)
-            DstDirPath = os.path.join(Stage, RelPath)
-            os.makedirs(DstDirPath, exist_ok=True)
-
-        for FilePath in Files:
-            RelPath = FilePath.relative_to(RuntimeSysroot)
-            DstFilePath = os.path.join(Stage, RelPath)
-            SrcFilePath = str(FilePath)
-
-            # Ensure destination directory exists
-            os.makedirs(os.path.dirname(DstFilePath), exist_ok=True)
-
-            # Copy file normally, preserving symlinks
-            shutil.copy2(SrcFilePath, DstFilePath, follow_symlinks=False)
-    else:
-        print("   (sysroot not available, skipping sysroot staging)")
-
-    BootDir = os.path.join(Stage, "boot")
-    os.makedirs(BootDir, exist_ok=True)
-    print(f"   STAGE {os.path.basename(KernelExecutablePath)} -> /boot")
-    shutil.copy2(KernelExecutablePath, BootDir)
-
+    # Stage bootloader libraries to /boot
     if BootloaderComponents:
-        BootloaderLibraries = []
-        for ComponentName, ComponentPath in BootloaderComponents.items():
-            if ComponentName.startswith("Main:"):
-                BootloaderLibraries.append(ComponentPath)
+        StageBootloaderLibraries(BootloaderComponents, BootDirectory)
 
-        for LibraryPath in sorted(set(BootloaderLibraries)):
-            print(f"   STAGE {os.path.basename(LibraryPath)} -> /boot")
-            shutil.copy2(LibraryPath, BootDir)
-
+    # Generate GRUB config with the actual kernel filename
     GenerateGrubConfig(
-        os.path.join(BootDir, "grub"),
+        os.path.join(BootDirectory, "grub"),
         Config=EnvironmentObject["BuildConfig"],
-        KernelName=EnvironmentObject["KernelOutputName"],
-        VolumeLabelName=Volume,
+        KernelName=KernelName,
+        VolumeLabelName=VolumeLabel,
     )
 
+    # Stage user libraries
     if Libraries:
-        LibDir = os.path.join(Stage, "usr", "lib")
-        os.makedirs(LibDir, exist_ok=True)
-        for Lib in Libraries:
-            print(f"   STAGE {os.path.basename(Lib)} -> /usr/lib")
-            shutil.copy2(Lib, LibDir)
+        LibraryDirectory = os.path.join(Stage, "usr", "lib")
+        os.makedirs(LibraryDirectory, exist_ok=True)
+        for Library in Libraries:
+            print(f"   STAGE {os.path.basename(Library)} -> /usr/lib")
+            shutil.copy2(Library, LibraryDirectory)
 
+    # Stage user applications
     if Applications:
-        BinDir = os.path.join(Stage, "usr", "bin")
-        os.makedirs(BinDir, exist_ok=True)
-        for App in Applications:
-            print(f"   STAGE {os.path.basename(App)} -> /usr/bin")
-            shutil.copy2(App, BinDir)
+        BinaryDirectory = os.path.join(Stage, "usr", "bin")
+        os.makedirs(BinaryDirectory, exist_ok=True)
+        for Application in Applications:
+            print(f"   STAGE {os.path.basename(Application)} -> /usr/bin")
+            shutil.copy2(Application, BinaryDirectory)
 
+    # Stage extra files (root filesystem)
     SourceRoot = EnvironmentObject["BASEDIR"]
     for Node in ExtraFiles:
-        Src = Node.srcnode().path
-        Rel = os.path.relpath(Src, SourceRoot)
-        Dst = os.path.join(Stage, Rel)
-        if os.path.isdir(Src):
-            os.makedirs(Dst, exist_ok=True)
+        Source = Node.srcnode().path
+        Relative = os.path.relpath(Source, SourceRoot)
+        Destination = os.path.join(Stage, Relative)
+        if os.path.isdir(Source):
+            os.makedirs(Destination, exist_ok=True)
         else:
-            print(f"   STAGE {Rel}")
-            os.makedirs(os.path.dirname(Dst), exist_ok=True)
-            shutil.copy2(Src, Dst)
+            print(f"   STAGE {Relative}")
+            os.makedirs(os.path.dirname(Destination), exist_ok=True)
+            shutil.copy2(Source, Destination)
 
     CreateBootableIso(
         Stage,
         ImagePath,
-        Volume,
+        VolumeLabel,
         Architecture=Architecture,
         BootType=BootType,
         BootSystem=BootSystem,
@@ -166,90 +199,73 @@ def BuildDisk(
 def BuildImageAction(*_Args, **KeywordArguments):
     Target = KeywordArguments["target"]
     Source = KeywordArguments["source"]
-    EnvObj = KeywordArguments["env"]
-    KernelName = EnvObj["KernelOutputName"]
-    KernelExecutablePath = None
+    EnvironmentObject = KeywordArguments["env"]
 
-    for Src in Source:
-        PathStr = str(Src)
-        Base = os.path.basename(PathStr)
-        if Base == KernelName or Base.startswith(KernelName + "."):
-            KernelExecutablePath = PathStr
-            break
+    # Resolve kernel components to paths
+    KernelComponentPaths, KernelComponentSet = ResolveComponentPaths(
+        EnvironmentObject.get("KernelComponents", {})
+    )
 
-    if KernelExecutablePath is None:
-        raise RuntimeError("Kernel executable not found in build inputs")
+    # Derive kernel name from the first kernel component's actual filename
+    if KernelComponentPaths:
+        FirstComponent = next(iter(KernelComponentPaths.values()))
+        KernelName = os.path.basename(FirstComponent)
+    else:
+        KernelName = "valeciumx"
 
-    LibraryNodes = Flatten(UserLibraries)
-    LibraryPaths = []
-    LibrarySet = set()
-    for Library in LibraryNodes:
-        AbsolutePath = (
-            Library.get_abspath() if hasattr(Library, "get_abspath") else str(Library)
-        )
-        LibraryPaths.append(AbsolutePath)
-        LibrarySet.add(str(Library))
+    # Resolve library and application paths
+    LibraryPaths, LibrarySet = ResolveNodePaths(UserLibraries)
+    ApplicationPaths, ApplicationSet = ResolveNodePaths(UserApplications)
 
-    ApplicationNodes = Flatten(UserApplications)
-    ApplicationPaths = []
-    ApplicationSet = set()
-    for Application in ApplicationNodes:
-        AbsolutePath = (
-            Application.get_abspath()
-            if hasattr(Application, "get_abspath")
-            else str(Application)
-        )
-        ApplicationPaths.append(AbsolutePath)
-        ApplicationSet.add(str(Application))
+    # Resolve bootloader component paths
+    BootloaderComponentPaths, BootloaderComponentSet = ResolveComponentPaths(
+        EnvironmentObject.get("BootloaderComponents", {})
+    )
 
-    BootloaderComponentNodes = EnvObj.get("BootloaderComponents", {})
-    BootloaderComponentPaths = {}
-    BootloaderComponentSet = set()
-
-    for ComponentName, Component in IterBootloaderComponentNodes(
-        BootloaderComponentNodes
-    ):
-        AbsolutePath = Component.get_abspath()
-        BootloaderComponentPaths[ComponentName] = AbsolutePath
-        BootloaderComponentSet.add(str(Component))
-        BootloaderComponentSet.add(AbsolutePath)
-
+    # Determine extra files (source files not claimed by any component)
     ExtraFiles = [
-        Src
-        for Src in Source
-        if str(Src) != KernelExecutablePath
-        and str(Src) not in LibrarySet
-        and str(Src) not in ApplicationSet
-        and str(Src) not in BootloaderComponentSet
+        SourceNode
+        for SourceNode in Source
+        if str(SourceNode) not in KernelComponentSet
+        and str(SourceNode) not in LibrarySet
+        and str(SourceNode) not in ApplicationSet
+        and str(SourceNode) not in BootloaderComponentSet
     ]
 
     BuildDisk(
         str(Target[0]),
-        KernelExecutablePath,
+        KernelComponentPaths,
+        KernelName,
         LibraryPaths,
         ApplicationPaths,
         ExtraFiles,
         BootloaderComponentPaths,
-        EnvObj,
+        EnvironmentObject,
     )
 
 
-Root = Env.Dir("root")
-RootFiles = GlobRecursive(Env, "*", Root)
+Root = BuildEnvironment.Dir("root")
+RootFiles = GlobRecursive(BuildEnvironment, "*", Root)
 
 BootloaderInputs = []
-if Env.get("BootType", "grub") in ("bios", "efi"):
-    for _, Component in IterBootloaderComponentNodes(
-        Env.get("BootloaderComponents", {})
+if BuildEnvironment.get("BootType", "grub") in ("bios", "efi"):
+    for _, Component in IterateBootloaderComponentNodes(
+        BuildEnvironment.get("BootloaderComponents", {})
     ):
         BootloaderInputs.append(Component)
 
-Inputs = [Kernel] + UserLibraries + UserApplications + RootFiles + BootloaderInputs
+KernelInputs = []
+for _, Component in IterateBootloaderComponentNodes(
+    BuildEnvironment.get("KernelComponents", {})
+):
+    KernelInputs.append(Component)
 
-Out = f"valeciumos-{Env['ProjVersion']}_{Env['BuildConfig']}_{Env['BuildArch']}.iso"
+Inputs = KernelInputs + UserLibraries + UserApplications + RootFiles + BootloaderInputs
 
-Image = Env.Command(
-    Out,
+Output = f"valeciumos-{BuildEnvironment['ProjVersion']}_{BuildEnvironment['BuildConfig']}_{BuildEnvironment['BuildArch']}.iso"
+
+Image = BuildEnvironment.Command(
+    Output,
     Inputs,
     action=Action(BuildImageAction, "   CREATING ISO"),
     BASEDIR=Root.srcnode().path,
