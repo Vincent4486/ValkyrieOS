@@ -132,7 +132,14 @@ static void print_bios_drive_list(void)
 
 static void print_stage3_fs_location(void)
 {
-   printf("Partition label: \"%s\".\n", s_BootParams.corefs_partition_label);
+   printf("Partition label: \"");
+   {
+      for (int i = 0; i < 32; i++)
+      {
+         printf("%c", s_BootParams.corefs_partition_label[i]);
+      }
+   }
+   printf("\".\n");
 
    printf("Partition UUID: ");
    {
@@ -342,6 +349,8 @@ int main(const BootParams *boot_params)
 
    init_fs();
    init_main_boot();
+
+   //printf("Screen Size: width = %d height = %d\n", Video_GetWidth(), Video_GetHeight());
 
    g_MainBootOperations.LOGO_DrawOnScreen();
    for (;;)
