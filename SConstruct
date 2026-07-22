@@ -73,7 +73,7 @@ def ResolveTools(Arch: str):
     return Tools, Paths, Selected
 
 
-ConfigPath = Path(".config")
+ConfigPath = Path(".config.py")
 if not ConfigPath.exists():
     DefaultConfig = {
         "BuildConfig": "debug",
