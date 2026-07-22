@@ -36,30 +36,75 @@ static uint8_t vga_color_from_rgb(Video_Color color);
 #define VGA_AC_IDX 0x3C0
 #define VGA_INSTAT_1 0x3DA
 
+#define VGA_DAC_WRITE_IDX 0x3C8
+#define VGA_DAC_DATA 0x3C9
+
 static uint8_t s_Shadow[VGA_WIDTH * VGA_HEIGHT];
+static uint8_t s_VgaPal256[256][3];
 
 static int s_Initialized = 0;
 static int s_CursorX = 0;
 static int s_CursorY = 0;
 
-static const uint8_t s_VgaPal16[16][3] = {
-    {0, 0, 0},       /* 0  black        */
-    {0, 0, 170},     /* 1  blue         */
-    {0, 170, 0},     /* 2  green        */
-    {0, 170, 170},   /* 3  cyan         */
-    {170, 0, 0},     /* 4  red          */
-    {170, 0, 170},   /* 5  magenta      */
-    {170, 85, 0},    /* 6  brown        */
-    {170, 170, 170}, /* 7  light grey   */
-    {85, 85, 85},    /* 8  dark grey    */
-    {85, 85, 255},   /* 9  light blue   */
-    {85, 255, 85},   /* 10 light green  */
-    {85, 255, 255},  /* 11 light cyan   */
-    {255, 85, 85},   /* 12 light red    */
-    {255, 85, 255},  /* 13 light magenta*/
-    {255, 255, 85},  /* 14 yellow       */
-    {255, 255, 255}, /* 15 white        */
-};
+
+static void init_palette(void)
+{
+   static const uint8_t dac16[16][3] = {
+      {0, 0, 0},     /* 0  black        */
+      {0, 0, 42},    /* 1  blue         */
+      {0, 42, 0},    /* 2  green        */
+      {0, 42, 42},   /* 3  cyan         */
+      {42, 0, 0},    /* 4  red          */
+      {42, 0, 42},   /* 5  magenta      */
+      {42, 21, 0},   /* 6  brown        */
+      {42, 42, 42},  /* 7  light grey   */
+      {21, 21, 21},  /* 8  dark grey    */
+      {21, 21, 63},  /* 9  light blue   */
+      {21, 63, 21},  /* 10 light green  */
+      {21, 63, 63},  /* 11 light cyan   */
+      {63, 21, 21},  /* 12 light red    */
+      {63, 21, 63},  /* 13 light magenta*/
+      {63, 63, 21},  /* 14 yellow       */
+      {63, 63, 63},  /* 15 white        */
+   };
+
+   int idx = 0;
+
+   /* Entries 0-15: standard VGA colours */
+   for (int i = 0; i < 16; i++)
+   {
+      for (int c = 0; c < 3; c++)
+         s_VgaPal256[idx][c] = dac16[i][c];
+      idx++;
+   }
+
+   /* Entries 16-231: 6x6x6 colour cube */
+   for (int r = 0; r < 6; r++)
+      for (int g = 0; g < 6; g++)
+         for (int b = 0; b < 6; b++)
+         {
+            s_VgaPal256[idx][0] = r * 63u / 5;
+            s_VgaPal256[idx][1] = g * 63u / 5;
+            s_VgaPal256[idx][2] = b * 63u / 5;
+            idx++;
+         }
+
+   /* Entries 232-255: 24-step grey ramp */
+   for (int i = 0; i < 24; i++)
+   {
+      uint8_t grey = i * 63u / 23;
+      s_VgaPal256[idx][0] = grey;
+      s_VgaPal256[idx][1] = grey;
+      s_VgaPal256[idx][2] = grey;
+      idx++;
+   }
+
+   /* Upload to VGA DAC – index auto-increments after each write */
+   outb(VGA_DAC_WRITE_IDX, 0);
+   for (int i = 0; i < 256; i++)
+      for (int c = 0; c < 3; c++)
+         outb(VGA_DAC_DATA, s_VgaPal256[i][c]);
+}
 
 static inline void seq_w(uint8_t idx, uint8_t val)
 {
@@ -160,18 +205,21 @@ static void draw_glyph(uint8_t c, int x, int y, uint8_t fg)
    }
 }
 
-// Map an RGB colour to the nearest VGA 16-colour palette index using
 static uint8_t vga_color_from_rgb(Video_Color c)
 {
+   uint8_t r6 = c.r >> 2;
+   uint8_t g6 = c.g >> 2;
+   uint8_t b6 = c.b >> 2;
+
    uint8_t best = 0;
    int32_t best_dist = INT32_MAX;
    int32_t dr, dg, db, d;
 
-   for (uint8_t i = 0; i < 16; i++)
+   for (uint16_t i = 0; i < 256; i++)
    {
-      dr = (int32_t)c.r - (int32_t)s_VgaPal16[i][0];
-      dg = (int32_t)c.g - (int32_t)s_VgaPal16[i][1];
-      db = (int32_t)c.b - (int32_t)s_VgaPal16[i][2];
+      dr = (int32_t)r6 - (int32_t)s_VgaPal256[i][0];
+      dg = (int32_t)g6 - (int32_t)s_VgaPal256[i][1];
+      db = (int32_t)b6 - (int32_t)s_VgaPal256[i][2];
       /* Luminance-weighted distance: human eye is most sensitive to green. */
       d = dr * dr * 3 + dg * dg * 4 + db * db * 2;
       if (d < best_dist)
@@ -202,6 +250,7 @@ static void clear_screen(uint8_t color)
 int VGA_Initialize(void)
 {
    set_mode_0x13();
+   init_palette();
    clear_screen(0);
 
    s_CursorX = 0;
