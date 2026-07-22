@@ -130,7 +130,7 @@ CoreEnvironment.AppendUnique(
 CoreEnvironment.Append(LIBS=["gcc"])
 CoreEnvironment.Append(OBJPREFIX="core_")
 CoreEnvironment.Append(CPPDEFINES={"CORE": None})
-CoreEnvironment.Append(CPATH=[os.path.join(SourcePath, "common")])
+CoreEnvironment.Append(CPPPATH=[os.path.join(SourcePath, "common")])
 
 CoreObjects = CoreEnvironment.Object(CoreSources)
 CoreBinary = CoreEnvironment.Program(CoreBin, CoreObjects)

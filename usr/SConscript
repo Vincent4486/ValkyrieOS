@@ -57,7 +57,10 @@ Import("ShModule")
 Import("SelftestModule")
 
 UserLibraries = [LibmathModule]
-UserApplications = [ShModule, SelftestModule]
+UserApplications = [
+    ShModule,
+    SelftestModule,
+]
 
 Export("UserLibraries")
 Export("UserApplications")

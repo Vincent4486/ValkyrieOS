@@ -85,7 +85,6 @@ def CreateBuildEnv(
     EnvironmentObject = BaseEnvironment.Clone()
 
     EnvironmentObject.Append(
-        CPATH=[SourcePath],
         CPPPATH=[SourcePath],
     )
 

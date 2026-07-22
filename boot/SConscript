@@ -47,7 +47,10 @@ ConfigureBootloaderEnvironment(
 )
 
 MainEnvironment.Append(
-    LINKFLAGS=["-Wl,-N", "-static-libgcc"],
+    LINKFLAGS=[
+        "-Wl,-N",
+        "-static-libgcc",
+    ],
     OBJPREFIX="main_",
 )
 

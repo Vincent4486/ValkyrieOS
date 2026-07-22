@@ -14,7 +14,6 @@ Env = UsermodeEnv.Clone()
 SourcePath = Dir("#usr/sh").abspath
 
 Env.Append(
-    CPATH=[SourcePath],
     CPPPATH=[SourcePath],
 )
 

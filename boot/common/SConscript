@@ -24,6 +24,13 @@ BindGenH = os.path.join(DlPath, "binding_gen.h")
 if os.path.exists(MkbindingPath) and not os.path.exists(BindGenH):
     subprocess.run([sys.executable, MkbindingPath, BindGenH], check=True)
 
-SConscript("fs/SConscript", exports=["Sources", "CoreFsSources", "CoreFsSharedSources"])
-SConscript("dl/SConscript", exports=["Sources", "CoreSources"])
+SConscript("fs/SConscript", exports=[
+    "Sources",
+    "CoreFsSources",
+    "CoreFsSharedSources",
+])
+SConscript("dl/SConscript", exports=[
+    "Sources",
+    "CoreSources",
+])
 SConscript("video/SConscript", exports=["Sources"])

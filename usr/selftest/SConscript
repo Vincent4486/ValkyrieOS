@@ -14,9 +14,13 @@ Env = UsermodeEnv.Clone()
 SourcePath = Dir("#usr/selftest").abspath
 
 Env.Append(
-    CPATH=[SourcePath],
     CPPPATH=[SourcePath],
-    CCFLAGS=["-ffreestanding", "-fno-builtin", "-fno-pie", "-fno-stack-protector"],
+    CCFLAGS=[
+        "-ffreestanding",
+        "-fno-builtin",
+        "-fno-pie",
+        "-fno-stack-protector",
+    ],
     LINKFLAGS=[
         "-nostdlib",
         "-nostartfiles",

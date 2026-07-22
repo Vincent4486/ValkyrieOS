@@ -20,9 +20,11 @@ Env.Append(
         "-shared",
         "-Wl,-soname,libmath.so",
     ],
-    CPATH=[SourcePath],
     CPPPATH=[SourcePath],
-    ASFLAGS=["-I", SourcePath + "/", "-f", "elf"],
+    ASFLAGS=[
+        "-f",
+        "elf",
+    ],
 )
 
 Sources = GlobSources(SourcePath)

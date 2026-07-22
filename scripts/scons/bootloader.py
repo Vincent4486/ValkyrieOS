@@ -20,12 +20,18 @@ AllowedBootSetups = (
 
 BootloaderProfiles = {
     "bios": {
-        "SupportedArchitectures": ["i686", "x86_64"],
+        "SupportedArchitectures": [
+            "i686",
+            "x86_64",
+        ],
         "CompilerFlags": ["-DBOOTLOADER_BIOS"],
         "AssemblerFlags": ["-DBOOTLOADER_BIOS"],
     },
     "efi": {
-        "SupportedArchitectures": ["x86_64", "aarch64"],
+        "SupportedArchitectures": [
+            "x86_64",
+            "aarch64",
+        ],
         "CompilerFlags": ["-DBOOTLOADER_EFI=1"],
         "AssemblerFlags": ["-DBOOTLOADER_EFI=1"],
     },
@@ -100,19 +106,14 @@ def ConfigureBootloaderEnvironment(
             "-Wall",
             "-Wextra",
         ],
-        CPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
-        CPPPATH=[SourcePath, os.path.join(SourcePath, "common"), "#include"],
-        CPPDEFINES={"VALECIUM_BOOTLOADER": None},
-        ASFLAGS=[
-            "-I",
+        CPPPATH=[
             SourcePath,
-            "-I",
             os.path.join(SourcePath, "common"),
-            "-I",
+            "#include",
             ArchitecturePath,
-            "-g",
-            "-Wa,--noexecstack",
         ],
+        CPPDEFINES={"VALECIUM_BOOTLOADER": None},
+        ASFLAGS=["-Wa,--noexecstack"],
     )
 
     Env.Append(CCFLAGS=BootloaderConfig.get("CompilerFlags", []))

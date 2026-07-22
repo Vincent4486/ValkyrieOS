@@ -96,9 +96,17 @@ def CreateHostEnvironment():
         Env["ProjVersion"] = Version
 
     if Env["BuildConfig"] == "debug":
-        Env.Append(CCFLAGS=["-O0", "-DDEBUG", "-g"])
+        Env.Append(CCFLAGS=[
+            "-O0",
+            "-DDEBUG",
+            "-g",
+        ])
     else:
-        Env.Append(CCFLAGS=["-O3", "-DRELEASE", "-s"])
+        Env.Append(CCFLAGS=[
+            "-O3",
+            "-DRELEASE",
+            "-s",
+        ])
 
     ArchitectureConfig = GetArchConfig(Env["BuildArch"])
     Env.Append(

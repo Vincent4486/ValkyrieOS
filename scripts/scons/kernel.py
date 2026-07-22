@@ -8,7 +8,10 @@ from SCons.Environment import Environment
 
 KernelProfiles = {
     "generic": {
-        "SupportedArchitectures": ["i686", "x86_64"],
+        "SupportedArchitectures": [
+            "i686",
+            "x86_64",
+        ],
         "CompilerFlags": ["-DKERNEL_TYPE=\"GENERIC\""],
         "AssemblerFlags": ["-DKERNEL_TYPE=\"GENERIC\""],
     },
@@ -70,14 +73,11 @@ def ConfigureKernelEnvironment(
             "-Wl,--as-needed",
             "-Wl,--export-dynamic",
         ],
-        CPATH=[SourcePath, "#include"],
-        CPPPATH=[SourcePath, "#include"],
-        ASFLAGS=[
-            "-I",
-            ArchitecturePath,
-            "-g",
-            "-Wa,--noexecstack",
+        CPPPATH=[
+            SourcePath,
+            "#include",
         ],
+        ASFLAGS=["-Wa,--noexecstack"],
         LIBS=["gcc"],
         CPPDEFINES={"VALECIUM_KERNEL": None},
     )
