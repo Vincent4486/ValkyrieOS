@@ -12,6 +12,7 @@ static inline void gc_w(uint8_t idx, uint8_t val);
 static void set_mode_0x13(void);
 static inline void put_pixel(int x, int y, uint8_t color);
 static void draw_glyph(uint8_t c, int x, int y, uint8_t fg);
+static void scroll(void);
 static void clear_screen(uint8_t color);
 static uint8_t vga_color_from_rgb(Video_Color color);
 
@@ -130,10 +131,6 @@ static void set_mode_0x13(void)
    static const uint8_t misc = 0x63;
 
    /* Standard VGA mode 13h CRTC values for 320x200x256 */
-   /* NOTE: CRTC[9] (Max Scan Line) uses 0x01, NOT 0x41.
-    * Bit 6 in 0x41 enables 200-to-400 line conversion (doublescan)
-    * on Cirrus and other VGA chips, which breaks the frame buffer
-    * mapping and causes only partial screen updates. */
    static const uint8_t crtc[] = {0x5F, 0x4F, 0x50, 0x82, 0x54, 0x80, 0xBF,
                                   0x1F, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
                                   0x00, 0x00, 0x9C, 0x8E, 0x8F, 0x28, 0x40,
@@ -205,6 +202,29 @@ static void draw_glyph(uint8_t c, int x, int y, uint8_t fg)
    }
 }
 
+/* Scroll the pixel buffer up by one character row (FONT_HEIGHT scanlines). */
+static void scroll(void)
+{
+   volatile uint32_t *fb32 = (volatile uint32_t *)VGA_FB;
+   int pixels_per_row = VGA_WIDTH;
+   int pixels_per_char_row = pixels_per_row * FONT_HEIGHT;
+   int total_pixels = pixels_per_row * VGA_HEIGHT;
+   int total_u32 = total_pixels / 4;
+   int words_per_char_row = pixels_per_char_row / 4;
+
+   for (int i = 0; i < total_pixels - pixels_per_char_row; i++)
+      s_Shadow[i] = s_Shadow[i + pixels_per_char_row];
+
+   for (int i = total_pixels - pixels_per_char_row; i < total_pixels; i++)
+      s_Shadow[i] = 0;
+
+   for (int i = 0; i < total_u32 - words_per_char_row; i++)
+      fb32[i] = fb32[i + words_per_char_row];
+
+   for (int i = total_u32 - words_per_char_row; i < total_u32; i++)
+      fb32[i] = 0;
+}
+
 static uint8_t vga_color_from_rgb(Video_Color c)
 {
    uint8_t r6 = c.r >> 2;
@@ -266,10 +286,6 @@ int VGA_PutChar(char c, int x, int y, Video_Color color)
 
    if (!s_Initialized) return -ENODEV;
 
-   /* * FIX: Force stream mode behavior if the coordinate input is detected
-    * to have wrapped around or gone out of bounds due to bootloader row
-    * metrics.
-    */
    if ((x < 0 && y < 0) || y >= VGA_HEIGHT ||
        (s_CursorY >= (VGA_HEIGHT - FONT_HEIGHT) && y == 0))
    {
@@ -311,13 +327,11 @@ int VGA_PutChar(char c, int x, int y, Video_Color color)
       break;
    }
 
-   /* Clear the entire buffer and restart at origin when the bottom is reached.
-    */
+   /* Scroll up by one character row when the cursor goes past the bottom. */
    if (y + FONT_HEIGHT > VGA_HEIGHT)
    {
-      clear_screen(0);
-      x = 0;
-      y = 0;
+      scroll();
+      y -= FONT_HEIGHT;
    }
 
    /* Draw glyph */
