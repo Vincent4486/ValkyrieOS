@@ -19,7 +19,7 @@ TargetEnvironment: Environment
 # Environment Setup
 # =============================================================================
 
-Env = TargetEnvironment.Clone()
+KernelEnv = TargetEnvironment.Clone()
 
 SourcePath = Dir("#kernel").abspath
 Architecture = TargetEnvironment["BuildArch"]
@@ -28,18 +28,18 @@ LinkerScript = os.path.join(ArchitecturePath, "linker.ld")
 KernelVersion = TargetEnvironment["ProjVersion"]
 
 ArchitectureConfig = GetArchConfig(Architecture)
-Env.Append(
+KernelEnv.Append(
     ASFLAGS=ArchitectureConfig.get("AssemblyFlags", []),
     CCFLAGS=ArchitectureConfig.get("CompilerFlags", []),
     LINKFLAGS=ArchitectureConfig.get("LinkerFlags", []),
 )
 
-Env.Append(
+KernelEnv.Append(
     CCFLAGS=[
-        "-ffreestanding",  # No hosted environment
-        "-nostdlib",  # No standard library (kernel-only)
-        "-fno-stack-protector",  # No stack protection (requires libc)
-        "-fno-builtin",  # Don't use compiler builtin replacements for libc functions
+        "-ffreestanding",
+        "-nostdlib",
+        "-fno-stack-protector",
+        "-fno-builtin",
         "-Wall",
         "-Wextra",
     ],
@@ -47,9 +47,9 @@ Env.Append(
         "-nostdlib",
         "-Wl,-T",
         LinkerScript,
-        "-Wl,-Map=" + Env.File("kernel.map").path,
-        "-Wl,-z,relro,-z,now",  # Security: read-only relocations
-        "-Wl,-z,noexecstack",  # No executable stack
+        "-Wl,-Map=" + KernelEnv.File("kernel.map").path,
+        "-Wl,-z,relro,-z,now",
+        "-Wl,-z,noexecstack",
         "-Wl,--as-needed",
         "-Wl,--export-dynamic",
     ],
@@ -98,13 +98,13 @@ SConscript("std/SConscript", exports="Sources")
 SConscript("sys/SConscript", exports="Sources")
 SConscript("syscall/SConscript", exports="Sources")
 
-Objects = Env.Object(Sources)
+Objects = KernelEnv.Object(Sources)
 
 
 # =============================================================================
 # Build Target
 # =============================================================================
 
-Kernel = Env.Program(Env["KernelOutputName"], Objects)
+Kernel = KernelEnv.Program(KernelEnv["KernelOutputName"], Objects)
 
 Export("Kernel")

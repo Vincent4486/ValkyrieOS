@@ -13,9 +13,9 @@ from SCons.Script import Export
 
 from scripts.scons.arch import GetArchConfig
 
+
 Import("TargetEnvironment")
 TargetEnvironment: Environment
-
 
 # =============================================================================
 # Usermode Environment Setup
