@@ -792,9 +792,16 @@ static int check_partition(uint8_t bios_drive, int part_lba,
          {
             char c1 = (char)expected_label[i];
             char c2 = (char)label_ptr[i];
-            if (c1 == '\0' || c1 == ' ') break;
+
+            int end1 = (c1 == '\0' || c1 == ' ');
+            if (end1) {
+               if (!(c2 == '\0' || c2 == ' ')) match = 0;
+               break;
+            }
+
             if (c1 >= 'a' && c1 <= 'z') c1 -= 32;
             if (c2 >= 'a' && c2 <= 'z') c2 -= 32;
+
             if (c1 != c2)
             {
                match = 0;
