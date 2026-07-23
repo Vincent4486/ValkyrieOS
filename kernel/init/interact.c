@@ -12,7 +12,10 @@ void Init_Interact(void)
    printf("\nInteractive Mode. Type 'exit' to stop.\n$ ");
 
    char *buf = kmalloc(512);
-   if (!buf) return;
+   if (!buf)
+   {
+      return;
+   }
 
    TTY_Device *tty_dev = TTY_GetDevice();
 
@@ -22,8 +25,11 @@ void Init_Interact(void)
       if (n > 0)
       {
          buf[n] = '\0';
-         /* Trim trailing newline */
-         if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+         // Trim trailing newline
+         if (n > 0 && buf[n - 1] == '\n')
+         {
+            buf[n - 1] = '\0';
+         }
 
          if (strcmp(buf, "exit") == 0)
          {
@@ -100,7 +106,10 @@ void Init_Interact(void)
             char *path = buf + 2;
             while (*path == ' ')
                path++;
-            if (*path == '\0') path = "/";
+            if (*path == '\0')
+            {
+               path = "/";
+            }
 
             VFS_File *dir = VFS_OpenDir(path);
             if (dir)
@@ -117,9 +126,14 @@ void Init_Interact(void)
                   entry_count++;
                }
 
-               if (entry_count == 0) printf("(empty directory)\n");
+               if (entry_count == 0)
+               {
+                  printf("(empty directory)\n");
+               }
                if (entry_count >= max_entries)
+               {
                   printf("Warning: directory listing truncated\n");
+               }
 
                VFS_Close(dir);
             }
@@ -133,12 +147,15 @@ void Init_Interact(void)
          {
             printf("You typed: %s\n", buf);
          }
-         if (buf[n - 1] != '\n') printf("\n");
+         if (buf[n - 1] != '\n')
+         {
+            printf("\n");
+         }
          printf("$ ");
       }
       else
       {
-         /* Wait for interrupt/input */
+         // Wait for interrupt/input
          uint8_t interrupts_were_enabled =
              g_HalIoOperations->EnableInterrupts();
          g_HalIoOperations->iowait();

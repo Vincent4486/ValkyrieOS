@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-// Root filesystem mount for ValeciumOS.
-// Walks g_SysInfo->volume[] for the partition tagged as root by DISK_Scan,
-// mounts it to "/", and verifies /boot/init.sys exists.
-
-#include <fs/fs.h>
-#include <std/stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <fs/fs.h>
+#include <std/stdio.h>
 #include <sys/sys.h>
 #include <sys/system.h>
 #include <sys/valecium.h>
+
+// Root filesystem mount for ValeciumOS.
+// Walks g_SysInfo->volume[] for the partition tagged as root by DISK_Scan,
+// mounts it to "/", and verifies /boot/init.sys exists.
 
 // Init_MountRoot — scans volume[] for root partition, mounts to "/",
 // verifies /boot/init.sys exists. Returns 0 on success.
@@ -21,7 +22,9 @@ int Init_MountRoot(void)
    {
       /* Skip entries that have not been tagged as root */
       if (!g_SysInfo->volume[i].disk || !g_SysInfo->volume[i].is_root_partition)
+      {
          continue;
+      }
 
       Partition *part = &g_SysInfo->volume[i];
 
@@ -62,5 +65,5 @@ int Init_MountRoot(void)
    logfmt(LOG_FATAL,
           "No root partition found or all FS_Mount attempts failed.\n");
 
-   return -1; /* unreachable — satisfies the compiler */
+   return -1; /* No root partition found */
 }

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+#include <stdint.h>
+
 #include <cpu/cpu.h>
 #include <cpu/process.h>
 #include <crypto/crypto.h>
@@ -17,7 +19,6 @@
 #include <mem/mm_kernel.h>
 #include <std/stdio.h>
 #include <std/string.h>
-#include <stdint.h>
 #include <sys/cmdline.h>
 #include <sys/elf.h>
 #include <sys/kmod/kmod.h>
@@ -26,7 +27,6 @@
 
 extern int Init_MountRoot(void);
 extern void Init_Interact(void);
-static void __attribute__((unused, noreturn)) fallback(void);
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -47,8 +47,8 @@ void Init_Hold(int sec)
          last_uptime = g_SysInfo->uptime_seconds;
       }
 
-      /* Idle efficiently until next interrupt: enable interrupts, HLT,
-         then disable again. Matches i686 PS/2 idle usage. */
+      // Idle efficiently until next interrupt: enable interrupts, HLT,
+      // then disable again. Matches i686 PS/2 idle usage.
       uint8_t interrupts_were_enabled = g_HalIoOperations->EnableInterrupts();
       g_HalIoOperations->iowait();
       if (!interrupts_were_enabled)
@@ -123,13 +123,4 @@ backup:
 end:
    for (;;)
       ;
-}
-
-static void __attribute__((unused, noreturn)) fallback(void)
-{
-   Init_Interact();
-   Init_Hold(-1);
-
-   for (;;)
-   {}
 }
