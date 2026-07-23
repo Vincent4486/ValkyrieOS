@@ -151,7 +151,7 @@ static void print_stage3_fs_location(void)
          if (s_BootParams.corefs_partition_label[i] == NULL)
             printf(" ");
          else
-            printf("%x", s_BootParams.corefs_partition_uuid[i]);
+            printf("%02x", s_BootParams.corefs_partition_uuid[i]);
       }
    }
    printf(".\n");
