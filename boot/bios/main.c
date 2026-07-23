@@ -133,26 +133,16 @@ static void print_bios_drive_list(void)
 static void print_stage3_fs_location(void)
 {
    printf("Partition label: \"");
+   for (int i = 0; i < 32; i++)
    {
-      for (int i = 0; i < 32; i++)
-      {
-         if (s_BootParams.corefs_partition_label[i] == 0)
-            printf(" ");
-         else
-            printf("%c", s_BootParams.corefs_partition_label[i]);
-      }
+      printf("%c", s_BootParams.corefs_partition_label[i]);
    }
    printf("\".\n");
 
    printf("Partition UUID: ");
+   for (int i = 0; i < 16; i++)
    {
-      for (int i = 0; i < 16; i++)
-      {
-         if (s_BootParams.corefs_partition_label[i] == 0)
-            printf(" ");
-         else
-            printf("%02x", s_BootParams.corefs_partition_uuid[i]);
-      }
+      printf("%02x", s_BootParams.corefs_partition_uuid[i]);
    }
    printf(".\n");
 }
