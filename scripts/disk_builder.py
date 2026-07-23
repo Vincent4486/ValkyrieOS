@@ -113,10 +113,11 @@ def ParseUuidBytes(UuidStr):
     if not UuidStr:
         return None
     Compact = UuidStr.replace("-", "").strip()
-    if len(Compact) != 32:
+    if not Compact or len(Compact) > 32:
         return None
     try:
-        return bytes.fromhex(Compact)
+        Raw = bytes.fromhex(Compact)
+        return Raw.ljust(16, b"\x00")
     except ValueError:
         return None
 
@@ -488,6 +489,8 @@ def main():
         FsLabel, FsUuid = ReadBlkid(PartDev)
         if not FsLabel:
             FsLabel = Args.label
+            if Args.fs in ("vfat", "fat", "msdos", "exfat"):
+                FsLabel = FsLabel.upper()
         UuidBytes = ParseUuidBytes(FsUuid)
         if UuidBytes is None:
             UuidBytes = b"\x00" * 16
