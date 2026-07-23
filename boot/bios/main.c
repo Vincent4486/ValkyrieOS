@@ -136,7 +136,10 @@ static void print_stage3_fs_location(void)
    {
       for (int i = 0; i < 32; i++)
       {
-         printf("%c", s_BootParams.corefs_partition_label[i]);
+         if (s_BootParams.corefs_partition_label[i] == NULL)
+            printf(" ");
+         else
+            printf("%c", s_BootParams.corefs_partition_label[i]);
       }
    }
    printf("\".\n");
@@ -145,7 +148,10 @@ static void print_stage3_fs_location(void)
    {
       for (int i = 0; i < 16; i++)
       {
-         printf("%x", s_BootParams.corefs_partition_uuid[i]);
+         if (s_BootParams.corefs_partition_label[i] == NULL)
+            printf(" ");
+         else
+            printf("%x", s_BootParams.corefs_partition_uuid[i]);
       }
    }
    printf(".\n");

@@ -115,6 +115,8 @@ def ParseUuidBytes(UuidStr):
     Compact = UuidStr.replace("-", "").strip()
     if not Compact or len(Compact) > 32:
         return None
+    if len(Compact) % 2 == 1:
+        Compact = Compact + "0"
     try:
         Raw = bytes.fromhex(Compact)
         return Raw.ljust(16, b"\x00")
