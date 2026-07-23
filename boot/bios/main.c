@@ -136,7 +136,7 @@ static void print_stage3_fs_location(void)
    {
       for (int i = 0; i < 32; i++)
       {
-         if (s_BootParams.corefs_partition_label[i] == NULL)
+         if (s_BootParams.corefs_partition_label[i] == 0)
             printf(" ");
          else
             printf("%c", s_BootParams.corefs_partition_label[i]);
@@ -148,7 +148,7 @@ static void print_stage3_fs_location(void)
    {
       for (int i = 0; i < 16; i++)
       {
-         if (s_BootParams.corefs_partition_label[i] == NULL)
+         if (s_BootParams.corefs_partition_label[i] == 0)
             printf(" ");
          else
             printf("%x", s_BootParams.corefs_partition_uuid[i]);
