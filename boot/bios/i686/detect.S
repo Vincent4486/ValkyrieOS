@@ -304,7 +304,15 @@ detect_hardware:
 .Ldrive_scan_loop:
 	movb	%bl, %dl
 	movb	$0x15, %ah              /* INT 13h: Get Disk Type        */
+
+	/* Preserve registers that INT 13h may clobber (BX, CX, SI). */
+	pushw	%bx
+	pushw	%cx
+	pushw	%si
 	int	$0x13
+	popw	%si
+	popw	%cx
+	popw	%bx
 
 	jc	.Ldrive_scan_next       /* CF=1 → BIOS doesn't support  */
 	testb	%ah, %ah

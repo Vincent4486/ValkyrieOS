@@ -491,7 +491,7 @@ static uint32_t ext4_extent_get_block(Ext2Drive *drive, uint8_t *inode,
                                 ((uint32_t)ex[10] << 16) |
                                 ((uint32_t)ex[11] << 24);
             uint32_t start_hi = (uint32_t)ex[6] | ((uint32_t)ex[7] << 8);
-            return start_lo | (start_hi << 16);
+            return (start_lo | (start_hi << 16)) + (block_index - ee_block);
          }
       }
       return 0;
@@ -556,7 +556,7 @@ static uint32_t ext4_extent_get_block(Ext2Drive *drive, uint8_t *inode,
                              ((uint32_t)ex[10] << 16) |
                              ((uint32_t)ex[11] << 24);
          uint32_t start_hi = (uint32_t)ex[6] | ((uint32_t)ex[7] << 8);
-         return start_lo | (start_hi << 16);
+         return (start_lo | (start_hi << 16)) + (block_index - ee_block);
       }
    }
 
