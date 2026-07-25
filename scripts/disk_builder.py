@@ -317,7 +317,12 @@ def main():
         help="Directory containing files to copy into the image",
     )
     parser.add_argument("--output", required=True, help="Output disk image path")
-    parser.add_argument("--fs", required=True, help="Filesystem type (mkfs.<fs>)")
+    parser.add_argument("--fs", required=True, help="Core filesystem module name (e.g. ext2, fat)")
+    parser.add_argument(
+        "--mkfs",
+        required=True,
+        help="Full mkfs command (e.g. mkfs.ext4, mkfs.fat)",
+    )
     parser.add_argument(
         "--scheme",
         required=True,
@@ -341,11 +346,7 @@ def main():
         "--corefs",
         help="Optional corefs_<fs>.bin path (default: auto-detect)",
     )
-    parser.add_argument(
-        "--mkfs-args",
-        default="",
-        help="Extra arguments to pass to mkfs.<fs>",
-    )
+
     parser.add_argument(
         "--force",
         action="store_true",
@@ -378,7 +379,7 @@ def main():
     RequireTool("blkid")
     RequireTool("udevadm")
     RequireTool("partprobe")
-    RequireTool(f"mkfs.{Args.fs}")
+    RequireTool(Args.mkfs.split()[0])
 
     if Args.scheme == "gpt":
         if not shutil.which("parted"):
@@ -481,10 +482,8 @@ def main():
         RunCommand(["partprobe", LoopDev], stdout=subprocess.DEVNULL)
         PartDev = WaitForPartition(LoopDev)
 
-        MkfsCmd = [f"mkfs.{Args.fs}"]
+        MkfsCmd = shlex.split(Args.mkfs)
         MkfsCmd.extend(MkfsLabelArgs(Args.fs, Args.label))
-        if Args.mkfs_args:
-            MkfsCmd.extend(shlex.split(Args.mkfs_args))
         MkfsCmd.append(PartDev)
         RunCommand(MkfsCmd)
 
