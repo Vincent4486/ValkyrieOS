@@ -207,19 +207,21 @@ int VGATEXT_PutChar(char c, int x, int y, Video_Color color)
 
 int VGATEXT_PutPixel(Video_Color color, int x, int y)
 {
-   if (x < 0 || x >= VGATEXT_WIDTH || y < 0 || y >= VGATEXT_HEIGHT)
+   if (x < 0 || x >= VGATEXT_WIDTH / 2 || y < 0 || y >= VGATEXT_HEIGHT)
       return -EINVAL;
 
    uint8_t attr = VGA_ATTR_BOTH(vgatext_attr_from_rgb(color));
 
    volatile char *buf = VGATEXT_BUFFER;
-   int off = (y * VGATEXT_WIDTH + x) * 2;
+   int off = (y * VGATEXT_WIDTH + x * 2) * 2;
    buf[off] = 0xDB; /* full block */
    buf[off + 1] = (char)attr;
+   buf[off + 2] = 0xDB; /* full block */
+   buf[off + 3] = (char)attr;
    return SUCCESS;
 }
 
-uint32_t VGATEXT_GetWidth(void) { return VGATEXT_WIDTH; }
+uint32_t VGATEXT_GetWidth(void) { return VGATEXT_WIDTH / 2; }
 
 uint32_t VGATEXT_GetHeight(void) { return VGATEXT_HEIGHT; }
 

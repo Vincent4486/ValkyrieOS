@@ -324,21 +324,20 @@ int UART_PutPixel(Video_Color color, int x, int y)
    if (!s_Initialized) return -ENODEV;
    if (x < 0 || y < 0) return -EINVAL;
 
-   if ((uint32_t)x >= s_TermWidth || (uint32_t)y >= s_TermHeight)
+   if ((uint32_t)x >= s_TermWidth / 2 || (uint32_t)y >= s_TermHeight)
       return -EINVAL;
 
-   cursor_goto(x, y);
+   cursor_goto(x * 2, y);
 
-   /* Set background to the pixel colour, write a space, then restore
-    * the screen background so subsequent text renders correctly. */
    set_bg_from_rgb(color);
+   write_byte(' ');
    write_byte(' ');
    set_bg_from_rgb(s_ScreenBg);
 
    return SUCCESS;
 }
 
-uint32_t UART_GetWidth(void) { return s_TermWidth; }
+uint32_t UART_GetWidth(void) { return s_TermWidth / 2; }
 
 uint32_t UART_GetHeight(void) { return s_TermHeight; }
 
