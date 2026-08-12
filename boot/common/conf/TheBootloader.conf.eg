@@ -1,9 +1,20 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Notice: this is only just an example config, as noted with the .eg suffix of 
+# Notice: this is only just an example config, as noted with the .eg suffix of
 # file. It is not included in the compilation steps or program execution, pure
 # reference only.
 
+[menu]
+default=valecium1
+timeout=5
+
 [profile.valecium1]
-root="LABEL=VALECIUM"
+title=Valecium (release)
+root=LABEL=VALECIUM
 path=/boot/valeciumx-0.29_release
-args="root=LABEL=VALECIUM mem_max=64M"
+args=root=LABEL=VALECIUM mem_max=64M
+
+[profile.rescue]
+title=Valecium (single user)
+root=LABEL=VALECIUM
+path=/boot/valeciumx-0.29_release
+args=root=LABEL=VALECIUM single
