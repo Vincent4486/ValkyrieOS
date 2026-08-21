@@ -122,4 +122,8 @@ Bootloader = MainEnvironment.SharedLibrary(BootloaderBuildConfig["OutputName"], 
 
 TargetEnvironment["BootloaderComponents"]["Main"] = Bootloader
 
+TargetEnvironment["BootloaderComponents"]["Config"] = TargetEnvironment.File(
+    os.path.join("common", "conf", "TheBootloader.conf.eg")
+).srcnode()
+
 Export("Bootloader")

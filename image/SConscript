@@ -148,6 +148,13 @@ def BuildDisk(
     if BootloaderComponents:
         StageBootloaderLibraries(BootloaderComponents, BootDirectory)
 
+    # Stage bootloader config to /boot
+    ConfigPath = BootloaderComponents.get("Config")
+    if ConfigPath:
+        ConfigDest = os.path.join(BootDirectory, "TheBootloader.conf")
+        print(f"   STAGE {os.path.basename(ConfigPath)} -> /boot/TheBootloader.conf")
+        shutil.copy2(ConfigPath, ConfigDest)
+
     # Generate GRUB config with the actual kernel filename
     GenerateGrubConfig(
         os.path.join(BootDirectory, "grub"),

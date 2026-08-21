@@ -14,6 +14,9 @@ struct __attribute__((packed)) DL_CallbackOperations
                     uint8_t head, uint8_t count, void *buffer);
    int (*DISK_ReadLBA)(uint8_t drive, uint64_t lba, uint16_t count,
                        void *buffer);
+   int (*Open)(const char *path);
+   int (*Read)(int fd, void *buffer, int count);
+   int (*Close)(int fd);
    int (*Video_PutChar)(char c, int x, int y, Video_Color color);
    int (*Video_PutPixel)(Video_Color color, int x, int y);
    uint32_t (*Video_GetWidth)(void);

@@ -277,6 +277,9 @@ void init_main_boot(void)
    // Populate s_DlCallbackOps
    s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
    s_DlCallbackOps.DISK_ReadLBA = s_BootParams.corefs_ops->DISK_ReadLBA;
+   s_DlCallbackOps.Open = s_BootParams.corefs_ops->Open;
+   s_DlCallbackOps.Read = s_BootParams.corefs_ops->Read;
+   s_DlCallbackOps.Close = s_BootParams.corefs_ops->Close;
    s_DlCallbackOps.Video_ClearScreen = Video_ClearScreen;
    s_DlCallbackOps.Video_GetHeight = Video_GetHeight;
    s_DlCallbackOps.Video_GetWidth = Video_GetWidth;
@@ -345,8 +348,6 @@ int main(const BootParams *boot_params)
 
    init_fs();
    init_main_boot();
-
-   //printf("Screen Size: width = %d height = %d\n", Video_GetWidth(), Video_GetHeight());
 
    g_MainBootOperations.LOGO_DrawOnScreen();
    for (;;)
