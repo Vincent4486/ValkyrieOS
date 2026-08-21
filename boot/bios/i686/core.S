@@ -90,7 +90,9 @@ hang:
 	hlt
 	jmp hang
 
-.section .text, "ax"
+/* Data referenced by 16-bit entry code must stay below 0x10000;
+ * placed before .text in core.ld so -O3 code growth cannot push it out. */
+.section .early_data, "aw"
 
 .align 8
 gdt_start:

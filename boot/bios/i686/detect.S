@@ -16,7 +16,9 @@
  */
 
 .code16
-.section .text, "ax"
+/* Keep 16-bit code with .entry so the real-mode call from core.S stays
+ * within rel16 range regardless of .text size at higher optimization. */
+.section .entry, "ax"
 .global detect_hardware
 
 /* ------------------------------------------------------------------ */

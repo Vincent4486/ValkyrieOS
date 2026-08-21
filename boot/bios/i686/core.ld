@@ -12,6 +12,13 @@ SECTIONS
         *(.entry*)
     }
 
+    /* Kept before .text: 16-bit entry code references this data with
+     * R_386_16 relocations, which cannot reach past 0xFFFF. */
+    .early_data :
+    {
+        *(.early_data*)
+    }
+
     .text :
     {
         *(.text*)
