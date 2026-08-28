@@ -245,10 +245,10 @@ void init_main_boot(void)
 {
    logfmt(LOG_INFO, "Loading libTheBootloader.\n");
 
-   int fd = s_BootParams.corefs_ops->Open(THEBOOTLOADER_PATH);
+   int fd = s_BootParams.corefs_ops->Open(THEBOOTLOADER_SO_PATH);
    if (fd < 0)
    {
-      logfmt(LOG_ERROR, "  Failed to open %s: %d\n", THEBOOTLOADER_PATH, fd);
+      logfmt(LOG_ERROR, "  Failed to open %s: %d\n", THEBOOTLOADER_SO_PATH, fd);
       return;
    }
 
@@ -268,11 +268,11 @@ void init_main_boot(void)
 
    if (rc < 0 || total == 0)
    {
-      logfmt(LOG_ERROR, "  Failed to read %s\n", THEBOOTLOADER_PATH);
+      logfmt(LOG_ERROR, "  Failed to read %s\n", THEBOOTLOADER_SO_PATH);
       return;
    }
 
-   logfmt(LOG_INFO, "  Read %d bytes from %s\n", total, THEBOOTLOADER_PATH);
+   logfmt(LOG_INFO, "  Read %d bytes from %s\n", total, THEBOOTLOADER_SO_PATH);
 
    // Populate s_DlCallbackOps
    s_DlCallbackOps.DISK_Read = s_BootParams.corefs_ops->DISK_Read;
@@ -321,6 +321,11 @@ void init_main_boot(void)
    logfmt(LOG_INFO, "  Stage3 loaded and resolved successfully.\n");
 }
 
+void init_conf(void)
+{
+   g_MainBootOperations.CONF_ParseConf(THEBOOTLOADER_CONF_PATH);
+}
+
 int main(const BootParams *boot_params)
 {
    s_BootParams = *boot_params;
@@ -348,6 +353,7 @@ int main(const BootParams *boot_params)
 
    init_fs();
    init_main_boot();
+   init_conf();
 
    g_MainBootOperations.LOGO_DrawOnScreen();
    for (;;)

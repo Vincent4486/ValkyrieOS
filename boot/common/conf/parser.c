@@ -26,10 +26,7 @@ typedef struct
    int buf_pos;
 } ConfReader;
 
-static CONF_BootProfile s_BootProfiles[CONF_MAX_PROFILES] = {0};
-static char s_DefaultProfile[CONF_MAX_NAME_LEN] = {0};
-static int s_ProfileCount = 0;
-static int s_Timeout = 0;
+static CONF_GlobalBoot s_GlobalConf = {0};
 
 static int conf_strncmp(const char *a, const char *b, size_t n)
 {
@@ -82,7 +79,6 @@ static int conf_atoi(const char *s)
    return value;
 }
 
-/* Returns line length (0 for blank lines), -1 on EOF, -errno on error. */
 static int conf_read_line(ConfReader *reader, char *line, int line_cap)
 {
    int line_len = 0;
@@ -146,15 +142,16 @@ static int parse_section_header(const char *line, char *name, int name_cap)
    return SECTION_NONE;
 }
 
-static void parse_menu_line(const char *line)
+static void parse_menu_line(const char *line, char *default_name,
+                            int default_cap, CONF_GlobalBoot *boot)
 {
    if (conf_strncmp(line, "default=", 8) == 0)
    {
-      conf_copy_str(s_DefaultProfile, sizeof(s_DefaultProfile), line + 8);
+      conf_copy_str(default_name, default_cap, line + 8);
    }
    else if (conf_strncmp(line, "timeout=", 8) == 0)
    {
-      s_Timeout = conf_atoi(line + 8);
+      boot->timeout = conf_atoi(line + 8);
    }
 }
 
@@ -178,16 +175,18 @@ static void parse_config_line(const char *line, CONF_BootProfile *profile)
    }
 }
 
-int CONF_ParseConfigFile(const char *path)
+int CONF_ParseConf(const char *path)
 {
    ConfReader reader;
    char line[CONF_LINE_MAX];
    char name[CONF_MAX_NAME_LEN];
+   char default_name[CONF_MAX_NAME_LEN] = {0};
    int section = SECTION_NONE;
    CONF_BootProfile *profile = NULL;
    int fd;
    int rc;
    int result = SUCCESS;
+   int i;
 
    if (!path)
       return -EINVAL;
@@ -196,16 +195,17 @@ int CONF_ParseConfigFile(const char *path)
        !g_DlCallbackOps->Close)
       return -ENODEV;
 
+   /* Discard state from a previous parse */
+   for (i = 0; i < (int)sizeof(s_GlobalConf); i++)
+      ((char *)&s_GlobalConf)[i] = 0;
+   s_GlobalConf.default_profile = -1;
+
    fd = g_DlCallbackOps->Open(path);
    if (fd < 0)
    {
       logfmt(LOG_ERROR, "conf: cannot open %s (%d)\n", path, fd);
-      return -ENOENT;
+      return fd;
    }
-
-   s_ProfileCount = 0;
-   s_DefaultProfile[0] = '\0';
-   s_Timeout = 0;
 
    reader.fd = fd;
    reader.buf_len = 0;
@@ -239,16 +239,16 @@ int CONF_ParseConfigFile(const char *path)
          }
          else if (type == SECTION_PROFILE)
          {
-            if (s_ProfileCount >= CONF_MAX_PROFILES)
+            if (s_GlobalConf.profile_count >= CONF_MAX_PROFILES)
             {
                logfmt(LOG_ERROR, "conf: too many profiles, max is %d\n",
                       CONF_MAX_PROFILES);
                result = -EINVAL;
                break;
             }
-            profile = &s_BootProfiles[s_ProfileCount];
+            profile = &s_GlobalConf.profiles[s_GlobalConf.profile_count];
             conf_copy_str(profile->name, sizeof(profile->name), name);
-            s_ProfileCount++;
+            s_GlobalConf.profile_count++;
             section = SECTION_PROFILE;
          }
          else
@@ -265,7 +265,7 @@ int CONF_ParseConfigFile(const char *path)
       }
       else if (section == SECTION_MENU)
       {
-         parse_menu_line(line);
+         parse_menu_line(line, default_name, sizeof(default_name), &s_GlobalConf);
       }
    }
 
@@ -277,34 +277,34 @@ int CONF_ParseConfigFile(const char *path)
       return result;
    }
 
-   if (s_ProfileCount == 0)
+   if (s_GlobalConf.profile_count == 0)
    {
       logfmt(LOG_ERROR, "conf: no profiles defined in %s\n", path);
       return -EINVAL;
    }
 
+   for (i = 0; i < s_GlobalConf.profile_count; i++)
+   {
+      if (conf_strncmp(s_GlobalConf.profiles[i].name, default_name,
+                       (size_t)CONF_MAX_NAME_LEN) == 0)
+      {
+         s_GlobalConf.default_profile = i;
+         break;
+      }
+   }
+
    return SUCCESS;
+}
+
+CONF_GlobalBoot *CONF_GetGlobal(void)
+{
+   return &s_GlobalConf;
 }
 
 CONF_BootProfile *CONF_GetProfile(int profile_id)
 {
-   if (profile_id < 0 || profile_id >= s_ProfileCount)
+   if (profile_id < 0 || profile_id >= s_GlobalConf.profile_count)
       return NULL;
 
-   return &s_BootProfiles[profile_id];
-}
-
-int CONF_GetProfileCount(void)
-{
-   return s_ProfileCount;
-}
-
-const char *CONF_GetDefaultProfile(void)
-{
-   return s_DefaultProfile;
-}
-
-int CONF_GetTimeout(void)
-{
-   return s_Timeout;
+   return &s_GlobalConf.profiles[profile_id];
 }

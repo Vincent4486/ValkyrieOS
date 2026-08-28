@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
+#pragma once
 
 #define CONF_MAX_NAME_LEN  64
 #define CONF_MAX_TITLE_LEN 64
@@ -16,8 +17,14 @@ typedef struct
    char args[CONF_MAX_ARGS_LEN];
 } CONF_BootProfile;
 
-int CONF_ParseConfigFile(const char *path);
+typedef struct
+{
+   int profile_count;
+   int default_profile; // index into profiles[], -1 when none
+   int timeout;
+   CONF_BootProfile profiles[CONF_MAX_PROFILES];
+} CONF_GlobalBoot;
+
+int CONF_ParseConf(const char *path);
+CONF_GlobalBoot *CONF_GetGlobal(void);
 CONF_BootProfile *CONF_GetProfile(int profile_id);
-int CONF_GetProfileCount(void);
-const char *CONF_GetDefaultProfile(void);
-int CONF_GetTimeout(void);
