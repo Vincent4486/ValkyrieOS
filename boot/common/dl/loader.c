@@ -311,7 +311,10 @@ void *DL_LoadLibrary(void *file_data)
          }
          else if (r_type == R_REL_RELATIVE)
          {
-            *(uint32_t *)patch_addr += (uint32_t)(uintptr_t)file_data;
+            void *target = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                        *(uint32_t *)patch_addr);
+            if (target)
+               *(uint32_t *)patch_addr = (uint32_t)(uintptr_t)target;
          }
       }
 #elif defined(BIT64)
@@ -338,8 +341,10 @@ void *DL_LoadLibrary(void *file_data)
          }
          else if (r_type == R_REL_RELATIVE)
          {
-            *(uint64_t *)patch_addr = (uint64_t)(uintptr_t)file_data +
-                                      (uint64_t)rel[j].r_addend;
+            void *target = vaddr_to_ptr(file_data, shdr, ehdr->e_shnum,
+                                        (uintptr_t)rel[j].r_addend);
+            if (target)
+               *(uint64_t *)patch_addr = (uint64_t)(uintptr_t)target;
          }
       }
 #endif
