@@ -3,10 +3,13 @@
 """
 Generate the bootloader binding header.
 
-Scans boot/common/ for public C functions matching the naming convention
-PREFIX_Name (e.g. FAT_Open, DISK_Read) and produces dlbind_gen.h with:
+Scans boot/common/ for public C functions annotated with DL_INC (defined
+in dl/bindgen.h) and produces dlbind_gen.h with:
   - Function pointer declarations (initialised to NULL)
   - An inline dl_resolve_all() that calls dlsym() for each symbol
+
+DL_INC must be on the line directly above the signature; _DL_FORCE_EXCLUDE
+overrides DL_INC.
 
 Usage: mkbinding.py <dlbind_gen.h>
 """
@@ -60,8 +63,6 @@ RET_TYPE_KEYWORDS = {
     "enum",
 }
 
-_CORE_ONLY_SYMBOLS = {"DL_LoadLibrary", "DL_LoadSymbol"}
-
 _BUILTIN_TYPE_TOKENS = {
     "int", "bool", "void", "char", "size_t", "off_t", "ssize_t",
     "uint8_t", "uint16_t", "uint32_t", "uint64_t",
@@ -70,6 +71,9 @@ _BUILTIN_TYPE_TOKENS = {
     "const", "unsigned", "signed", "long", "short",
     "struct", "volatile", "enum", "extern",
 }
+
+EXCLUDE_MARKER = "_DL_FORCE_EXCLUDE"
+INCLUDE_MARKER = "DL_INC"
 
 
 def StripComments(text: str) -> str:
@@ -138,6 +142,20 @@ def IsStatic(text: str, match_start: int) -> bool:
     return "static" in words
 
 
+def PrecedingMarkers(text: str, match_start: int) -> set[str]:
+    i = match_start
+    tokens: set[str] = set()
+    while True:
+        while i > 0 and text[i - 1].isspace():
+            i -= 1
+        w_end = i
+        while i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_"):
+            i -= 1
+        if i == w_end:
+            return tokens
+        tokens.add(text[i:w_end])
+
+
 def FindPublicFunctions() -> list[tuple[str, str]]:
     functions: list[tuple[str, str]] = []
     seen_names: set[str] = set()
@@ -165,7 +183,11 @@ def FindPublicFunctions() -> list[tuple[str, str]]:
                 if IsStatic(text, m.start()):
                     continue
 
-                if name in _CORE_ONLY_SYMBOLS:
+                markers = PrecedingMarkers(text, m.start())
+                if EXCLUDE_MARKER in markers:
+                    continue
+
+                if INCLUDE_MARKER not in markers:
                     continue
 
                 if name in seen_names:
@@ -178,13 +200,25 @@ def FindPublicFunctions() -> list[tuple[str, str]]:
     return functions
 
 
-def CustomReturnTypes(functions: list[tuple[str, str]]) -> set[str]:
+def CustomTypes(functions: list[tuple[str, str]]) -> set[str]:
     custom: set[str] = set()
     for name, sig in functions:
         ret_type = sig[: sig.index(name)]
+        params = sig[sig.index(name) + len(name) :].strip()
+        if params.startswith("(") and params.endswith(")"):
+            params = params[1:-1]
+
         for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", ret_type):
             if token not in _BUILTIN_TYPE_TOKENS:
                 custom.add(token)
+
+        for param in params.split(","):
+            param = param.strip()
+            tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", param)
+            for token in tokens[:-1]:
+                if token not in _BUILTIN_TYPE_TOKENS:
+                    custom.add(token)
+
     return custom
 
 
@@ -303,7 +337,7 @@ def main():
     functions = FindPublicFunctions()
     functions.sort(key=lambda t: t[0])
 
-    type_includes = FindTypeHeaders(CustomReturnTypes(functions))
+    type_includes = FindTypeHeaders(CustomTypes(functions))
 
     header = GenerateHeader(functions, type_includes)
 
