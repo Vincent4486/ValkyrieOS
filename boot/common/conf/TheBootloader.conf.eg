@@ -4,17 +4,17 @@
 # reference only.
 
 [menu]
-default=valecium1
-timeout=5
+default = "valecium1"
+timeout = 5
 
 [profile.valecium1]
-title=Valecium (release)
-root=LABEL=VALECIUM
-path=/boot/valeciumx-0.29_release
-args=root=LABEL=VALECIUM mem_max=64M
+title = "Valecium (release)"
+root  = "LABEL=VALECIUM"
+path  = "/boot/valeciumx-0.29_release"
+args  = "root=LABEL=VALECIUM mem_max=64M"
 
 [profile.rescue]
-title=Valecium (single user)
-root=LABEL=VALECIUM
-path=/boot/valeciumx-0.29_release
-args=root=LABEL=VALECIUM single
+title = "Valecium (single user)"
+root  = "LABEL=VALECIUM"
+path  = "/boot/valeciumx-0.29_release"
+args  = "root=LABEL=VALECIUM single"

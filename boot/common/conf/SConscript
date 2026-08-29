@@ -5,5 +5,8 @@ from SCons.Script import File
 Import("Sources")
 
 Sources += [
+    File("conf.c"),
+    File("lex.c"),
     File("parser.c"),
+    File("validate.c"),
 ]

@@ -1,204 +1,435 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <stddef.h>
-#include <stdint.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 #include <logging.h>
 #include <status.h>
 
 #include "conf.h"
 
-#define CONF_LINE_MAX (CONF_MAX_ARGS_LEN + 32)
-#define CONF_READ_CHUNK 512
+typedef struct CONF_FieldDef CONF_FieldDef;
+typedef struct CONF_MenuConfig CONF_MenuConfig;
+
+static int conf_str_equal(const char *a, const char *b);
+static int conf_str_startswith(const char *str, const char *prefix);
+static int conf_copy_str(char *dst, size_t dst_size, const char *src);
+static int conf_parse_int(const char *s, int *out);
+static int conf_find_field(const CONF_FieldDef *fields, int count,
+                           const char *key);
+static int conf_apply_field(const CONF_FieldDef *def, const char *value,
+                            void *base);
+static int conf_find_profile(CONF_GlobalBoot *global, const char *name);
+static int conf_read_file(int fd, char *buf, int cap, int *out_len);
+static int conf_lex_error(CONF_Lexer *lexer, int rc);
+static int conf_parse_section(CONF_Lexer *lexer, CONF_GlobalBoot *global,
+                              int *section, CONF_BootProfile **profile);
+static int conf_parse_assignment(CONF_Lexer *lexer, int section,
+                                 CONF_BootProfile *profile,
+                                 CONF_MenuConfig *menu, uint32_t *menu_seen,
+                                 uint32_t *profile_seen);
+
+#define logfmt g_DlCallbackOps->logfmt
+
+#define CONF_MAX_FILE_SIZE 8192
 
 #define SECTION_NONE 0
 #define SECTION_MENU 1
 #define SECTION_PROFILE 2
 
-#define logfmt g_DlCallbackOps->logfmt
-
-typedef struct
+typedef enum
 {
-   int fd;
-   char buf[CONF_READ_CHUNK];
-   int buf_len;
-   int buf_pos;
-} ConfReader;
+   CONF_FIELD_STRING,
+   CONF_FIELD_INT,
+} CONF_FieldKind;
 
-static CONF_GlobalBoot s_GlobalConf = {0};
-
-static int conf_strncmp(const char *a, const char *b, size_t n)
+struct CONF_FieldDef
 {
-   size_t i;
+   const char *key;
+   CONF_FieldKind kind;
+   size_t offset;
+   size_t max_len;
+};
 
-   for (i = 0; i < n; i++)
+struct CONF_MenuConfig
+{
+   char default_name[CONF_MAX_NAME_LEN];
+   int timeout;
+};
+
+static const CONF_FieldDef s_MenuFields[] = {
+   { "default", CONF_FIELD_STRING, offsetof(CONF_MenuConfig, default_name),
+     CONF_MAX_NAME_LEN },
+   { "timeout", CONF_FIELD_INT, offsetof(CONF_MenuConfig, timeout), 0 },
+};
+
+static const CONF_FieldDef s_ProfileFields[] = {
+   { "title", CONF_FIELD_STRING, offsetof(CONF_BootProfile, title),
+     CONF_MAX_TITLE_LEN },
+   { "root", CONF_FIELD_STRING, offsetof(CONF_BootProfile, root_label),
+     CONF_MAX_TITLE_LEN },
+   { "path", CONF_FIELD_STRING, offsetof(CONF_BootProfile, path),
+     CONF_MAX_PATH_LEN },
+   { "args", CONF_FIELD_STRING, offsetof(CONF_BootProfile, args),
+     CONF_MAX_ARGS_LEN },
+};
+
+static char s_ConfFileBuf[CONF_MAX_FILE_SIZE];
+
+static int conf_str_equal(const char *a, const char *b)
+{
+   while (*a != '\0' && *a == *b)
    {
-      if (a[i] != b[i])
-         return (unsigned char)a[i] - (unsigned char)b[i];
-      if (a[i] == '\0')
-         return 0;
+      a++;
+      b++;
    }
 
-   return 0;
+   return *a == *b;
 }
 
-static void conf_copy_strn(char *dst, size_t dst_size, const char *src,
-                           size_t max_len)
+static int conf_str_startswith(const char *str, const char *prefix)
 {
-   size_t len = 0;
-   size_t i;
+   while (*prefix != '\0')
+   {
+      if (*str != *prefix)
+         return 0;
 
-   while (len < max_len && src[len] != '\0')
-      len++;
+      str++;
+      prefix++;
+   }
 
-   if (len >= dst_size)
-      len = dst_size - 1;
+   return 1;
+}
 
-   for (i = 0; i < len; i++)
+static int conf_copy_str(char *dst, size_t dst_size, const char *src)
+{
+   size_t i = 0;
+
+   while (src[i] != '\0')
+   {
+      if (i + 1 >= dst_size)
+         return -EINVAL;
+
       dst[i] = src[i];
+      i++;
+   }
 
-   dst[len] = '\0';
+   dst[i] = '\0';
+   return SUCCESS;
 }
 
-static void conf_copy_str(char *dst, size_t dst_size, const char *src)
-{
-   conf_copy_strn(dst, dst_size, src, (size_t)-1);
-}
-
-static int conf_atoi(const char *s)
+static int conf_parse_int(const char *s, int *out)
 {
    int value = 0;
+   int digits = 0;
 
    while (*s >= '0' && *s <= '9')
    {
+      if (digits >= 9)
+         return -EINVAL;
+
       value = value * 10 + (*s - '0');
+      digits++;
       s++;
    }
 
-   return value;
+   if (*s != '\0' || digits == 0)
+      return -EINVAL;
+
+   *out = value;
+   return SUCCESS;
 }
 
-static int conf_read_line(ConfReader *reader, char *line, int line_cap)
+static int conf_find_field(const CONF_FieldDef *fields, int count,
+                           const char *key)
 {
-   int line_len = 0;
+   int i;
+
+   for (i = 0; i < count; i++)
+   {
+      if (conf_str_equal(fields[i].key, key))
+         return i;
+   }
+
+   return -1;
+}
+
+static int conf_apply_field(const CONF_FieldDef *def, const char *value,
+                            void *base)
+{
+   char *dst = (char *)base + def->offset;
+
+   if (def->kind == CONF_FIELD_INT)
+   {
+      int parsed;
+
+      if (conf_parse_int(value, &parsed) != SUCCESS)
+         return -EINVAL;
+
+      *(int *)dst = parsed;
+      return SUCCESS;
+   }
+
+   if (conf_copy_str(dst, def->max_len, value) != SUCCESS)
+      return -EINVAL;
+
+   return SUCCESS;
+}
+
+static int conf_find_profile(CONF_GlobalBoot *global, const char *name)
+{
+   int i;
+
+   for (i = 0; i < global->profile_count; i++)
+   {
+      if (conf_str_equal(global->profiles[i].name, name))
+         return i;
+   }
+
+   return -1;
+}
+
+static int conf_read_file(int fd, char *buf, int cap, int *out_len)
+{
+   int total = 0;
 
    for (;;)
    {
-      if (reader->buf_pos >= reader->buf_len)
+      int rc;
+
+      if (total >= cap)
       {
-         int rc = g_DlCallbackOps->Read(reader->fd, reader->buf,
-                                        (int)sizeof(reader->buf));
-         if (rc <= 0)
+         char extra;
+
+         /* One extra byte tells an exact fit apart from overflow. */
+         rc = g_DlCallbackOps->Read(fd, &extra, 1);
+         if (rc < 0)
+            return rc;
+
+         if (rc > 0)
          {
-            if (rc < 0)
-               return rc;
-            if (line_len == 0)
-               return -1; /* EOF */
-            line[line_len] = '\0';
-            return line_len;
+            logfmt(LOG_ERROR, "conf: file exceeds %d bytes\n", cap);
+            return -ENOMEM;
          }
-         reader->buf_len = rc;
-         reader->buf_pos = 0;
+
+         *out_len = total;
+         return SUCCESS;
       }
 
-      char c = reader->buf[reader->buf_pos++];
+      rc = g_DlCallbackOps->Read(fd, buf + total, cap - total);
+      if (rc < 0)
+         return rc;
 
-      if (c == '\n')
+      if (rc == 0)
       {
-         line[line_len] = '\0';
-         return line_len;
+         *out_len = total;
+         return SUCCESS;
       }
-      if (line_len + 1 >= line_cap)
+
+      total += rc;
+   }
+}
+
+static int conf_lex_error(CONF_Lexer *lexer, int rc)
+{
+   if (rc == CONF_LEX_ERR_STRING)
+      logfmt(LOG_ERROR, "conf: line %d: unterminated string\n", lexer->line);
+   else if (rc == CONF_LEX_ERR_LONG)
+      logfmt(LOG_ERROR, "conf: line %d: token too long\n", lexer->line);
+
+   return -EINVAL;
+}
+
+static int conf_parse_section(CONF_Lexer *lexer, CONF_GlobalBoot *global,
+                              int *section, CONF_BootProfile **profile)
+{
+   int rc;
+
+   rc = CONF_LexerNext(lexer);
+   if (rc < 0)
+      return conf_lex_error(lexer, rc);
+
+   if (lexer->type != CONF_T_WORD)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: expected section name\n", lexer->line);
+      return -EINVAL;
+   }
+
+   if (conf_str_equal(lexer->text, "menu"))
+   {
+      *section = SECTION_MENU;
+      *profile = NULL;
+   }
+   else if (conf_str_startswith(lexer->text, "profile."))
+   {
+      const char *name = lexer->text + 8;
+
+      if (name[0] == '\0')
+      {
+         logfmt(LOG_ERROR, "conf: line %d: profile name is empty\n",
+                lexer->line);
          return -EINVAL;
+      }
 
-      line[line_len++] = c;
+      if (global->profile_count >= CONF_MAX_PROFILES)
+      {
+         logfmt(LOG_ERROR, "conf: too many profiles (max %d)\n",
+                CONF_MAX_PROFILES);
+         return -EINVAL;
+      }
+
+      if (conf_find_profile(global, name) >= 0)
+      {
+         logfmt(LOG_ERROR, "conf: duplicate profile '%s'\n", name);
+         return -EINVAL;
+      }
+
+      *profile = &global->profiles[global->profile_count];
+      if (conf_copy_str((*profile)->name, sizeof((*profile)->name), name) !=
+          SUCCESS)
+      {
+         logfmt(LOG_ERROR, "conf: line %d: profile name too long\n",
+                lexer->line);
+         return -EINVAL;
+      }
+
+      global->profile_count++;
+      *section = SECTION_PROFILE;
    }
+   else
+   {
+      logfmt(LOG_ERROR, "conf: line %d: unknown section '%s'\n", lexer->line,
+             lexer->text);
+      return -EINVAL;
+   }
+
+   rc = CONF_LexerNext(lexer);
+   if (rc < 0)
+      return conf_lex_error(lexer, rc);
+
+   if (lexer->type != CONF_T_RBRACKET)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: expected ']'\n", lexer->line);
+      return -EINVAL;
+   }
+
+   return SUCCESS;
 }
 
-static int parse_section_header(const char *line, char *name, int name_cap)
+static int conf_parse_assignment(CONF_Lexer *lexer, int section,
+                                 CONF_BootProfile *profile,
+                                 CONF_MenuConfig *menu, uint32_t *menu_seen,
+                                 uint32_t *profile_seen)
 {
-   const char *end = line;
-   int len;
+   const CONF_FieldDef *fields;
+   int field_count;
+   uint32_t *seen;
+   void *base;
+   int field;
+   int rc;
 
-   while (*end != '\0' && *end != ']')
-      end++;
-
-   if (*end != ']' || end == line + 1)
-      return SECTION_NONE;
-
-   len = (int)(end - line) - 1;
-
-   if (len == 4 && conf_strncmp(line + 1, "menu", 4) == 0)
-      return SECTION_MENU;
-
-   if (len > 8 && conf_strncmp(line + 1, "profile.", 8) == 0)
+   if (section == SECTION_MENU)
    {
-      conf_copy_strn(name, name_cap, line + 9, (size_t)(len - 8));
-      if (name[0] != '\0')
-         return SECTION_PROFILE;
+      fields = s_MenuFields;
+      field_count = (int)(sizeof(s_MenuFields) / sizeof(s_MenuFields[0]));
+      seen = menu_seen;
+      base = menu;
+   }
+   else if (section == SECTION_PROFILE)
+   {
+      if (!profile)
+      {
+         logfmt(LOG_ERROR, "conf: line %d: no active profile\n", lexer->line);
+         return -EINVAL;
+      }
+
+      fields = s_ProfileFields;
+      field_count = (int)(sizeof(s_ProfileFields) / sizeof(s_ProfileFields[0]));
+      seen = profile_seen;
+      base = profile;
+   }
+   else
+   {
+      logfmt(LOG_ERROR, "conf: line %d: key outside section\n", lexer->line);
+      return -EINVAL;
    }
 
-   return SECTION_NONE;
+   field = conf_find_field(fields, field_count, lexer->text);
+   if (field < 0)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: unknown key '%s'\n", lexer->line,
+             lexer->text);
+      return -EINVAL;
+   }
+
+   if (*seen & (1u << field))
+   {
+      logfmt(LOG_ERROR, "conf: line %d: duplicate key '%s'\n", lexer->line,
+             lexer->text);
+      return -EINVAL;
+   }
+
+   rc = CONF_LexerNext(lexer);
+   if (rc < 0)
+      return conf_lex_error(lexer, rc);
+
+   if (lexer->type != CONF_T_EQUALS)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: expected '=' after '%s'\n",
+             lexer->line, fields[field].key);
+      return -EINVAL;
+   }
+
+   rc = CONF_LexerNext(lexer);
+   if (rc < 0)
+      return conf_lex_error(lexer, rc);
+
+   if (lexer->type != CONF_T_WORD && lexer->type != CONF_T_STRING)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: expected value for '%s'\n",
+             lexer->line, fields[field].key);
+      return -EINVAL;
+   }
+
+   if (conf_apply_field(&fields[field], lexer->text, base) != SUCCESS)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: invalid value for '%s'\n",
+             lexer->line, fields[field].key);
+      return -EINVAL;
+   }
+
+   *seen |= (1u << field);
+
+   rc = CONF_LexerNext(lexer);
+   if (rc < 0)
+      return conf_lex_error(lexer, rc);
+
+   if (lexer->type != CONF_T_NEWLINE && lexer->type != CONF_T_EOF)
+   {
+      logfmt(LOG_ERROR, "conf: line %d: unexpected token after '%s'\n",
+             lexer->line, fields[field].key);
+      return -EINVAL;
+   }
+
+   return SUCCESS;
 }
 
-static void parse_menu_line(const char *line, char *default_name,
-                            int default_cap, CONF_GlobalBoot *boot)
+_DL_FORCE_EXCLUDE
+int CONF_ParseFile(const char *path, CONF_GlobalBoot *global)
 {
-   if (conf_strncmp(line, "default=", 8) == 0)
-   {
-      conf_copy_str(default_name, default_cap, line + 8);
-   }
-   else if (conf_strncmp(line, "timeout=", 8) == 0)
-   {
-      boot->timeout = conf_atoi(line + 8);
-   }
-}
-
-static void parse_config_line(const char *line, CONF_BootProfile *profile)
-{
-   if (conf_strncmp(line, "title=", 6) == 0)
-   {
-      conf_copy_str(profile->title, sizeof(profile->title), line + 6);
-   }
-   else if (conf_strncmp(line, "root=", 5) == 0)
-   {
-      conf_copy_str(profile->root_label, sizeof(profile->root_label), line + 5);
-   }
-   else if (conf_strncmp(line, "path=", 5) == 0)
-   {
-      conf_copy_str(profile->path, sizeof(profile->path), line + 5);
-   }
-   else if (conf_strncmp(line, "args=", 5) == 0)
-   {
-      conf_copy_str(profile->args, sizeof(profile->args), line + 5);
-   }
-}
-
-int CONF_ParseConf(const char *path)
-{
-   ConfReader reader;
-   char line[CONF_LINE_MAX];
-   char name[CONF_MAX_NAME_LEN];
-   char default_name[CONF_MAX_NAME_LEN] = {0};
+   CONF_MenuConfig menu = {0};
+   CONF_Lexer lexer;
    int section = SECTION_NONE;
    CONF_BootProfile *profile = NULL;
+   uint32_t menu_seen = 0;
+   uint32_t profile_seen = 0;
+   int file_len = 0;
    int fd;
    int rc;
-   int result = SUCCESS;
-   int i;
 
-   if (!path)
+   if (!path || !global)
       return -EINVAL;
-
-   if (!g_DlCallbackOps || !g_DlCallbackOps->Open || !g_DlCallbackOps->Read ||
-       !g_DlCallbackOps->Close)
-      return -ENODEV;
-
-   /* Discard state from a previous parse */
-   for (i = 0; i < (int)sizeof(s_GlobalConf); i++)
-      ((char *)&s_GlobalConf)[i] = 0;
-   s_GlobalConf.default_profile = -1;
 
    fd = g_DlCallbackOps->Open(path);
    if (fd < 0)
@@ -207,104 +438,67 @@ int CONF_ParseConf(const char *path)
       return fd;
    }
 
-   reader.fd = fd;
-   reader.buf_len = 0;
-   reader.buf_pos = 0;
-
-   while ((rc = conf_read_line(&reader, line, (int)sizeof(line))) != -1)
-   {
-      int len = rc;
-
-      if (rc < -1)
-      {
-         result = rc;
-         break;
-      }
-
-      /* Strip trailing carriage return from CRLF files */
-      while (len > 0 && line[len - 1] == '\r')
-         line[--len] = '\0';
-
-      if (len == 0 || line[0] == '#')
-         continue;
-
-      if (line[0] == '[')
-      {
-         int type = parse_section_header(line, name, sizeof(name));
-
-         if (type == SECTION_MENU)
-         {
-            section = SECTION_MENU;
-            profile = NULL;
-         }
-         else if (type == SECTION_PROFILE)
-         {
-            if (s_GlobalConf.profile_count >= CONF_MAX_PROFILES)
-            {
-               logfmt(LOG_ERROR, "conf: too many profiles, max is %d\n",
-                      CONF_MAX_PROFILES);
-               result = -EINVAL;
-               break;
-            }
-            profile = &s_GlobalConf.profiles[s_GlobalConf.profile_count];
-            conf_copy_str(profile->name, sizeof(profile->name), name);
-            s_GlobalConf.profile_count++;
-            section = SECTION_PROFILE;
-         }
-         else
-         {
-            section = SECTION_NONE;
-            profile = NULL;
-         }
-         continue;
-      }
-
-      if (section == SECTION_PROFILE && profile)
-      {
-         parse_config_line(line, profile);
-      }
-      else if (section == SECTION_MENU)
-      {
-         parse_menu_line(line, default_name, sizeof(default_name), &s_GlobalConf);
-      }
-   }
-
+   rc = conf_read_file(fd, s_ConfFileBuf, (int)sizeof(s_ConfFileBuf),
+                       &file_len);
    g_DlCallbackOps->Close(fd);
 
-   if (result != SUCCESS)
-   {
-      logfmt(LOG_ERROR, "conf: failed to parse %s (%d)\n", path, result);
-      return result;
-   }
+   if (rc != SUCCESS)
+      return rc;
 
-   if (s_GlobalConf.profile_count == 0)
-   {
-      logfmt(LOG_ERROR, "conf: no profiles defined in %s\n", path);
+   if (CONF_LexerInit(&lexer, s_ConfFileBuf, file_len) != SUCCESS)
       return -EINVAL;
+
+   for (;;)
+   {
+      rc = CONF_LexerNext(&lexer);
+      if (rc < 0)
+         return conf_lex_error(&lexer, rc);
+
+      if (lexer.type == CONF_T_EOF)
+         break;
+
+      if (lexer.type == CONF_T_NEWLINE)
+         continue;
+
+      if (lexer.type == CONF_T_LBRACKET)
+      {
+         rc = conf_parse_section(&lexer, global, &section, &profile);
+         if (rc != SUCCESS)
+            return rc;
+
+         if (section == SECTION_PROFILE)
+            profile_seen = 0;
+
+         continue;
+      }
+
+      if (lexer.type != CONF_T_WORD)
+      {
+         logfmt(LOG_ERROR, "conf: line %d: expected key\n", lexer.line);
+         return -EINVAL;
+      }
+
+      rc = conf_parse_assignment(&lexer, section, profile, &menu, &menu_seen,
+                                 &profile_seen);
+      if (rc != SUCCESS)
+         return rc;
    }
 
-   for (i = 0; i < s_GlobalConf.profile_count; i++)
+   global->timeout = menu.timeout;
+
+   if (menu.default_name[0] != '\0')
    {
-      if (conf_strncmp(s_GlobalConf.profiles[i].name, default_name,
-                       (size_t)CONF_MAX_NAME_LEN) == 0)
+      int index = conf_find_profile(global, menu.default_name);
+
+      if (index < 0)
       {
-         s_GlobalConf.default_profile = i;
-         break;
+         logfmt(LOG_ERROR, "conf: default profile '%s' not found\n",
+                menu.default_name);
+         return -EINVAL;
       }
+
+      global->default_profile = index;
    }
 
    return SUCCESS;
-}
-
-CONF_GlobalBoot *CONF_GetGlobal(void)
-{
-   return &s_GlobalConf;
-}
-
-CONF_BootProfile *CONF_GetProfile(int profile_id)
-{
-   if (profile_id < 0 || profile_id >= s_GlobalConf.profile_count)
-      return NULL;
-
-   return &s_GlobalConf.profiles[profile_id];
 }

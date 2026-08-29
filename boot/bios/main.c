@@ -323,7 +323,25 @@ void init_main_boot(void)
 
 void init_conf(void)
 {
-   g_MainBootOperations.CONF_ParseConf(THEBOOTLOADER_CONF_PATH);
+   CONF_GlobalBoot *conf = NULL;
+   int rc;
+
+   logfmt(LOG_INFO, "Parsing config file: %s\n", THEBOOTLOADER_CONF_PATH);
+
+   rc = g_MainBootOperations.CONF_ParseConf(THEBOOTLOADER_CONF_PATH);
+   if (rc != SUCCESS)
+   {
+      logfmt(LOG_ERROR, "Config parse failed (%d), continuing without it\n",
+             rc);
+      return;
+   }
+
+   g_MainBootOperations.CONF_GetGlobal(&conf);
+   if (conf)
+   {
+      logfmt(LOG_INFO, "Loaded %d boot profile(s), default is '%s'\n",
+             conf->profile_count, conf->profiles[conf->default_profile].name);
+   }
 }
 
 int main(const BootParams *boot_params)
