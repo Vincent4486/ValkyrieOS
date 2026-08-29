@@ -1,0 +1,79 @@
+= EFI Boot Process
+
+:toc: left
+:icons: font
+:sectlinks:
+
+See also: link:index.html[Main Boot Page], link:bios-boot.html[BIOS Boot Process], link:../roadmap.html[Roadmap]
+
+NOTE: The EFI boot path is a *planned design* only. Source stubs exist at
+`boot/efi/x86_64/` and `boot/efi/aarch64/`, but no EFI bootloader is
+functional yet. i686 has no EFI target.
+
+[cols="1,1,4,3",options="header"]
+|===
+|Phase |Component |Description |Mechanism / UEFI Protocol
+
+|Preparation
+|GPT partitioning
+|The disk must use a GUID Partition Table. The bootloader lives in the EFI System Partition (ESP).
+|Hardware standard (GPT); FAT32 filesystem.
+
+|Entry
+|EFI main
+|The entry point of the loader receives a handle to the loaded image and a pointer to the system table.
+|`EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys)`
+
+|System info
+|Memory map
+|UEFI maintains a more detailed memory map than BIOS. The bootloader retrieves it and later calls ExitBootServices to take ownership.
+|`GetMemoryMap()` via Boot Services.
+
+|Graphics
+|GOP (Graphics Output)
+|UEFI has no VGA. The bootloader requests a pointer to the linear framebuffer to draw pixels.
+|EFI_GRAPHICS_OUTPUT_PROTOCOL
+
+|File access
+|Simple file system
+|The firmware already provides a FAT32 driver, so the bootloader only needs to open the kernel file.
+|EFI_SIMPLE_FILE_SYSTEM_PROTOCOL
+
+|Kernel prep
+|Memory allocation
+|The loader allocates specific memory pages for the kernel segments.
+|`AllocatePages()` with `AllocateAddress`.
+
+|Handoff
+|Exit boot services
+|*CRITICAL:* shuts down the firmware drivers and gives the kernel full control of the CPU.
+|`ExitBootServices()`
+
+|Transition
+|Virtual mapping
+|Optional but common: UEFI runs in identity-mapped long mode; the loader may set up its own page tables here.
+|MOV CR3, <table_address>
+
+|Handoff
+|Final jump
+|UEFI already runs in 64-bit (or 32-bit) mode, so the loader can call the kernel entry point directly.
+|`((void (*)(BOOT_Info *))kernel_entry)(s_bootInfo);`
+|===
+
+== Current Implementation Status
+
+The EFI bootloader is not yet implemented. Source stubs exist at `boot/efi/x86_64/` and `boot/efi/aarch64/` (license headers only); there is no `boot/efi/i686/` target. The table above describes the intended design.
+
+== Revision History
+
+=== v2.1
+
+Rewrote the table in the project style, corrected the implementation status (stubs exist for x86_64 and aarch64 only; i686 has no EFI target) and removed informal wording.
+
+=== v2.0
+
+Added implementation status section
+
+=== v1.0
+
+Initial EFI boot process documentation

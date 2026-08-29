@@ -1,0 +1,60 @@
+= Bootloader Documentation
+:toc: left
+:icons: font
+:sectlinks:
+
+See also: link:../index.html[Home], link:../devel.html[Developer Guide], link:../roadmap.html[Roadmap]
+
+This is the documentation about the bootloader of Valecium OS.
+
+== Current Status
+
+The custom bootloader is under development. Currently:
+
+* **BIOS i686 stage1** (`boot/bios/i686/boot.S`): MBR bootsector that loads stage2 via INT 13h LBA, with El Torito no-emulation support — **implemented**
+* **BIOS i686 stage2** (`boot/bios/i686/core.S`, `detect.S`, `boot/bios/main.c`): hardware detection (Multiboot2 info structure), A20 gate, GDT, protected mode switch, video setup (VBE/VGA/VGA text/UART), corefs filesystem init, dynamic loading of stage3 and boot configuration parsing — **implemented**, but kernel loading is not yet implemented
+* **BIOS x86_64** (`boot/bios/x86_64/`): Stub only
+* **EFI x86_64 / aarch64** (`boot/efi/`): Stubs only; i686 has no EFI target
+* **Stage3** (`libTheBootloader-<version>_<buildconfig>.so`): Dynamically loaded shared object providing filesystem access, the boot configuration parser and the boot menu — **implemented**
+* **corefs modules** (`corefs_fat.bin`, `corefs_ext2.bin`, `corefs_iso9660.bin`): Standalone filesystem driver modules, linked at `0x90000` and merged into the boot image at install time — **implemented**
+
+The default boot method uses **GRUB** (installed from the host system), which handles kernel loading via multiboot. The custom bootloader (`BootSystem=system`) is built and boots into its menu, but does not yet load the kernel.
+
+== Boot Processes
+
+* link:bios-boot.html[BIOS Boot Process] — How the BIOS loads stage1, stage2 and stage3
+* link:efi-boot.html[EFI Boot Process] — Planned design for the EFI boot path
+* link:corefs.html[Filesystem Driver Installation] — How the corefs driver modules are built and merged into the boot image
+
+== Build
+
+The bootloader is built via SCons:
+
+[source,bash]
+----
+scons BootType=bootloader
+# or as part of the full build:
+scons BootSystem=system
+----
+
+Output (in `build/<arch>_<config>/boot/`):
+
+* `boot.bin` — Stage1 MBR boot sector (raw binary, 512 bytes)
+* `core.bin` — Stage2 protected mode loader (raw binary, includes the stage3 buffer)
+* `corefs_fat.bin`, `corefs_ext2.bin`, `corefs_iso9660.bin` — Filesystem driver modules (one is merged into the boot image)
+* `libTheBootloader-<version>_<buildconfig>.so` — Stage3, dynamically loaded by stage2
+* `boot.efi` — EFI bootloader (stub, not yet functional)
+
+== Revision History
+
+=== v3.0
+
+Rewritten to match the current implementation: stage2 now initializes the corefs filesystem modules, loads stage3 (`libTheBootloader.so`) as a dynamic shared object and parses the boot configuration. Corrected the EFI architecture list (x86_64/aarch64 only) and the build outputs. Removed the obsolete allowed-boot-setups table.
+
+=== v2.0
+
+Updated for v0.28: added current status section describing actual implementation state, build instructions, output files
+
+=== v1.0
+
+Added the boot process maps.

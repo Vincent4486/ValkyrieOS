@@ -13,7 +13,7 @@ Valecium OS is a Unix-like, multi-architecture operating system kernel designed 
 * **Want to contribute code?** → See link:devel.html[Developer Guide]
 * **Want to try running it?** → See link:usage/index.html[Usage Guides]
 * **Curious about the architecture?** → See link:kernel/index.html[Kernel Documentation]
-* **Know about the boot process?** → See link:bootloader/index.html[Bootloader Documentation]
+* **Know about the boot process?** → See link:boot/index.html[Bootloader Documentation]
 
 == Project Overview
 
@@ -37,7 +37,7 @@ These documents cover everything needed to participate in Valecium OS developmen
 
 * **link:devel.html[devel.ad]** — Coding standards, naming conventions, assembly strategy, and git workflow
 * **link:kernel/index.html[kernel/index.ad]** — Deep dives into kernel subsystems, memory management, scheduling, and device drivers
-* **link:bootloader/index.html[bootloader/index.ad]** — Understand how does the legacy BIOS and new UEFI boot works
+* **link:boot/index.html[boot/index.ad]** — Understand how does the legacy BIOS and new UEFI boot works
 * **link:roadmap.html[roadmap.ad]** — Planned features, known limitations, and architectural goals
 
 New contributors should start with **devel.ad** to understand the project's coding standards and build system.
@@ -66,7 +66,7 @@ Building applications or utilities for Valecium OS?
 | Running on QEMU | link:usage/index.html[usage/index.ad]
 | Contributing patches | link:devel.html[devel.ad]
 | Supported architectures | link:kernel/arch.html[kernel/arch.ad]
-| BIOS and EFI boot | link:bootloader/index.html[bootloader/index.ad]
+| BIOS and EFI boot | link:boot/index.html[boot/index.ad]
 | Syscall reference | link:kernel/syscall.html[kernel/syscall.ad]
 | Filesystem stack | link:kernel/fs.html[kernel/fs.ad]
 | Crypto subsystem | link:kernel/index.html[kernel/index.ad]

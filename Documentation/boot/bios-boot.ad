@@ -1,0 +1,105 @@
+= Boot Process for BIOS
+
+:toc: left
+:icons: font
+:sectlinks:
+:data-uri:
+
+See also: link:index.html[Main Boot Page], link:efi-boot.html[EFI Boot Process], link:../roadmap.html[Roadmap]
+
+[cols="1,1,4,3",options="header"]
+|===
+|Phase |Component |Description |Mechanism
+
+|Stage 1
+|Boot sector
+|The first 512 bytes of the disk, loaded by the BIOS at `0x7C00`. Loads stage2 from the sectors that follow it, or jumps straight to stage2 when booted via El Torito no-emulation (stage1 and stage2 are then loaded as one contiguous block).
+|INT 13h AH=42h (LBA via DAP); stage2 LBA/count patched in at install time; "VLSC" signature check for El Torito; `0xAA55` signature.
+
+|Stage 2
+|Memory detection
+|Queries the BIOS for usable RAM regions and builds a Multiboot2 Boot Information structure at `0x6000` (basic memory info, boot device, memory map and framebuffer tags). The BIOS drive list is collected at `0x5100`.
+|INT 15h, EAX=0xE820; INT 12h; Multiboot2 tags.
+
+|Stage 2
+|A20 gate
+|Enables the A20 line so memory above 1 MB can be addressed.
+|Fast A20 via I/O port 0x92.
+
+|Stage 2
+|Video setup
+|Detects the available outputs (VBE, VGA graphics, VGA text, UART serial) and selects the preferred one. A VBE framebuffer is reported to stage2 through the Multiboot2 framebuffer tag.
+|VESA BIOS Extensions via INT 10h (real mode), framebuffer info in the MBI.
+
+|Transition
+|GDT setup
+|Defines a Global Descriptor Table with flat 4 GB code and data segments.
+|LGDT instruction.
+
+|Transition
+|Protected mode switch
+|Flips the CPU from 16-bit real mode to 32-bit protected mode and sets up a stack at `0x9FC00`.
+|Set bit 0 of CR0; far jump to flush the pipeline.
+
+|Stage 2
+|Filesystem init
+|Initializes the filesystem driver module (corefs) with the BIOS drive list and the partition label/UUID patched in at install time. The driver probes the partition table (MBR/GPT), finds the matching partition and mounts it.
+|`Initialize()` from the corefs exports table at `0x90000`; DISK_Read/DISK_ReadLBA callbacks via a real-mode thunk.
+
+|Stage 3
+|Dynamic loading
+|Reads `/boot/libTheBootloader-<version>_<config>.so` through the corefs filesystem into a 512 KB buffer, patches the "VLSO" callback structure and resolves the ELF relocations in place.
+|corefs Open/Read/Close; ELF `.dynsym`/`.symtab` plus SHT_REL (GLOB_DAT, JMP_SLOT, RELATIVE).
+
+|Stage 3
+|Boot menu
+|Parses `/boot/TheBootloader.conf` (profiles, default entry, timeout) and draws the boot menu.
+|Configuration lexer, parser and validator in `boot/common/conf/`.
+
+|Future
+|Kernel loading
+|Load the kernel ELF and hand control over to it. Not yet implemented.
+|Planned; see `boot/TODO`.
+|===
+
+== Memory Map
+
+The BIOS boot path lives entirely in the first megabyte of conventional
+memory. The map below is not to scale: region sizes are proportional to
+their footprint, with small regions enlarged so they stay legible.
+
+image::bios-boot-memory-map.png[BIOS/i686 conventional-memory map during boot]
+
+Key addresses:
+
+* `0x7C00` — stage1 boot sector (El Torito load address)
+* `0x7E00` — stage2 (`core.bin`)
+* `0xE900` — `stage3_buf[512 KB]`, the DL-loaded `.so` buffer
+* `0x90000` — corefs module (filesystem + disk I/O), above the `.so` buffer
+* `0x9FC00` — stage2 stack (grows down)
+* `0x100000` — kernel load (future)
+
+== Current Implementation Status
+
+* Stage 1: Full MBR bootsector with LBA INT 13h support, El Torito no-emulation detection and metadata patching via the "VLSP" signature
+* Stage 2: A20 gate, GDT, protected mode switch, video output (VBE/VGA/VGA text/UART), corefs filesystem init, stage3 dynamic loading and configuration parsing — implemented; stops at the boot menu
+* Stage 3: Implemented as `libTheBootloader.so` (filesystem access, config parsing, boot menu)
+* Kernel loading and the final handoff: Not yet implemented
+
+== Revision History
+
+=== v3.0
+
+Rewritten to match the current implementation: stage3 is now a dynamically loaded shared object loaded through the corefs filesystem, video setup is implemented, and the obsolete "kernel at 0xa00000" handoff rows were replaced by the actual flow. Memory map addresses verified against the built images.
+
+=== v2.1
+
+Added memory map section and diagram (`bios-boot-memory-map.png`)
+
+=== v2.0
+
+Added implementation status section, corrected table formatting
+
+=== v1.0
+
+Initial BIOS boot process documentation

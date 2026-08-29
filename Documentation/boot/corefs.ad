@@ -1,0 +1,220 @@
+= corefs Filesystem Driver Installation
+
+:toc: left
+:icons: font
+:sectlinks:
+
+See also: link:index.html[Main Boot Page], link:bios-boot.html[BIOS Boot Process]
+
+== Motivation
+
+Stage2 (`core.bin`) needs filesystem access to locate and load stage3
+(`libTheBootloader.so`) from the boot media. The filesystem on the boot
+media (FAT32, ext2, ISO 9660, ...) is not known until image build time,
+and stage2 does not want to carry every driver.
+
+The solution is install-time composition: the build compiles each
+filesystem driver into its own standalone binary (`corefs_<fs>.bin`),
+linked at a fixed address, and the image builder appends the chosen
+module to the boot image and patches its location into stage2 -- no
+relocations, no runtime search.
+
+== Overview
+
+```
+ Build-time (SCons)                    Image build (Python)
+ +--------------------------------+    +--------------------------------+
+ | boot/common/fs/fat.c           |    | stage1 boot.bin                |
+ |  + disk.S (real-mode thunk)    |    | stage2 core.bin               |
+ |  + mbr.c, gpt.c (partition)    |    |  + "VLSF" patched with        |
+ |  -> link at 0x90000            |    |    corefs address,            |
+ |  -> corefs_fat.bin             |    |    partition label, UUID      |
+ |                                |    |  + corefs_<fs>.bin appended   |
+ | boot/common/fs/ext2.c          |    |    (padded to land at 0x90000)|
+ |  -> corefs_ext2.bin            |    |  -> bootable disk image / ISO |
+ | boot/common/fs/iso9660.c       |    +--------------------------------+
+ |  -> corefs_iso9660.bin         |
+ +--------------------------------+
+```
+
+The image builder is `scripts/disk_builder.py` for MBR/GPT disk images
+and `scripts/scons/disk.py` (`CreateBootableIso`) for El Torito ISO
+images.
+
+== Driver Export Table
+
+Each driver exports its operations in a dedicated `.exports` section,
+which the linker script (`corefs.ld`) places at the very start of the
+module:
+
+[source,ld]
+----
+SECTIONS
+{
+    . = 0x90000;
+
+    .exports : AT(0) { *(.exports*) }
+    .text    : { *(.text*) *(.rodata*) *(.data*) }
+    .bss (NOLOAD) : { *(.bss*) }
+}
+----
+
+The export table is a const struct of function pointers, filled in at
+link time with absolute addresses (the module is linked for its final
+address, so no relocations survive):
+
+[source,c]
+----
+static const FatOperations fs_exports
+    __attribute__((section(".exports"), used)) = {
+        .Initialize = corefs_Initialize,
+        .Open = corefs_Open,
+        .Read = corefs_Read,
+        .Close = corefs_Close,
+        .DISK_Read = DISK_Read,
+        .DISK_ReadLBA = DISK_ReadLBA,
+};
+----
+
+All three drivers (FAT, ext2, ISO 9660) export the same six-member
+operations struct:
+
+[source,c]
+----
+struct FatOperations
+{
+   int (*Initialize)(const uint8_t *bios_drive_list, uint32_t count,
+                     const uint8_t *partition_uuid,
+                     const uint8_t *partition_label);
+   int (*Open)(const char *path);
+   int (*Read)(int fd, void *buffer, int count);
+   int (*Close)(int fd);
+   int (*DISK_Read)(uint8_t drive, uint16_t cylinder, uint8_t sector,
+                    uint8_t head, uint8_t count, void *buffer);
+   int (*DISK_ReadLBA)(uint8_t drive, uint64_t lba, uint16_t count,
+                       void *buffer);
+};
+----
+
+The `DISK_*` members come from `disk.S`: a self-contained 16-bit thunk
+(own GDT, real-mode switch, INT 13h call, switch back) shared by all
+corefs modules. Stage2 calls the driver through the pointer stored in
+`boot_params.corefs_ops`, so it never calls `DISK_*` directly.
+
+== Install-Time Patching
+
+Stage2 contains a small patch region identified by the "VLSF"
+signature. The image builder overwrites the fields after it:
+
+```
+"VLSF"  corefs load address (u32)   partition label (32 bytes)   partition UUID (16 bytes)
+  0             4                           8                             40
+```
+
+* `corefs load address` -- where the module was appended (`0x90000`); stage2 stores it in `boot_params.corefs_ops`
+* `partition label` / `partition UUID` -- the label/UUID of the boot partition, used by the driver to find its partition; for disk images they come from `blkid` after mkfs, for ISO images they are read back from the ISO Primary Volume Descriptor
+
+The module itself is appended right after stage2 and padded with zeros
+so that it starts exactly at its link address (`0x90000`), making the
+absolute addresses in its export table valid. This is done by
+`BuildStage2Blob()` in `scripts/disk_builder.py` and `CreateElTorito()`
+in `scripts/scons/bootloader.py`.
+
+== Runtime Flow
+
+```
+stage2 entry (real mode, 0x7E00)
+  |
+  +-- detect_hardware()        -- Multiboot2 info at 0x6000, drive list at 0x5100
+  |
+  +-- A20, GDT, protected mode -- stack at 0x9FC00
+  |
+  +-- build boot_params        -- mbi tags, corefs_ops ("VLSF" address),
+  |                              drive list, partition label/UUID
+  |
+  +-- main()
+        |
+        +-- corefs->Initialize(drive_list, count, uuid, label)
+        |     +-- probe partition tables (MBR/GPT) on each drive
+        |     +-- find partition matching label/UUID, mount it
+        |
+        +-- corefs->Open("/boot/libTheBootloader-<ver>_<config>.so")
+        +-- corefs->Read(...)   -- into stage3_buf (512 KB)
+        +-- corefs->Close(...)
+        |
+        +-- patch "VLSO" signature with the DL callback struct
+        +-- DL_LoadLibrary(...) -- resolve ELF relocations in place
+        +-- parse /boot/TheBootloader.conf, draw boot menu
+```
+
+The driver never touches hardware directly: all disk I/O goes through
+`DISK_Read` / `DISK_ReadLBA`, which are provided by the shared
+`disk.S` real-mode thunk. The partition probing (`mbr.c`, `gpt.c`) is
+also shared between the modules.
+
+== Layout and Constraints
+
+[width="100%",cols="3,1,4"]
+|===
+|Artifact |Link address |Description
+
+|`boot.bin`
+|`0x7C00`
+|Stage1 MBR bootsector.
+
+|`core.bin`
+|`0x7E00`
+|Stage2: real-mode detection, video setup, corefs init, stage3 dynamic loading. Contains the "VLSF" patch region.
+
+|`corefs_fat.bin` / `corefs_ext2.bin` / `corefs_iso9660.bin`
+|`0x90000`
+|Read-only filesystem driver: partition probing, directory traversal, file reads. One module per image.
+
+|`stage3_buf`
+|`0xE900` (512 KB)
+|Buffer that receives `libTheBootloader.so` before it is dynamically loaded.
+
+|Stage2 stack
+|`0x9FC00`
+|Grows down from just below the 640 KB mark.
+|===
+
+Constraints:
+
+* All corefs modules are linked at the same address (`0x90000`) because only one is ever present in a given boot image.
+* Stage2 (including its 512 KB stage3 buffer) must fit between `0x7E00` and `0x90000` (~545 KB).
+* The corefs module must fit between `0x90000` and the stack at `0x9FC00` (roughly 63 KB; current modules are about 8-12 KB).
+* The driver runs with real-mode BIOS services available (via the `disk.S` thunk) because `DISK_Read` ultimately issues INT 13h.
+
+== Alternatives Considered
+
+=== Partial linking at install time
+Linking `core.o` together with the chosen driver at image build time.
+Rejected because it requires the cross-linker on the machine that
+builds the image.
+
+=== Loading the driver from raw disk sectors at runtime
+Storing the driver in dedicated sectors next to stage2 and reading it
+at runtime (like stage1 loads stage2). Rejected because it adds boot
+media layout complexity for no gain: the driver fits comfortably inside
+the boot image.
+
+=== Function-address patch table ("VLPT") + Python bundler
+An earlier design where core_common.bin carried a patch table of
+function addresses ("VLPT") and a `bundle_core.py` script copied the
+driver's entry points into it. Superseded by the current approach, which
+appends the whole module at its link address and patches only its base
+address, the partition label and the partition UUID into stage2.
+
+== Revision History
+
+=== v2.0
+
+Rewritten to match the implemented corefs mechanism: whole-module
+append at `0x90000` with "VLSF" patching (address, label, UUID) instead
+of the earlier "VLPT" function-address patch table and `bundle_core.py`.
+The old design is kept under Alternatives Considered.
+
+=== v1.0
+
+Initial documentation of the install-time FS driver composition mechanism.
