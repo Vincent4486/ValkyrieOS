@@ -1,4 +1,4 @@
-name: Build and Deploy Documentatin to Server
+name: Build and Deploy Documentation to Server
 
 on:
   push:
