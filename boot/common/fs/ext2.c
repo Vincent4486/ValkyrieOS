@@ -7,6 +7,7 @@
 #include <logging.h>
 #include <status.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 
 typedef struct Ext2File Ext2File;
@@ -815,6 +816,7 @@ static int check_partition(uint8_t bios_drive, int part_lba,
    return 1;
 }
 
+DL_INC
 int EXT2_Initialize(const uint8_t *bios_drive_list,
                     uint32_t bios_drive_list_count,
                     const uint8_t *partition_uuid,
@@ -903,6 +905,7 @@ int EXT2_Initialize(const uint8_t *bios_drive_list,
    return drive_id;
 }
 
+DL_INC
 int EXT2_Open(int drive_id, const char *path)
 {
    Ext2Drive *drive;
@@ -958,6 +961,7 @@ int EXT2_Open(int drive_id, const char *path)
    return fd;
 }
 
+DL_INC
 int EXT2_Read(int drive_id, int fd, void *buffer, int count)
 {
    Ext2Drive *drive;
@@ -1024,6 +1028,7 @@ int EXT2_Read(int drive_id, int fd, void *buffer, int count)
    return (int)bytes_done;
 }
 
+DL_INC
 int EXT2_Close(int drive_id, int fd)
 {
    Ext2Drive *drive;

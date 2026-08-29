@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 
 typedef struct MBR_PartitionEntry MBR_PartitionEntry;
@@ -34,6 +35,7 @@ extern int DISK_ReadLBA(uint8_t drive, uint64_t lba, uint16_t count,
 #define logfmt g_DlCallbackOps->logfmt
 #endif
 
+DL_INC
 bool MBR_Probe(int drive_id)
 {
    uint8_t sector[512];
@@ -46,6 +48,7 @@ bool MBR_Probe(int drive_id)
    return (sig == MBR_SIGNATURE);
 }
 
+DL_INC
 int MBR_List(int drive_id, int **offset)
 {
    uint8_t sector[512];

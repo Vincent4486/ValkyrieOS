@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 
 typedef struct GptHeader GptHeader;
@@ -95,6 +96,7 @@ static bool gpt_lba_to_chs(uint64_t lba, uint16_t *cylinder, uint8_t *head,
    return true;
 }
 
+DL_INC
 bool GPT_Probe(int drive_id)
 {
    uint8_t sector[GPT_SECTOR_SIZE];
@@ -109,6 +111,7 @@ bool GPT_Probe(int drive_id)
    return gpt_signature_valid(sector);
 }
 
+DL_INC
 int GPT_List(int drive_id, int **offsets_out)
 {
    static int offsets[GPT_MAX_ENTRIES];

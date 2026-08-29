@@ -7,6 +7,7 @@
 #include <logging.h>
 #include <status.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 
 typedef struct FatFile FatFile;
@@ -849,6 +850,7 @@ static int check_partition(uint8_t bios_drive, int part_lba,
    return 1;
 }
 
+DL_INC
 int FAT_Initialize(const uint8_t *bios_drive_list,
                    uint32_t bios_drive_list_count,
                    const uint8_t *partition_uuid,
@@ -922,6 +924,7 @@ int FAT_Initialize(const uint8_t *bios_drive_list,
    return drive_id;
 }
 
+DL_INC
 int FAT_Open(int drive_id, const char *path)
 {
    FatDrive *drive;
@@ -1020,6 +1023,7 @@ int FAT_Open(int drive_id, const char *path)
    return fd;
 }
 
+DL_INC
 int FAT_Read(int drive_id, int fd, void *buffer, int count)
 {
    FatDrive *drive;
@@ -1122,6 +1126,7 @@ int FAT_Read(int drive_id, int fd, void *buffer, int count)
    return (int)bytes_done;
 }
 
+DL_INC
 int FAT_Close(int drive_id, int fd)
 {
    FatDrive *drive;

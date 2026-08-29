@@ -5,7 +5,9 @@
 #include <logging.h>
 
 #include <dl/callback.h>
+#include <dl/bindgen.h>
 
+DL_INC
 void LOGO_GetValecium(uint32_t *width, uint32_t *height,
                       const uint8_t **palette, uint32_t *palette_size,
                       const uint8_t **data)
@@ -17,6 +19,7 @@ void LOGO_GetValecium(uint32_t *width, uint32_t *height,
    *data = s_ValeciumLogo_Data4bpp;
 }
 
+DL_INC
 void LOGO_DrawOnScreen()
 {
    uint32_t scr_w = g_DlCallbackOps->Video_GetWidth();

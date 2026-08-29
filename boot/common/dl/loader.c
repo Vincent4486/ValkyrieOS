@@ -6,6 +6,7 @@
 #include <bits.h>
 #include <status.h>
 
+#include <dl/bindgen.h>
 #include <dl/loader.h>
 
 typedef struct Elf32Ehdr Elf32Ehdr;
@@ -212,6 +213,7 @@ static void *vaddr_to_ptr(void *file_data, ElfShdr *shdr, int shnum,
    return NULL;
 }
 
+_DL_FORCE_EXCLUDE
 void *DL_LoadLibrary(void *file_data)
 {
    unsigned char *ident = (unsigned char *)file_data;
@@ -346,6 +348,7 @@ void *DL_LoadLibrary(void *file_data)
    return h;
 }
 
+_DL_FORCE_EXCLUDE
 void *DL_LoadSymbol(void *handle, const char *symbol)
 {
    DlHandle *h = (DlHandle *)handle;

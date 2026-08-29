@@ -6,6 +6,7 @@
 #include <logging.h>
 #include <status.h>
 
+#include <dl/bindgen.h>
 #include <dl/callback.h>
 
 typedef struct Iso9660File Iso9660File;
@@ -436,6 +437,7 @@ static int resolve_path(Iso9660Drive *drive, const char *path,
    return 0;
 }
 
+DL_INC
 int ISO9660_Initialize(const uint8_t *bios_drive_list,
                        uint32_t bios_drive_list_count,
                        const uint8_t *partition_uuid,
@@ -551,6 +553,7 @@ int ISO9660_Initialize(const uint8_t *bios_drive_list,
    return drive_id;
 }
 
+DL_INC
 int ISO9660_Open(int drive_id, const char *path)
 {
    uint32_t file_lba, file_size;
@@ -599,6 +602,7 @@ int ISO9660_Open(int drive_id, const char *path)
    return fd;
 }
 
+DL_INC
 int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
 {
    Iso9660Drive *drive;
@@ -659,6 +663,7 @@ int ISO9660_Read(int drive_id, int fd, void *buffer, int count)
    return (int)bytes_done;
 }
 
+DL_INC
 int ISO9660_Close(int drive_id, int fd)
 {
    Iso9660Drive *drive;
