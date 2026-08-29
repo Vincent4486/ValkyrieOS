@@ -26,9 +26,7 @@ sys.path.insert(
 from scripts.scons.arch import GetArchConfig, GetSupportedArchitectures
 
 
-# =============================================================================
 # Version Configuration
-# =============================================================================
 
 Versions = {
     "binutils": "2.45",
@@ -45,9 +43,7 @@ Urls = {
 }
 
 
-# =============================================================================
 # Helper Functions
-# =============================================================================
 
 
 def GetCpuCount() -> int:
@@ -94,9 +90,7 @@ def ExtractArchive(Archive: str, DestDir: str):
         Tar.extractall(DestDir)
 
 
-# =============================================================================
 # Build Classes
-# =============================================================================
 
 
 class ToolchainBuilder:
@@ -464,9 +458,7 @@ class ToolchainBuilder:
         return all(Path.exists() for Path in RequiredTools)
 
 
-# =============================================================================
 # Main Entry Point
-# =============================================================================
 
 
 def main():

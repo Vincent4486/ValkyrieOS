@@ -20,9 +20,7 @@ from scripts.scons.bootloader import (
 Import("TargetEnvironment")
 TargetEnvironment: Environment
 
-# =============================================================================
 # Environment Setup
-# =============================================================================
 
 MainEnvironment = TargetEnvironment.Clone()
 
@@ -54,9 +52,7 @@ MainEnvironment.Append(
     OBJPREFIX="main_",
 )
 
-# =============================================================================
 # Source Files
-# =============================================================================
 
 Sources = []
 CoreFsSources = []
@@ -73,9 +69,7 @@ SConscript(
     ],
 )
 
-# =============================================================================
 # Bootloader Components
-# =============================================================================
 
 TargetEnvironment["BootloaderComponents"]["BootType"] = BootType
 TargetEnvironment["BootloaderComponents"]["Architecture"] = Architecture
@@ -113,9 +107,7 @@ elif BootType == "efi":
 else:
     raise RuntimeError(f"Unsupported boot type: {BootType}")
 
-# =============================================================================
 # Build Target
-# =============================================================================
 
 Objects = MainEnvironment.SharedObject(Sources)
 Bootloader = MainEnvironment.SharedLibrary(BootloaderBuildConfig["OutputName"], Objects)

@@ -12,9 +12,7 @@ from scripts.scons.arch import GetArchConfig
 Import("TargetEnvironment")
 TargetEnvironment: Environment
 
-# =============================================================================
 # Usermode Environment Setup
-# =============================================================================
 
 UsermodeEnv = TargetEnvironment.Clone()
 Architecture = TargetEnvironment["BuildArch"]
@@ -40,17 +38,13 @@ UsermodeEnv.Replace(
 
 Export("UsermodeEnv")
 
-# =============================================================================
 # Build Sub-projects
-# =============================================================================
 
 SConscript("libmath/SConscript", variant_dir="libmath_build", duplicate=0)
 SConscript("sh/SConscript", variant_dir="sh_build", duplicate=0)
 SConscript("selftest/SConscript", variant_dir="selftest_build", duplicate=0)
 
-# =============================================================================
 # Export Build Products
-# =============================================================================
 
 Import("LibmathModule")
 Import("ShModule")

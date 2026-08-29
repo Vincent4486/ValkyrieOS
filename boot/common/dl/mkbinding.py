@@ -20,13 +20,8 @@ ScriptDir = os.path.dirname(os.path.abspath(__file__))
 RepoRoot = os.path.normpath(os.path.join(ScriptDir, "..", "..", ".."))
 CommonDir = os.path.join(RepoRoot, "boot", "common")
 
-# Regex matching a public function definition:
-#   return_type  FUNC_NAME (  params  )  {
-#
-# FUNC_NAME must match the convention:  PREFIX_Name  where PREFIX is
-# full caps or PascalCase (e.g. FAT_Open, DISK_Read, MBR_Probe, LOGO_GetValecium).
-# The return type may be a builtin keyword or a custom typedef'd type
-# (e.g. CONF_GlobalBoot *CONF_GetGlobal(void)).
+# Regex matching a public function definition: return_type FUNC_NAME ( params ) { FUNC_NAME must match the convention: PREFIX_Name where PREFIX is full caps or PascalCase
+# (e.g. FAT_Open, DISK_Read, MBR_Probe, LOGO_GetValecium). The return type may be a builtin keyword or a custom typedef'd type (e.g. CONF_GlobalBoot *CONF_GetGlobal(void)).
 FuncRe = re.compile(
     r"^"
     r"(?:(?:const|unsigned|signed|long|short|struct|volatile|enum|extern)\s+)*"
@@ -104,9 +99,8 @@ def ExtractFullSignature(Text: str, MatchEnd: int, CloseParen: int) -> str:
     We walk backward from MatchEnd to pick up qualifiers, then forward
     to the closing paren, and normalise whitespace.
     """
-    # Walk backwards over whitespace, '*' and qualifiers to find the
-    # beginning of the return type.  Stop at a newline that follows
-    # a complete previous statement (semicolon or '{' or blank line).
+    # Walk backwards over whitespace, '*' and qualifiers to find the beginning of the return type.
+    # Stop at a newline that follows a complete previous statement (semicolon or '{' or blank line).
     Start = MatchEnd
     while Start > 0:
         Ch = Text[Start - 1]

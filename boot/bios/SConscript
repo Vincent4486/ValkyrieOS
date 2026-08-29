@@ -28,9 +28,7 @@ LinkModeByArchitecture = {
     "x86_64": "elf_x86_64",
 }
 
-# =============================================================================
 # Generated Source Files
-# =============================================================================
 
 VideoPath = os.path.join(SourcePath, "bios", "video")
 
@@ -39,9 +37,7 @@ FontGenC = os.path.join(VideoPath, "font_gen.c")
 if os.path.exists(MkfontPath) and not os.path.exists(FontGenC):
     subprocess.run([sys.executable, MkfontPath, FontGenC], check=True)
 
-# =============================================================================
 # BIOS Source Files
-# =============================================================================
 
 CoreSources += [
     File("main.c"),
@@ -60,9 +56,7 @@ BootSector = ArchResult["BootSector"]
 CoreFsDiskSource = ArchResult["CoreFsDiskSource"]
 CoreFsLinkerScript = ArchResult["CoreFsLinkerScript"]
 
-# =============================================================================
 # Stage 1 (Boot Sector) Build
-# =============================================================================
 
 BootBin = TargetEnvironment.File("boot.bin")
 TargetEnvironment["BootloaderComponents"]["Stage1"] = BootBin
@@ -102,9 +96,7 @@ BootEnvironment.AddPostAction(
 )
 BootEnvironment.Depends(BootSectorBinary, BootLinkerScript)
 
-# =============================================================================
 # Stage 2 (Core) Build
-# =============================================================================
 
 CoreBin = TargetEnvironment.File("core.bin")
 TargetEnvironment["BootloaderComponents"]["Stage2"] = CoreBin
@@ -136,9 +128,7 @@ CoreObjects = CoreEnvironment.Object(CoreSources)
 CoreBinary = CoreEnvironment.Program(CoreBin, CoreObjects)
 CoreEnvironment.Depends(CoreBinary, CoreLinkerScript)
 
-# =============================================================================
 # Core Filesystem Modules
-# =============================================================================
 
 CoreFs = []
 if CoreFsSources:

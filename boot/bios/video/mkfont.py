@@ -8,9 +8,8 @@ Usage: mkfont.py <font_gen.c>
 
 import sys
 
-# Standard VGA 8x16 bitmap font for ASCII 0x20-0x7E.
-# Each glyph is 16 rows x 8 pixels (1 byte per row, MSB = leftmost).
-# Source: IBM VGA ROM font (public-domain equivalent).
+# Standard VGA 8x16 bitmap font for ASCII 0x20-0x7E. Each glyph is 16 rows x 8 pixels
+# (1 byte per row, MSB = leftmost). Source: IBM VGA ROM font (public-domain equivalent).
 FontData = [
     [
         0x00,

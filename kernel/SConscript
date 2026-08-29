@@ -20,9 +20,7 @@ from scripts.scons.kernel import (
 Import("TargetEnvironment")
 TargetEnvironment: Environment
 
-# =============================================================================
 # Environment Setup
-# =============================================================================
 
 KernelEnv = TargetEnvironment.Clone()
 
@@ -48,9 +46,7 @@ ConfigureKernelEnvironment(
     LinkerScript,
 )
 
-# =============================================================================
 # Generated Source Files
-# =============================================================================
 
 MkisrsPath = os.path.join(ArchitecturePath, "cpu", "mkisrs.py")
 if os.path.exists(MkisrsPath):
@@ -60,9 +56,7 @@ if os.path.exists(MkisrsPath):
     if not os.path.exists(IsrsGenC) or not os.path.exists(IsrsGenInc):
         subprocess.run([sys.executable, MkisrsPath, IsrsGenC, IsrsGenInc], check=True)
 
-# =============================================================================
 # Source Files
-# =============================================================================
 
 Sources = []
 
@@ -79,9 +73,7 @@ SConscript("std/SConscript", exports="Sources")
 SConscript("sys/SConscript", exports="Sources")
 SConscript("syscall/SConscript", exports="Sources")
 
-# =============================================================================
 # Build Target
-# =============================================================================
 
 Objects = KernelEnv.Object(Sources)
 Kernel = KernelEnv.Program(KernelBuildConfig["OutputName"], Objects)
