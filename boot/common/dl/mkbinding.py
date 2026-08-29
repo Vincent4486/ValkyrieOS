@@ -14,15 +14,13 @@ Usage: mkbinding.py <dlbind_gen.h>
 import os
 import re
 import sys
+from pathlib import Path
 
-# Root of the repo  (mkbinding.py is at boot/common/dl/mkbinding.py)
-ScriptDir = os.path.dirname(os.path.abspath(__file__))
-RepoRoot = os.path.normpath(os.path.join(ScriptDir, "..", "..", ".."))
-CommonDir = os.path.join(RepoRoot, "boot", "common")
+SCRIPT_DIR = Path(__file__).absolute().parent
+REPO_ROOT = Path(os.path.normpath(SCRIPT_DIR / ".." / ".." / ".."))
+COMMON_DIR = REPO_ROOT / "boot" / "common"
 
-# Regex matching a public function definition: return_type FUNC_NAME ( params ) { FUNC_NAME must match the convention: PREFIX_Name where PREFIX is full caps or PascalCase
-# (e.g. FAT_Open, DISK_Read, MBR_Probe, LOGO_GetValecium). The return type may be a builtin keyword or a custom typedef'd type (e.g. CONF_GlobalBoot *CONF_GetGlobal(void)).
-FuncRe = re.compile(
+FUNC_RE = re.compile(
     r"^"
     r"(?:(?:const|unsigned|signed|long|short|struct|volatile|enum|extern)\s+)*"
     r"(?:(?:int|bool|void|uint(?:8|16|32|64)_t|char|size_t|off_t|ssize_t|"
@@ -34,8 +32,7 @@ FuncRe = re.compile(
     re.MULTILINE,
 )
 
-# Return-type keywords we recognise (used for backwards-scanning).
-RetTypeKeywords = {
+RET_TYPE_KEYWORDS = {
     "int",
     "bool",
     "void",
@@ -63,83 +60,9 @@ RetTypeKeywords = {
     "enum",
 }
 
+_CORE_ONLY_SYMBOLS = {"DL_LoadLibrary", "DL_LoadSymbol"}
 
-def StripComments(Text: str) -> str:
-    """Remove C // and /* */ comments from *Text*."""
-    Text = re.sub(r"//[^\n]*", "", Text)
-    Text = re.sub(r"/\*.*?\*/", "", Text, flags=re.DOTALL)
-    return Text
-
-
-def FindMatchingParen(Text: str, Start: int) -> int:
-    """Return the index of the ')' matching the '(' at *Start*."""
-    Depth = 1
-    I = Start + 1
-    while I < len(Text) and Depth:
-        Ch = Text[I]
-        if Ch == "(":
-            Depth += 1
-        elif Ch == ")":
-            Depth -= 1
-        elif Ch in ('"', "'"):
-            # skip string/char literals
-            Delim = Ch
-            I += 1
-            while I < len(Text) and Text[I] != Delim:
-                if Text[I] == "\\":
-                    I += 1
-                I += 1
-        I += 1
-    return I - 1  # index of ')'
-
-
-def ExtractFullSignature(Text: str, MatchEnd: int, CloseParen: int) -> str:
-    """Grab the complete signature line(s) from return-type to ')'.
-
-    We walk backward from MatchEnd to pick up qualifiers, then forward
-    to the closing paren, and normalise whitespace.
-    """
-    # Walk backwards over whitespace, '*' and qualifiers to find the beginning of the return type.
-    # Stop at a newline that follows a complete previous statement (semicolon or '{' or blank line).
-    Start = MatchEnd
-    while Start > 0:
-        Ch = Text[Start - 1]
-        if Ch in " \t":
-            Start -= 1
-            continue
-        if Ch == "*":
-            Start -= 1
-            continue
-        # check if preceding word is a type keyword
-        # find the beginning of the current/previous word
-        WEnd = Start
-        while WEnd > 0 and Text[WEnd - 1].isalnum() or Text[WEnd - 1] == "_":
-            WEnd -= 1
-        Word = Text[WEnd:Start].strip()
-        if Word in RetTypeKeywords:
-            Start = WEnd
-            continue
-        break
-
-    Sig = Text[Start : CloseParen + 1]
-    # Normalise whitespace: collapse runs of spaces, remove space before ',' and ')'
-    Sig = re.sub(r"\s+", " ", Sig)
-    Sig = Sig.replace(" ,", ",").replace("( ", "(").replace(" )", ")")
-    # Ensure pointer stars attach to the type, not the name
-    Sig = re.sub(r"(\w)\s+\*", r"\1 *", Sig)
-    # Strip leading 'extern' if present
-    Sig = re.sub(r"^extern\s+", "", Sig)
-    return Sig
-
-
-def IsStatic(Text: str, MatchStart: int) -> bool:
-    """Return True if the function is preceded by 'static'."""
-    Before = Text[max(0, MatchStart - 64) : MatchStart]
-    Words = Before.split()
-    return "static" in Words
-
-_CoreOnlySymbols = {"DL_LoadLibrary", "DL_LoadSymbol"}
-_BuiltinTypeTokens = {
+_BUILTIN_TYPE_TOKENS = {
     "int", "bool", "void", "char", "size_t", "off_t", "ssize_t",
     "uint8_t", "uint16_t", "uint32_t", "uint64_t",
     "int8_t", "int16_t", "int32_t", "int64_t",
@@ -149,123 +72,170 @@ _BuiltinTypeTokens = {
 }
 
 
+def StripComments(text: str) -> str:
+    text = re.sub(r"//[^\n]*", "", text)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return text
+
+
+def FindMatchingParen(text: str, start: int) -> int:
+    depth = 1
+    i = start + 1
+    while i < len(text) and depth:
+        ch = text[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch in ('"', "'"):
+            delim = ch
+            i += 1
+            while i < len(text) and text[i] != delim:
+                if text[i] == "\\":
+                    i += 1
+                i += 1
+        i += 1
+    return i - 1
+
+
+def ExtractFullSignature(text: str, match_end: int, close_paren: int) -> str:
+    start = match_end
+    while start > 0:
+        ch = text[start - 1]
+
+        if ch in " \t":
+            start -= 1
+            continue
+
+        if ch == "*":
+            start -= 1
+            continue
+
+        w_end = start
+
+        while w_end > 0 and text[w_end - 1].isalnum() or text[w_end - 1] == "_":
+            w_end -= 1
+        
+        word = text[w_end:start].strip()
+
+        if word in RET_TYPE_KEYWORDS:
+            start = w_end
+            continue
+
+        break
+
+    sig = text[start : close_paren + 1]
+    sig = re.sub(r"\s+", " ", sig)
+    sig = sig.replace(" ,", ",").replace("( ", "(").replace(" )", ")")
+    sig = re.sub(r"(\w)\s+\*", r"\1 *", sig)
+    sig = re.sub(r"^extern\s+", "", sig)
+    return sig
+
+
+def IsStatic(text: str, match_start: int) -> bool:
+    before = text[max(0, match_start - 64) : match_start]
+    words = before.split()
+    return "static" in words
+
+
 def FindPublicFunctions() -> list[tuple[str, str]]:
-    """Walk boot/common/ and return list of (name, full_signature)."""
-    Functions: list[tuple[str, str]] = []
-    SeenNames: set[str] = set()
+    functions: list[tuple[str, str]] = []
+    seen_names: set[str] = set()
 
-    for Root, _Dirs, Files in os.walk(CommonDir):
-        for Fn in sorted(Files):
-            if not Fn.endswith(".c"):
+    for root, _dirs, files in os.walk(COMMON_DIR):
+        for fn in sorted(files):
+            if not fn.endswith(".c"):
                 continue
-            FilePath = os.path.join(Root, Fn)
-            with open(FilePath) as fh:
-                Raw = fh.read()
+            file_path = Path(root) / fn
+            with open(file_path) as fh:
+                raw = fh.read()
 
-            Text = StripComments(Raw)
-            # Also remove string literals to avoid false positives
-            Text = re.sub(r'"[^"\\]*(?:\\.[^"\\]*)*"', '""', Text)
+            text = StripComments(raw)
+            text = re.sub(r'"[^"\\]*(?:\\.[^"\\]*)*"', '""', text)
 
-            for M in FuncRe.finditer(Text):
-                Name = M.group(1)
-                MatchEnd = M.end()
-                CloseParen = FindMatchingParen(Text, MatchEnd - 1)
+            for m in FUNC_RE.finditer(text):
+                name = m.group(1)
+                match_end = m.end()
+                close_paren = FindMatchingParen(text, match_end - 1)
 
-                # Only include actual function definitions (followed by '{'),
-                # not extern declarations (which end with ';').
-                Rest = Text[CloseParen + 1 :].lstrip()
-                if not Rest.startswith("{"):
+                rest = text[close_paren + 1 :].lstrip()
+                if not rest.startswith("{"):
                     continue
 
-                # Skip static functions
-                if IsStatic(Text, M.start()):
+                if IsStatic(text, m.start()):
                     continue
 
-                # Skip core-only symbols (defined in core, not in stage3 .so)
-                if Name in _CoreOnlySymbols:
+                if name in _CORE_ONLY_SYMBOLS:
                     continue
 
-                # Skip duplicates (e.g. same name across multiple files)
-                if Name in SeenNames:
+                if name in seen_names:
                     continue
-                SeenNames.add(Name)
+                seen_names.add(name)
 
-                Sig = ExtractFullSignature(Text, M.start(), CloseParen)
-                Functions.append((Name, Sig))
+                sig = ExtractFullSignature(text, m.start(), close_paren)
+                functions.append((name, sig))
 
-    return Functions
-
-
-def CustomReturnTypes(Functions: list[tuple[str, str]]) -> set[str]:
-    """Return the set of non-builtin identifiers used in return types."""
-    Custom: set[str] = set()
-    for Name, Sig in Functions:
-        RetType = Sig[: Sig.index(Name)]
-        for Token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", RetType):
-            if Token not in _BuiltinTypeTokens:
-                Custom.add(Token)
-    return Custom
+    return functions
 
 
-def FindTypeHeaders(Types: set[str]) -> list[str]:
-    """Locate the boot/common header typedef'ing each custom type.
+def CustomReturnTypes(functions: list[tuple[str, str]]) -> set[str]:
+    custom: set[str] = set()
+    for name, sig in functions:
+        ret_type = sig[: sig.index(name)]
+        for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", ret_type):
+            if token not in _BUILTIN_TYPE_TOKENS:
+                custom.add(token)
+    return custom
 
-    Returns sorted include paths relative to boot/common (e.g. 'conf/conf.h'),
-    suitable for '#include <conf/conf.h>'.  Raises RuntimeError if a custom
-    type has no defining header under boot/common.
-    """
-    Headers: list[str] = []
-    for Root, _Dirs, Files in os.walk(CommonDir):
-        for Fn in sorted(Files):
-            if Fn.endswith(".h"):
-                Headers.append(os.path.join(Root, Fn))
 
-    Includes: set[str] = set()
-    Missing: set[str] = set(Types)
-    for TypeName in sorted(Types):
-        # Struct/enum typedef ends with '} NAME;'
-        StructRe = re.compile(r"}\s*" + re.escape(TypeName) + r"\s*;")
-        # Any typedef statement naming the type (e.g. 'typedef struct X X;')
-        TypedefRe = re.compile(
-            r"\btypedef\b[^;]*?\b" + re.escape(TypeName) + r"\s*;"
+def FindTypeHeaders(types: set[str]) -> list[str]:
+    headers: list[str] = []
+    for root, _dirs, files in os.walk(COMMON_DIR):
+        for fn in sorted(files):
+            if fn.endswith(".h"):
+                headers.append(Path(root) / fn)
+
+    includes: set[str] = set()
+    missing: set[str] = set(types)
+    for type_name in sorted(types):
+        struct_re = re.compile(r"}\s*" + re.escape(type_name) + r"\s*;")
+        typedef_re = re.compile(
+            r"\btypedef\b[^;]*?\b" + re.escape(type_name) + r"\s*;"
         )
-        for H in Headers:
-            with open(H) as fh:
-                Text = fh.read()
-            if StructRe.search(Text) or TypedefRe.search(Text):
-                Rel = os.path.relpath(H, CommonDir)
-                Includes.add(Rel.replace(os.sep, "/"))
-                Missing.discard(TypeName)
+        for h in headers:
+            with open(h) as fh:
+                text = fh.read()
+            if struct_re.search(text) or typedef_re.search(text):
+                rel = h.relative_to(COMMON_DIR)
+                includes.add(str(rel).replace(os.sep, "/"))
+                missing.discard(type_name)
                 break
 
-    if Missing:
+    if missing:
         raise RuntimeError(
             "mkbinding: no boot/common header defines custom return type(s): "
-            + ", ".join(sorted(Missing))
+            + ", ".join(sorted(missing))
         )
-    return sorted(Includes)
+    return sorted(includes)
 
 
-def FunctionPointerDecl(Sig: str, Name: str) -> str:
-    """Turn 'int FAT_Open(const char *path)' into 'int (*FAT_Open)(const char *path)'."""
-    Idx = Sig.index(Name)
-    RetType = Sig[:Idx].strip()
-    Params = Sig[Idx + len(Name) :].strip()  # e.g. "(const char *path)"
-    return f"{RetType} (*{Name}){Params}"
+def FunctionPointerDecl(sig: str, name: str) -> str:
+    idx = sig.index(name)
+    ret_type = sig[:idx].strip()
+    params = sig[idx + len(name) :].strip()
+    return f"{ret_type} (*{name}){params}"
 
 
-def FunctionPointerType(Sig: str, Name: str) -> str:
-    """Cast-only form: 'int FAT_Open(const char *path)' -> 'int (*)(const char *path)'."""
-    Idx = Sig.index(Name)
-    RetType = Sig[:Idx].strip()
-    Params = Sig[Idx + len(Name) :].strip()
-    return f"{RetType} (*){Params}"
+def FunctionPointerType(sig: str, name: str) -> str:
+    idx = sig.index(name)
+    ret_type = sig[:idx].strip()
+    params = sig[idx + len(name) :].strip()
+    return f"{ret_type} (*){params}"
 
 
-def GenerateHeader(Functions: list[tuple[str, str]],
-                   TypeIncludes: list[str]) -> str:
-    """Produce the complete dlbind_gen.h content."""
-    Lines = [
+def GenerateHeader(functions: list[tuple[str, str]],
+                   type_includes: list[str]) -> str:
+    lines = [
         "// !!! THIS FILE IS AUTOGENERATED by mkbinding.py !!!",
         "#pragma once",
         "",
@@ -274,21 +244,20 @@ def GenerateHeader(Functions: list[tuple[str, str]],
         "#include <stdint.h>",
         "#include <dl/loader.h>",
     ]
-    for Inc in TypeIncludes:
-        Lines.append(f"#include <{Inc}>")
-    Lines += [
+    for inc in type_includes:
+        lines.append(f"#include <{inc}>")
+    lines += [
         "",
         "// MainBootOperations \u2013 one-shot resolved struct of bootloader function pointers.",
         "typedef struct MainBootOperations",
         "{",
     ]
 
-    # --- struct members ---
-    for Name, Sig in Functions:
-        Fp = FunctionPointerDecl(Sig, Name)
-        Lines.append(f"    {Fp};")
+    for name, sig in functions:
+        fp = FunctionPointerDecl(sig, name)
+        lines.append(f"    {fp};")
 
-    Lines += [
+    lines += [
         "} MainBootOperations;",
         "",
         "#ifdef DL_RESOLVE",
@@ -302,15 +271,14 @@ def GenerateHeader(Functions: list[tuple[str, str]],
         "    g_MainBootOperations = (MainBootOperations){0};",
     ]
 
-    # --- dlsym calls ---
-    for Name, _Sig in Functions:
-        FpType = FunctionPointerType(_Sig, Name)
-        Lines.append(
-            f'    g_MainBootOperations.{Name} = ({FpType})DL_LoadSymbol(handle, "{Name}");'
+    for name, _sig in functions:
+        fp_type = FunctionPointerType(_sig, name)
+        lines.append(
+            f'    g_MainBootOperations.{name} = ({fp_type})DL_LoadSymbol(handle, "{name}");'
         )
-        Lines.append(f"    if (!g_MainBootOperations.{Name}) return -1;")
+        lines.append(f"    if (!g_MainBootOperations.{name}) return -1;")
 
-    Lines += [
+    lines += [
         "    return 0;",
         "}",
         "",
@@ -322,7 +290,7 @@ def GenerateHeader(Functions: list[tuple[str, str]],
         "",
     ]
 
-    return "\n".join(Lines) + "\n"
+    return "\n".join(lines) + "\n"
 
 
 def main():
@@ -330,17 +298,17 @@ def main():
         print(f"Usage: {sys.argv[0]} <dlbind_gen.h>", file=sys.stderr)
         sys.exit(1)
 
-    OutH = sys.argv[1]
+    out_h = sys.argv[1]
 
-    Functions = FindPublicFunctions()
-    Functions.sort(key=lambda t: t[0])
+    functions = FindPublicFunctions()
+    functions.sort(key=lambda t: t[0])
 
-    TypeIncludes = FindTypeHeaders(CustomReturnTypes(Functions))
+    type_includes = FindTypeHeaders(CustomReturnTypes(functions))
 
-    Header = GenerateHeader(Functions, TypeIncludes)
+    header = GenerateHeader(functions, type_includes)
 
-    with open(OutH, "w") as f:
-        f.write(Header)
+    with open(out_h, "w") as f:
+        f.write(header)
 
 
 if __name__ == "__main__":

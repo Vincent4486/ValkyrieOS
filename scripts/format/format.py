@@ -14,178 +14,145 @@ from pathlib import Path
 
 
 # File extensions to format
-SourceExtensions = {".c", ".h"}
-PythonExtensions = {".py"}
-SconsFilenames = {"SConstruct", "SConscript"}
+SOURCE_EXTENSIONS = {".c", ".h"}
+PYTHON_EXTENSIONS = {".py"}
+SCONS_FILENAMES = {"SConstruct", "SConscript"}
 
-RuffConfigPath = Path(__file__).resolve().parent.parent / "format" / "ruff.toml"
-ClangConfigPath = (
+RUFF_CONFIG_PATH = Path(__file__).resolve().parent.parent / "format" / "ruff.toml"
+CLANG_CONFIG_PATH = (
     Path(__file__).resolve().parent.parent / "format" / "clang-format.yaml"
 )
 
 # Directories to skip
-SkipDirs = {"build", "toolchain", ".git", "__pycache__", "node_modules"}
+SKIP_DIRS = {"build", "toolchain", ".git", "__pycache__", "node_modules"}
 
 
-def ClassifyFile(Filepath: str):
-    """Classify a file for clang-format or ruff."""
-    Name = Path(Filepath).name
-    Ext = Path(Filepath).suffix.lower()
-    if Ext in SourceExtensions:
+def ClassifyFile(filepath: str):
+    name = Path(filepath).name
+    ext = Path(filepath).suffix.lower()
+    if ext in SOURCE_EXTENSIONS:
         return "clang"
-    if Ext in PythonExtensions or Name in SconsFilenames:
+    if ext in PYTHON_EXTENSIONS or name in SCONS_FILENAMES:
         return "ruff"
     return None
 
 
-def FindSourceFiles(RootDir: str) -> dict:
-    """Find all supported source files in a directory tree.
+def FindSourceFiles(root_dir: str) -> dict:
+    files = {"clang": [], "ruff": []}
 
-    Args:
-        RootDir: Root directory to search
-
-    Returns:
-        Dict with keys "clang" and "ruff"
-    """
-    Files = {"clang": [], "ruff": []}
-
-    for DirPath, DirNames, FileNames in os.walk(RootDir):
+    for dir_path, dir_names, file_names in os.walk(root_dir):
         # Remove directories to skip
-        DirNames[:] = [d for d in DirNames if d not in SkipDirs]
+        dir_names[:] = [d for d in dir_names if d not in SKIP_DIRS]
 
-        for FileName in FileNames:
-            FilePath = os.path.join(DirPath, FileName)
-            Kind = ClassifyFile(FilePath)
-            if Kind:
-                Files[Kind].append(FilePath)
+        for file_name in file_names:
+            file_path = Path(dir_path) / file_name
+            kind = ClassifyFile(file_path)
+            if kind:
+                files[kind].append(file_path)
 
-    return Files
+    return files
 
 
 def FormatCFiles(
-    Files: list,
-    Formatter: str = "clang-format",
-    ConfigPath: Path = None,
-    CheckOnly: bool = False,
-    Verbose: bool = False,
+    files: list,
+    formatter: str = "clang-format",
+    config_path: Path = None,
+    check_only: bool = False,
+    verbose: bool = False,
 ) -> int:
-    """Format C/header files using clang-format.
-
-    Args:
-        Files: List of file paths to format
-        Formatter: Formatter command name
-        ConfigPath: Path to a .clang-format config file
-        CheckOnly: If True, only check formatting without modifying
-        Verbose: Print each file being processed
-
-    Returns:
-        0 if successful, 1 if changes needed (CheckOnly) or errors
-    """
-    if not Files:
+    if not files:
         print("No C/header files found.")
         return 0
 
     # Build command
-    Cmd = [Formatter]
-    if ConfigPath and ConfigPath.is_file():
-        Cmd.extend(["--style", f"file:{ConfigPath}"])
-    if CheckOnly:
-        Cmd.extend(["--dry-run", "--Werror"])
+    cmd = [formatter]
+    if config_path and config_path.is_file():
+        cmd.extend(["--style", f"file:{config_path}"])
+    if check_only:
+        cmd.extend(["--dry-run", "--Werror"])
     else:
-        Cmd.append("-i")
+        cmd.append("-i")
 
-    Errors = 0
+    errors = 0
 
-    for FilePath in Files:
-        if Verbose:
-            Action = "Checking" if CheckOnly else "Formatting"
-            print(f"{Action}: {FilePath}")
+    for file_path in files:
+        if verbose:
+            action = "Checking" if check_only else "Formatting"
+            print(f"{action}: {file_path}")
 
-        Result = subprocess.run(Cmd + [FilePath], capture_output=True)
-        if Result.returncode != 0:
-            Errors += 1
-            if CheckOnly:
-                print(f"Needs formatting: {FilePath}")
+        result = subprocess.run(cmd + [file_path], capture_output=True)
+        if result.returncode != 0:
+            errors += 1
+            if check_only:
+                print(f"Needs formatting: {file_path}")
             else:
-                print(f"Error formatting: {FilePath}")
-                if Result.stderr:
-                    print(Result.stderr.decode())
+                print(f"Error formatting: {file_path}")
+                if result.stderr:
+                    print(result.stderr.decode())
 
-    if CheckOnly:
-        if Errors > 0:
-            print(f"\n{Errors} file(s) need formatting.")
+    if check_only:
+        if errors > 0:
+            print(f"\n{errors} file(s) need formatting.")
             return 1
         else:
             print("All C/header files properly formatted.")
             return 0
     else:
-        if Errors > 0:
-            print(f"\n{Errors} file(s) had errors.")
+        if errors > 0:
+            print(f"\n{errors} file(s) had errors.")
             return 1
         else:
-            print(f"Formatted {len(Files)} C/header file(s).")
+            print(f"Formatted {len(files)} C/header file(s).")
             return 0
 
 
 def FormatPythonFiles(
-    Files: list,
-    Formatter: str = "ruff",
-    ConfigPath: Path = None,
-    CheckOnly: bool = False,
-    Verbose: bool = False,
+    files: list,
+    formatter: str = "ruff",
+    config_path: Path = None,
+    check_only: bool = False,
+    verbose: bool = False,
 ) -> int:
-    """Format Python/SCons files using ruff.
-
-    Args:
-        Files: List of file paths to format
-        Formatter: Formatter command name
-        ConfigPath: Path to ruff.toml config
-        CheckOnly: If True, only check formatting without modifying
-        Verbose: Print each file being processed
-
-    Returns:
-        0 if successful, 1 if changes needed (CheckOnly) or errors
-    """
-    if not Files:
+    if not files:
         print("No Python/SCons files found.")
         return 0
 
-    Cmd = [Formatter, "format"]
-    if ConfigPath:
-        Cmd.extend(["--config", str(ConfigPath)])
-    if CheckOnly:
-        Cmd.append("--check")
+    cmd = [formatter, "format"]
+    if config_path:
+        cmd.extend(["--config", str(config_path)])
+    if check_only:
+        cmd.append("--check")
 
-    Errors = 0
+    errors = 0
 
-    for FilePath in Files:
-        if Verbose:
-            Action = "Checking" if CheckOnly else "Formatting"
-            print(f"{Action}: {FilePath}")
+    for file_path in files:
+        if verbose:
+            action = "Checking" if check_only else "Formatting"
+            print(f"{action}: {file_path}")
 
-        Result = subprocess.run(Cmd + [FilePath], capture_output=True)
-        if Result.returncode != 0:
-            Errors += 1
-            if CheckOnly:
-                print(f"Needs formatting: {FilePath}")
+        result = subprocess.run(cmd + [file_path], capture_output=True)
+        if result.returncode != 0:
+            errors += 1
+            if check_only:
+                print(f"Needs formatting: {file_path}")
             else:
-                print(f"Error formatting: {FilePath}")
-            if Result.stderr:
-                print(Result.stderr.decode())
+                print(f"Error formatting: {file_path}")
+            if result.stderr:
+                print(result.stderr.decode())
 
-    if CheckOnly:
-        if Errors > 0:
-            print(f"\n{Errors} file(s) need formatting.")
+    if check_only:
+        if errors > 0:
+            print(f"\n{errors} file(s) need formatting.")
             return 1
         else:
             print("All Python/SCons files properly formatted.")
             return 0
     else:
-        if Errors > 0:
-            print(f"\n{Errors} file(s) had errors.")
+        if errors > 0:
+            print(f"\n{errors} file(s) had errors.")
             return 1
         else:
-            print(f"Formatted {len(Files)} Python/SCons file(s).")
+            print(f"Formatted {len(files)} Python/SCons file(s).")
             return 0
 
 
@@ -216,46 +183,52 @@ def main():
         help="Formatter command (default: clang-format)",
     )
 
-    Args = parser.parse_args()
+    args = parser.parse_args()
 
     # Collect all files to format
-    ClangFiles = []
-    RuffFiles = []
-    for Path in Args.paths:
-        if os.path.isfile(Path):
-            Kind = ClassifyFile(Path)
-            if Kind == "clang":
-                ClangFiles.append(Path)
-            elif Kind == "ruff":
-                RuffFiles.append(Path)
+    clang_files = []
+    ruff_files = []
+    for path in map(Path, args.paths):
+        if path.is_file():
+            kind = ClassifyFile(path)
+            if kind == "clang":
+                clang_files.append(path)
+            elif kind == "ruff":
+                ruff_files.append(path)
             else:
-                print(f"Warning: Unsupported file type: {Path}", file=sys.stderr)
-        elif os.path.isdir(Path):
-            Found = FindSourceFiles(Path)
-            ClangFiles.extend(Found["clang"])
-            RuffFiles.extend(Found["ruff"])
+                print(f"Warning: Unsupported file type: {path}", file=sys.stderr)
+        elif path.is_dir():
+            found = FindSourceFiles(path)
+            clang_files.extend(found["clang"])
+            ruff_files.extend(found["ruff"])
         else:
-            print(f"Warning: Path not found: {Path}", file=sys.stderr)
+            print(f"Warning: Path not found: {path}", file=sys.stderr)
 
-    if not ClangFiles and not RuffFiles:
+    if not clang_files and not ruff_files:
         print("No files to format.")
         sys.exit(0)
 
-    CResult = FormatCFiles(
-        Files=ClangFiles,
-        Formatter=Args.formatter,
-        ConfigPath=ClangConfigPath,
-        CheckOnly=Args.check,
-        Verbose=Args.verbose,
+    c_result = FormatCFiles(
+        files=clang_files,
+        formatter=args.formatter,
+        config_path=CLANG_CONFIG_PATH,
+        check_only=args.check,
+        verbose=args.verbose,
     )
-    RuffResult = FormatPythonFiles(
-        Files=RuffFiles,
-        ConfigPath=RuffConfigPath if RuffConfigPath.is_file() else None,
-        CheckOnly=Args.check,
-        Verbose=Args.verbose,
+    ruff_result = FormatPythonFiles(
+        files=ruff_files,
+        config_path=RUFF_CONFIG_PATH,
+        check_only=args.check,
+        verbose=args.verbose,
     )
 
-    sys.exit(1 if (CResult != 0 or RuffResult != 0) else 0)
+    if c_result != 0:
+        print(f"Cannot format C files, failed with code {c_result}.", file=sys.stderr)
+        sys.exit(result)
+
+    if ruff_result != 0:
+        print(f"Cannot format Python files, failed with code {ruff_result}.", file=sys.stderr)
+        sys.exit(result)
 
 
 if __name__ == "__main__":

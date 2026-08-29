@@ -10,7 +10,7 @@ import sys
 
 # Standard VGA 8x16 bitmap font for ASCII 0x20-0x7E. Each glyph is 16 rows x 8 pixels
 # (1 byte per row, MSB = leftmost). Source: IBM VGA ROM font (public-domain equivalent).
-FontData = [
+FONT_DATA = [
     [
         0x00,
         0x00,
@@ -1724,11 +1724,10 @@ FontData = [
 ]
 
 
-def FormatCArray(Data, Width=16):
-    """Format bytes as a C literal."""
+def FormatCArray(data, width=16):
     lines = []
-    for i in range(0, len(Data), Width):
-        chunk = Data[i : i + Width]
+    for i in range(0, len(data), width):
+        chunk = data[i : i + width]
         hex_str = ", ".join(f"0x{b:02X}" for b in chunk)
         lines.append(f"    {hex_str},")
     return "\n".join(lines)
@@ -1742,7 +1741,7 @@ def main():
     output = sys.argv[1]
 
     glyph_lines = []
-    for glyph in FontData:
+    for glyph in FONT_DATA:
         glyph_lines.append("    { " + ", ".join(f"0x{b:02X}" for b in glyph) + " },")
 
     glyph_block = "\n".join(glyph_lines)

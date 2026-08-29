@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
 """
 Dependency installer for Valecium OS development.
@@ -16,31 +15,31 @@ import tarfile
 import urllib.request
 from pathlib import Path
 
-Dependencies = {
+DEPENDENCIES = {
     "debian": {
         "packages": [
-            # === Core Build Tools ===
+            # Core Build Tools
             "build-essential",
             "gcc",
             "g++",
             "make",
-            # === Development Libraries (Required for Toolchain Build) ===
+            # Development Libraries (Required for Toolchain Build)
             "libmpfr-dev",
             "libgmp-dev",
             "libmpc-dev",
-            # === Python & Scripting ===
+            # Python & Scripting
             "python3",
             "python3-pil",
             "scons",
-            # === Boot & Image Creation ===
+            # Boot & Image Creation
             "xorriso",
             "grub-pc-bin",
-            # === Emulation & Debugging ===
+            # Emulation & Debugging
             "qemu-system-x86",
             "qemu-system-aarch64",
-            # === Code Quality ===
+            # Code Quality
             "clang-format",
-            # === Documentation ===
+            # Documentation
             "pandoc",
             "asciidoctor",
             "texinfo",
@@ -50,32 +49,32 @@ Dependencies = {
     },
     "fedora": {
         "packages": [
-            # === Core Build Tools ===
+            # Core Build Tools
             "gcc",
             "gcc-c++",
             "make",
-            # === Development Libraries (Required for Toolchain Build) ===
+            # Development Libraries (Required for Toolchain Build)
             "mpfr-devel",
             "gmp-devel",
             "libmpc-devel",
-            # === Python & Scripting ===
+            # Python & Scripting
             "python3",
             "python3-pip",
             "scons",
             "bash",
             "grep",
             "coreutils",
-            # === Boot & Image Creation ===
+            # Boot & Image Creation
             "xorriso",
             "grub2-tools",
             "grub2-tools-extra",
-            # === Emulation & Debugging ===
+            # Emulation & Debugging
             "qemu-system-x86",
             "qemu-system-aarch64",
             "gdb",
-            # === Code Quality ===
+            # Code Quality
             "clang-tools-extra",
-            # === Documentation ===
+            # Documentation
             "pandoc",
             "asciidoctor",
             "texinfo",
@@ -85,31 +84,31 @@ Dependencies = {
     },
     "arch": {
         "packages": [
-            # === Core Build Tools ===
+            # Core Build Tools
             "base-devel",
             "gcc",
             "make",
-            # === Development Libraries (Required for Toolchain Build) ===
+            # Development Libraries (Required for Toolchain Build)
             "mpfr",
             "gmp",
             "libmpc",
-            # === Python & Scripting ===
+            # Python & Scripting
             "python",
             "python-pip",
             "scons",
             "bash",
             "grep",
             "coreutils",
-            # === Boot & Image Creation ===
+            # Boot & Image Creation
             "xorriso",
             "grub",
-            # === Emulation & Debugging ===
+            # Emulation & Debugging
             "qemu-system-x86",
             "qemu-system-aarch64",
             "gdb",
-            # === Code Quality ===
+            # Code Quality
             "clang",
-            # === Documentation ===
+            # Documentation
             "pandoc",
             "asciidoctor",
             "texinfo",
@@ -119,32 +118,32 @@ Dependencies = {
     },
     "suse": {
         "packages": [
-            # === Core Build Tools ===
+            # Core Build Tools
             "gcc",
             "gcc-c++",
             "make",
-            # === Development Libraries (Required for Toolchain Build) ===
+            # Development Libraries (Required for Toolchain Build)
             "mpfr-devel",
             "gmp-devel",
             "libmpc-devel",
-            # === Python & Scripting ===
+            # Python & Scripting
             "python3",
             "python3-pip",
             "scons",
             "bash",
             "grep",
             "coreutils",
-            # === Boot & Image Creation ===
+            # Boot & Image Creation
             "xorriso",
             "grub2",
             "grub2-i386-pc",
-            # === Emulation & Debugging ===
+            # Emulation & Debugging
             "qemu-x86",
             "qemu-system-aarch64",
             "gdb",
-            # === Code Quality ===
+            # Code Quality
             "clang",
-            # === Documentation ===
+            # Documentation
             "pandoc",
             "asciidoctor",
             "texinfo",
@@ -154,31 +153,31 @@ Dependencies = {
     },
     "alpine": {
         "packages": [
-            # === Core Build Tools ===
+            # Core Build Tools
             "build-base",
             "gcc",
             "make",
-            # === Development Libraries (Required for Toolchain Build) ===
+            # Development Libraries (Required for Toolchain Build)
             "mpfr-dev",
             "mpc1-dev",
             "gmp-dev",
-            # === Python & Scripting ===
+            # Python & Scripting
             "python3",
             "py3-pip",
             "scons",
             "bash",
             "grep",
             "coreutils",
-            # === Boot & Image Creation ===
+            # Boot & Image Creation
             "xorriso",
             "grub",
-            # === Emulation & Debugging ===
+            # Emulation & Debugging
             "qemu-system-x86_64",
             "qemu-system-aarch64",
             "gdb",
-            # === Code Quality ===
+            # Code Quality
             "clang",
-            # === Documentation ===
+            # Documentation
             "pandoc",
             "asciidoctor",
             "texinfo",
@@ -190,41 +189,35 @@ Dependencies = {
 
 
 def GetCpuCount() -> int:
-    """Get number of CPUs for parallel runtime builds."""
     return multiprocessing.cpu_count()
 
 
 def RunCommand(
-    Cmd: list, Cwd: str = None, Env: dict = None
+    cmd: list, cwd: str = None, env: dict = None
 ) -> subprocess.CompletedProcess:
-    """Run a command with logging."""
-    print(f"$ {' '.join(Cmd)}")
-    MergedEnv = os.environ.copy()
-    if Env:
-        MergedEnv.update(Env)
-    return subprocess.run(Cmd, cwd=Cwd, env=MergedEnv, check=True)
+    print(f"$ {' '.join(cmd)}")
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    return subprocess.run(cmd, cwd=cwd, env=merged_env, check=True)
 
 
-def DownloadFile(Url: str, Dest: Path):
-    """Download a file if it does not already exist."""
-    if Dest.exists():
-        print(f"Already downloaded: {Dest.name}")
+def DownloadFile(url: str, dest: Path):
+    if dest.exists():
+        print(f"Already downloaded: {dest.name}")
         return
 
-    print(f"Downloading: {Url}")
-    urllib.request.urlretrieve(Url, str(Dest))
+    print(f"Downloading: {url}")
+    urllib.request.urlretrieve(url, str(dest))
 
 
-def ExtractArchive(Archive: Path, DestDir: Path):
-    """Extract a source archive if needed."""
-    print(f"Extracting: {Archive.name}")
-    with tarfile.open(Archive) as Tar:
-        Tar.extractall(str(DestDir))
+def ExtractArchive(archive: Path, dest_dir: Path):
+    print(f"Extracting: {archive.name}")
+    with tarfile.open(archive) as tar:
+        tar.extractall(str(dest_dir))
 
 
 def DetectDistro() -> str:
-    """Detect the Linux distribution family."""
-    # Check for package managers
     if shutil.which("apt-get"):
         return "debian"
     elif shutil.which("dnf"):
@@ -239,62 +232,50 @@ def DetectDistro() -> str:
         return "alpine"
 
     # Fallback: check /etc/os-release
-    if os.path.exists("/etc/os-release"):
+    if Path("/etc/os-release").exists():
         with open("/etc/os-release") as f:
-            Content = f.read().lower()
-            if "debian" in Content or "ubuntu" in Content:
+            content = f.read().lower()
+            if "debian" in content or "ubuntu" in content:
                 return "debian"
-            elif "fedora" in Content or "rhel" in Content or "centos" in Content:
+            elif "fedora" in content or "rhel" in content or "centos" in content:
                 return "fedora"
-            elif "arch" in Content:
+            elif "arch" in content:
                 return "arch"
-            elif "suse" in Content:
+            elif "suse" in content:
                 return "suse"
-            elif "alpine" in Content:
+            elif "alpine" in content:
                 return "alpine"
 
     return None
 
 
-def InstallDependencies(Distro: str, DryRun: bool = False, UseSudo: bool = True) -> int:
-    """Install dependencies for the specified distribution.
-
-    Args:
-        Distro: Distribution family name
-        DryRun: If True, only print commands without executing
-        UseSudo: If True, prefix commands with sudo
-
-    Returns:
-        0 on success, non-zero on error
-    """
-    if Distro not in Dependencies:
-        print(f"Error: Unknown distribution: {Distro}", file=sys.stderr)
-        print(f"Supported: {', '.join(Dependencies.keys())}", file=sys.stderr)
+def InstallDependencies(distro: str, dry_run: bool = False, use_sudo: bool = True) -> int:
+    if distro not in DEPENDENCIES:
+        print(f"Error: Unknown distribution: {distro}", file=sys.stderr)
+        print(f"Supported: {', '.join(DEPENDENCIES.keys())}", file=sys.stderr)
         return 1
 
-    Config = Dependencies[Distro]
-    Packages = Config["packages"]
+    config = DEPENDENCIES[distro]
+    packages = config["packages"]
 
-    def RunCmd(Cmd):
-        if UseSudo and os.geteuid() != 0:
-            Cmd = ["sudo"] + Cmd
+    def RunCmd(cmd):
+        if use_sudo and os.geteuid() != 0:
+            cmd = ["sudo"] + cmd
 
-        print(f"$ {' '.join(Cmd)}")
-        if not DryRun:
-            return subprocess.call(Cmd)
+        print(f"$ {' '.join(cmd)}")
+        if not dry_run:
+            return subprocess.call(cmd)
         return 0
 
-    # Update package lists if needed
-    if Config["update_cmd"]:
-        Result = RunCmd(Config["update_cmd"])
-        if Result != 0 and not DryRun:
-            return Result
+    if config["update_cmd"]:
+        result = RunCmd(config["update_cmd"])
+        if result != 0 and not dry_run:
+            return result
 
-    # Install packages
-    InstallCmd = Config["install_cmd"] + Packages
-    Result = RunCmd(InstallCmd)
+    install_cmd = config["install_cmd"] + packages
+    result = RunCmd(install_cmd)
 
-    return Result
+    return result
 
 
 def main():
@@ -306,7 +287,7 @@ def main():
     parser.add_argument(
         "-d",
         "--distro",
-        choices=list(Dependencies.keys()),
+        choices=list(DEPENDENCIES.keys()),
         help="Force specific distribution (auto-detected by default)",
     )
     parser.add_argument(
@@ -341,37 +322,39 @@ def main():
         help="Skip confirmation prompt (for non-interactive use)",
     )
 
-    Args = parser.parse_args()
+    args = parser.parse_args()
 
     # Detect or use specified distro
-    Distro = Args.distro or DetectDistro()
-    if not Distro:
+    distro = args.distro or DetectDistro()
+    if not distro:
         print("Error: Could not detect Linux distribution.", file=sys.stderr)
         print("Please specify with --distro", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Distribution: {Distro}")
+    print(f"Distribution: {distro}")
 
-    if Args.list:
-        print(f"\nPackages for {Distro}:")
-        for Pkg in Dependencies[Distro]["packages"]:
-            print(f"  - {Pkg}")
+    if args.list:
+        print(f"\nPackages for {distro}:")
+        for pkg in DEPENDENCIES[distro]["packages"]:
+            print(f"  - {pkg}")
         sys.exit(0)
 
     print()
-    if not Args.dry_run and not Args.yes:
-        UserResponse = input("Install dependencies? [y/N] ").strip().lower()
-        if UserResponse not in ("y", "yes"):
+    if not args.dry_run and not args.yes:
+        user_response = input("Install dependencies? [y/N] ").strip().lower()
+        if user_response not in ("y", "yes"):
             print("Cancelled.")
             sys.exit(0)
 
-    sys.exit(
-        InstallDependencies(
-            Distro=Distro,
-            DryRun=Args.dry_run,
-            UseSudo=not Args.no_sudo,
-        )
+    result = InstallDependencies(
+        distro=distro,
+        dry_run=args.dry_run,
+        use_sudo=not args.no_sudo,
     )
+
+    if result != 0:
+        print(f"Installation failed with code {result}", file=sys.stderr)
+        sys.exit(result)
 
 
 if __name__ == "__main__":
