@@ -2,7 +2,7 @@
 
 SECTIONS
 {
-    . = 0x57E00;
+    . = 0x90000;
 
     .exports : AT(0)
     {

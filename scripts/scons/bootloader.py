@@ -42,7 +42,7 @@ CoreFsPatchOffset = 4
 CoreFsPartitionLabelOffset = 8
 CoreFsPartitionUuidOffset = CoreFsPartitionLabelOffset + 32
 ElToritoLoadAddress = 0x7C00
-CoreFsLoadAddress = 0x57E00
+CoreFsLoadAddress = 0x90000
 
 
 def GetSupportedBootTypes() -> list:
