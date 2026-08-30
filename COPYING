@@ -28,6 +28,14 @@ override the global fallback:
     - SPDX-License-Identifier: GPL-3.0-only
     - Full Text: LICENSES/GPL-3.0.txt
 
+- `boot/` (The Valecium Bootloader "TheBootloader")
+    - SPDX-License-Identifier: GPL-3.0-only
+    - Full Text: LICENSES/GPL-3.0.txt
+
+- `usr/` (The Valecium Usermode Programs)
+    - SPDX-License-Identifier: GPL-3.0-only
+    - Full Text: LICENSES/GPL-3.0.txt
+
 - `Documentation/` (Project Manuals and Text)
     - SPDX-License-Identifier: CC-BY-SA-4.0
     - Full Text: LICENSES/CC-BY-SA-4.0.txt
