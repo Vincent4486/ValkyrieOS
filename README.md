@@ -130,6 +130,5 @@ Project licensing summary is in [`COPYING`](COPYING). Individual license texts a
 
 If you find a bug or want to request a feature, open an issue on the GitHub repository and include:
 
-- Target architecture/config
 - Build command used
 - Relevant logs or reproduction steps
